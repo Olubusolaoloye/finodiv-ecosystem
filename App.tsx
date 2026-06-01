@@ -51,6 +51,7 @@ const App: React.FC = () => {
   const [role, setRole] = useState<UserRole>(UserRole.GUEST);
   const [userId, setUserId] = useState<string | null>(null);
   const [authEmail, setAuthEmail] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const [walletAddress, setWalletAddress] = useState<string | null>(
     () => localStorage.getItem(WALLET_KEY)
   );
@@ -86,13 +87,14 @@ const App: React.FC = () => {
     const loadProfile = async (uid: string, email: string | null) => {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role, wallet_address')
+        .select('role, wallet_address, name')
         .eq('id', uid)
         .maybeSingle();
 
       setUserId(uid);
       setAuthEmail(email);
       setRole((profile?.role as UserRole) || UserRole.LEARNER);
+      setDisplayName(profile?.name || email?.split('@')[0] || null);
       if (profile?.wallet_address) {
         setWalletAddress(profile.wallet_address);
         localStorage.setItem(WALLET_KEY, profile.wallet_address);
@@ -134,6 +136,7 @@ const App: React.FC = () => {
         setRole(UserRole.GUEST);
         setUserId(null);
         setAuthEmail(null);
+        setDisplayName(null);
         setAuthReady(true);
       }
     });
@@ -223,6 +226,7 @@ const App: React.FC = () => {
           onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
           userId={effectiveUserId}
           authEmail={authEmail}
+          displayName={displayName}
         />
 
         <div className="flex flex-1 overflow-hidden relative">
