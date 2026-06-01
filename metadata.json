@@ -1,0 +1,8 @@
+{
+  "name": "FINODIV - Web3 Learning & Hiring Ecosystem",
+  "description": "A comprehensive Web3-powered platform for learning blockchain skills, earning NFT certificates, and hiring top-tier verified talent.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
