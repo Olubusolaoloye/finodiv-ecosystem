@@ -5,7 +5,7 @@ import { supabase } from '../services/supabase';
 import {
   Send, Pin, ShieldCheck, Trash2, X, Loader2,
   Plus, Hash, Users, LogIn, LogOut as LeaveIcon, Check,
-  TrendingUp, DollarSign, Globe, AlertCircle,
+  TrendingUp, DollarSign, Globe, AlertCircle, ImagePlus, XCircle,
 } from 'lucide-react';
 
 interface CommunityProps { role: UserRole; }
@@ -22,6 +22,7 @@ interface ChatRoom {
 interface Message {
   id: string;
   content: string;
+  image_url?: string | null;
   is_pinned: boolean;
   created_at: string;
   user_id: string;
@@ -74,6 +75,12 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
   const [showPinned, setShowPinned]       = useState(true);
   const [joiningId, setJoiningId]         = useState<string | null>(null);
   const [toastMsg, setToastMsg]           = useState<string | null>(null);
+
+  /* image upload */
+  const [imageFile,    setImageFile]    = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadingImg, setUploadingImg] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   /* admin create-room modal */
   const [showCreate, setShowCreate]   = useState(false);
@@ -146,7 +153,7 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
     setMessages([]);
     const { data, error } = await supabase
       .from('community_messages')
-      .select('id, content, is_pinned, created_at, user_id, profiles(name, role, avatar_url)')
+      .select('id, content, image_url, is_pinned, created_at, user_id, profiles(name, role, avatar_url)')
       .eq('channel', room.slug)
       .order('created_at', { ascending: true })
       .limit(200);
@@ -170,7 +177,7 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
           /* Fetch full row with profiles JOIN now that SELECT is public */
           const { data } = await supabase
             .from('community_messages')
-            .select('id, content, is_pinned, created_at, user_id, profiles(name, role, avatar_url)')
+            .select('id, content, image_url, is_pinned, created_at, user_id, profiles(name, role, avatar_url)')
             .eq('id', payload.new.id).single();
           if (data) {
             setMessages(prev => prev.some(m => m.id === (data as any).id)
@@ -232,24 +239,64 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
     setRooms(prev => prev.map(r => r.id === room.id ? { ...r, memberCount: Math.max(0, (r.memberCount ?? 1) - 1) } : r));
   };
 
+  /* ── Image select ─────────────────────────────────────────────────────── */
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast('Image must be under 5 MB.'); return; }
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onload = ev => setImagePreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+    // reset input so same file can be re-selected
+    e.target.value = '';
+  };
+
+  const clearImage = () => { setImageFile(null); setImagePreview(null); };
+
   /* ── Send message ──────────────────────────────────────────────────────── */
   const handleSend = async () => {
-    if (!inputValue.trim() || !currentUser || !activeRoom || sending) return;
+    const hasText  = inputValue.trim().length > 0;
+    const hasImage = imageFile !== null;
+    if ((!hasText && !hasImage) || !currentUser || !activeRoom || sending) return;
+
     const content = inputValue.trim();
     setInputValue('');
     setSending(true);
 
+    /* Upload image first if present */
+    let image_url: string | null = null;
+    if (imageFile) {
+      setUploadingImg(true);
+      const ext  = imageFile.name.split('.').pop() ?? 'jpg';
+      const path = `${currentUser.id}/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('chat-images')
+        .upload(path, imageFile, { contentType: imageFile.type, upsert: false });
+      setUploadingImg(false);
+      clearImage();
+      if (upErr) {
+        console.error('image upload:', upErr);
+        toast(`Image upload failed: ${upErr.message}`);
+        setSending(false);
+        if (content) setInputValue(content);
+        return;
+      }
+      const { data: urlData } = supabase.storage.from('chat-images').getPublicUrl(path);
+      image_url = urlData.publicUrl;
+    }
+
     const { data, error } = await supabase
       .from('community_messages')
-      .insert({ user_id: currentUser.id, channel: activeRoom.slug, content })
-      .select('id, content, is_pinned, created_at, user_id, profiles(name, role, avatar_url)')
+      .insert({ user_id: currentUser.id, channel: activeRoom.slug, content: content || '', image_url })
+      .select('id, content, image_url, is_pinned, created_at, user_id, profiles(name, role, avatar_url)')
       .single();
 
     setSending(false);
 
     if (error) {
       console.error('send message:', error);
-      setInputValue(content); // restore so they don't lose their text
+      if (content) setInputValue(content); // restore so they don't lose their text
       toast(`Message not sent: ${error.message}`);
       return;
     }
@@ -496,13 +543,29 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
                                   <span className="text-[9px] text-slate-400 dark:text-gray-600">{formatTime(msg.created_at)}</span>
                                 </div>
                                 <div className={`
-                                  relative px-4 py-3 rounded-[20px] group/bubble
+                                  relative rounded-[20px] group/bubble overflow-hidden
                                   ${own
                                     ? 'bg-blue-600 text-white rounded-tr-sm shadow-lg shadow-blue-500/10'
                                     : 'bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 text-slate-800 dark:text-gray-200 rounded-tl-sm shadow-sm dark:shadow-none'}
                                   ${msg.is_pinned ? 'ring-2 ring-blue-500/40' : ''}
                                 `}>
-                                  <p className="text-sm leading-relaxed break-words">{msg.content}</p>
+                                  {/* Image */}
+                                  {msg.image_url && (
+                                    <a href={msg.image_url} target="_blank" rel="noopener noreferrer">
+                                      <img
+                                        src={msg.image_url}
+                                        alt="shared image"
+                                        className="max-w-[280px] w-full object-cover rounded-t-[20px] block"
+                                        style={{ maxHeight: 320 }}
+                                      />
+                                    </a>
+                                  )}
+                                  {/* Text */}
+                                  {msg.content && (
+                                    <p className="text-sm leading-relaxed break-words px-4 py-3">{msg.content}</p>
+                                  )}
+                                  {/* Image-only padding */}
+                                  {msg.image_url && !msg.content && <div className="h-1" />}
                                   {isAdmin && (
                                     <div className={`absolute top-1 opacity-0 group-hover/bubble:opacity-100 transition-all flex items-center gap-0.5 p-1 bg-white dark:bg-black/80 backdrop-blur-md rounded-xl border border-slate-200 dark:border-white/10 shadow-lg z-10 ${own ? 'right-full mr-2' : 'left-full ml-2'}`}>
                                       <button onClick={() => togglePin(msg.id, msg.is_pinned)}
@@ -529,7 +592,41 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
             </div>
 
             {/* Input */}
-            <div className="p-4 border-t border-slate-200 dark:border-white/5 bg-white dark:bg-[#0b0e14] shrink-0">
+            <div className="border-t border-slate-200 dark:border-white/5 bg-white dark:bg-[#0b0e14] shrink-0">
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                className="hidden"
+                onChange={handleImageSelect}
+              />
+
+              {/* Image preview strip */}
+              {imagePreview && (
+                <div className="px-4 pt-3">
+                  <div className="relative inline-block">
+                    <img
+                      src={imagePreview}
+                      alt="preview"
+                      className="h-24 w-auto rounded-2xl object-cover border-2 border-blue-400/40 shadow-lg"
+                    />
+                    <button
+                      onClick={clearImage}
+                      className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg hover:bg-red-600 transition-colors"
+                    >
+                      <XCircle className="w-4 h-4" />
+                    </button>
+                    {uploadingImg && (
+                      <div className="absolute inset-0 bg-black/50 rounded-2xl flex items-center justify-center">
+                        <Loader2 className="w-6 h-6 text-white animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="p-4">
               {!currentUser ? (
                 <p className="text-center py-3 text-sm text-slate-400 dark:text-gray-600">Sign in to participate in the conversation</p>
               ) : !isMember ? (
@@ -545,6 +642,15 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
                 </div>
               ) : (
                 <div className={`flex items-center gap-3 bg-slate-100 dark:bg-white/5 border rounded-2xl px-4 py-2 transition-all ${sending ? 'border-blue-400 dark:border-blue-500/50' : 'border-slate-200 dark:border-white/10 hover:border-blue-400 dark:hover:border-blue-500/30'}`}>
+                  {/* Image upload button */}
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={sending}
+                    title="Attach image"
+                    className={`p-1.5 rounded-lg transition-all shrink-0 ${imageFile ? 'text-blue-500 bg-blue-50 dark:bg-blue-500/20' : 'text-slate-400 dark:text-gray-600 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10'} disabled:opacity-40`}
+                  >
+                    <ImagePlus className="w-4 h-4" />
+                  </button>
                   <input
                     type="text"
                     value={inputValue}
@@ -554,8 +660,11 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
                     disabled={sending}
                     className="flex-1 bg-transparent border-none outline-none py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 disabled:opacity-50"
                   />
-                  <button onClick={handleSend} disabled={!inputValue.trim() || sending}
-                    className={`p-2 rounded-xl transition-all shrink-0 ${inputValue.trim() && !sending ? 'bg-blue-600 text-white hover:bg-blue-500 shadow-md shadow-blue-500/20' : 'text-slate-300 dark:text-gray-700 cursor-not-allowed'}`}>
+                  <button
+                    onClick={handleSend}
+                    disabled={(!inputValue.trim() && !imageFile) || sending}
+                    className={`p-2 rounded-xl transition-all shrink-0 ${(inputValue.trim() || imageFile) && !sending ? 'bg-blue-600 text-white hover:bg-blue-500 shadow-md shadow-blue-500/20' : 'text-slate-300 dark:text-gray-700 cursor-not-allowed'}`}
+                  >
                     {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   </button>
                 </div>
@@ -563,6 +672,7 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
               <p className="text-[10px] text-center text-slate-300 dark:text-gray-700 font-bold uppercase tracking-widest mt-2">
                 Be respectful · No spam · Follow community guidelines
               </p>
+              </div>
             </div>
           </>
         )}
