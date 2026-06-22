@@ -89,13 +89,13 @@ const JoinAs: React.FC<JoinAsProps> = ({ onSelect }) => {
         </div>
 
         <div className="w-full max-w-md flex flex-col items-center gap-6">
-          <button 
+          <button
             disabled={!selected}
-            onClick={() => selected && onSelect(selected)}
+            onClick={() => { window.location.hash = '#/login'; }}
             className={`
               w-full py-6 rounded-3xl font-black text-xl transition-all shadow-2xl
-              ${selected 
-                ? 'bg-blue-600 text-white shadow-blue-500/30 hover:scale-105 active:scale-95' 
+              ${selected
+                ? 'bg-blue-600 text-white shadow-blue-500/30 hover:scale-105 active:scale-95'
                 : 'bg-white/5 text-gray-700 cursor-not-allowed'}
             `}
           >
@@ -103,7 +103,13 @@ const JoinAs: React.FC<JoinAsProps> = ({ onSelect }) => {
           </button>
 
           <p className="text-sm text-gray-500 font-medium">
-            Already a member? <span className="text-blue-400 cursor-pointer hover:underline font-black">Sign In instead</span>
+            Already a member?{' '}
+            <span
+              className="text-blue-400 cursor-pointer hover:underline font-black"
+              onClick={() => { window.location.hash = '#/login'; }}
+            >
+              Sign In instead
+            </span>
           </p>
         </div>
       </div>
