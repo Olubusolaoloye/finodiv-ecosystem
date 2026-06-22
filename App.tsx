@@ -243,6 +243,9 @@ const App: React.FC = () => {
                 isOpen={isSidebarOpen}
                 setIsOpen={setIsSidebarOpen}
                 onLogout={logout}
+                displayName={displayName}
+                authEmail={authEmail}
+                userId={userId}
               />
             </>
           )}

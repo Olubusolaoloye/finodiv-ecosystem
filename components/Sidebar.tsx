@@ -24,9 +24,12 @@ interface SidebarProps {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
   onLogout: () => void;
+  displayName?: string | null;
+  authEmail?: string | null;
+  userId?: string | null;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, setIsOpen, onLogout }) => {
+const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, setIsOpen, onLogout, displayName, authEmail, userId }) => {
   const learnerLinks = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: Compass, label: 'Career Compass', path: '/career-compass' },
@@ -95,11 +98,19 @@ const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, setIsOpen, onLogout }) 
         {isOpen && (
           <div className="bg-slate-50 dark:bg-white/5 rounded-2xl p-4 flex items-center gap-3 relative overflow-hidden border border-slate-200 dark:border-transparent">
              {role === UserRole.ADMIN && <div className="absolute top-0 right-0 w-2 h-full bg-blue-500/30 blur-sm"></div>}
-            <img src="https://i.pravatar.cc/100?u=current" alt="Avatar" className="w-10 h-10 rounded-xl object-cover" />
+            {userId ? (
+              <img src={`https://i.pravatar.cc/100?u=${userId}`} alt="Avatar" className="w-10 h-10 rounded-xl object-cover shrink-0" />
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                {(displayName || authEmail || 'U').charAt(0).toUpperCase()}
+              </div>
+            )}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold truncate text-slate-900 dark:text-white">Alex Morgan</p>
+              <p className="text-sm font-semibold truncate text-slate-900 dark:text-white">
+                {displayName || authEmail?.split('@')[0] || 'User'}
+              </p>
               <div className="flex items-center gap-2">
-                 <p className="text-[10px] text-slate-500 dark:text-gray-500 truncate lowercase">alex.m@finodiv.com</p>
+                 <p className="text-[10px] text-slate-500 dark:text-gray-500 truncate">{authEmail || ''}</p>
                  {role === UserRole.ADMIN && <ShieldCheck className="w-3 h-3 text-blue-400 shrink-0" />}
               </div>
             </div>
