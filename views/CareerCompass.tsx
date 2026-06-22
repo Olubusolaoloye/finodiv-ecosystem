@@ -74,7 +74,7 @@ const CareerCompass: React.FC = () => {
             your perfect career — with real freelance rates and platforms.
           </p>
           <div className="flex flex-wrap justify-center gap-3 mb-12 text-xs font-black uppercase tracking-widest">
-            {['ZK / L2', 'AI + Web3', 'Security Auditing', 'On-Chain Gaming', 'DeFi Research'].map(tag => (
+            {['ZK / L2', 'RWA Tokenization', 'MEV / Searcher', 'AI + Web3', 'Security Auditing', 'DevRel', 'DeFi Research'].map(tag => (
               <span key={tag} className="px-3 py-1.5 rounded-full bg-blue-500/10 dark:bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400">
                 {tag}
               </span>
@@ -88,7 +88,7 @@ const CareerCompass: React.FC = () => {
             <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
           </button>
           <p className="mt-6 text-xs text-slate-400 dark:text-gray-600 font-bold uppercase tracking-widest">
-            {totalSteps} questions · ~3 minutes · 12 career paths
+            {totalSteps} questions · ~3 minutes · 15 career paths
           </p>
         </div>
       </div>

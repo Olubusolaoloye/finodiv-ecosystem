@@ -120,7 +120,7 @@ const Home: React.FC<HomeProps> = ({ onJoin }) => {
             <Logo className="w-6 h-6 grayscale" />
             <span className="text-lg font-bold">FINODIV</span>
           </div>
-          <p className="text-sm text-gray-600">© 2024 FINODIV. All rights reserved.</p>
+          <p className="text-sm text-gray-600">© 2026 FINODIV. All rights reserved.</p>
           <div className="flex items-center gap-6 opacity-40">
             <span className="hover:text-white cursor-pointer transition-colors">Twitter</span>
             <span className="hover:text-white cursor-pointer transition-colors">Discord</span>

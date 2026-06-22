@@ -1,19 +1,42 @@
-
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { UserRole } from '../types';
 import { supabase } from '../services/supabase';
 import {
-  Mail, Lock, Eye, EyeOff, Wallet, Zap, Loader2,
-  Key, AlertCircle, CheckCircle2, User, ArrowRight,
+  Mail, Lock, Eye, EyeOff, Loader2,
+  AlertCircle, CheckCircle2, User, ArrowRight,
 } from 'lucide-react';
-import Logo from '../components/Logo';
 
 interface LoginProps {
   onWalletLogin: (address: string, role: UserRole) => void;
 }
 
 type Tab = 'signin' | 'signup';
+
+// ── Shared field styles via CSS vars ─────────────────────────────────────────
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  backgroundColor: 'var(--color-bg-deep)',
+  border: '1px solid var(--color-border)',
+  borderRadius: '10px',
+  padding: '12px 16px 12px 42px',
+  fontSize: '14px',
+  color: 'var(--color-text-primary)',
+  outline: 'none',
+  transition: 'border-color 0.15s',
+};
+const labelStyle: React.CSSProperties = {
+  fontSize: '10px',
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '0.12em',
+  color: 'var(--color-text-muted)',
+  display: 'block',
+  marginBottom: '6px',
+};
+
+// ── Sub-components ────────────────────────────────────────────────────────────
 
 const PasswordInput: React.FC<{
   value: string;
@@ -22,20 +45,34 @@ const PasswordInput: React.FC<{
   onEnter?: () => void;
 }> = ({ value, onChange, placeholder = 'Password', onEnter }) => {
   const [show, setShow] = useState(false);
+  const [focused, setFocused] = useState(false);
   return (
     <div className="relative">
+      <Lock
+        className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+        style={{ color: 'var(--color-text-muted)' }}
+        aria-hidden="true"
+      />
       <input
         type={show ? 'text' : 'password'}
         value={value}
         onChange={e => onChange(e.target.value)}
         onKeyDown={e => e.key === 'Enter' && onEnter?.()}
         placeholder={placeholder}
-        className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl py-4 pl-6 pr-12 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-600"
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={{
+          ...inputStyle,
+          paddingRight: '42px',
+          borderColor: focused ? 'rgba(47,109,242,0.6)' : 'var(--color-border)',
+        }}
       />
       <button
         type="button"
         onClick={() => setShow(p => !p)}
-        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-gray-300 transition-colors"
+        className="absolute right-3 top-1/2 -translate-y-1/2 transition-opacity hover:opacity-70"
+        style={{ color: 'var(--color-text-muted)' }}
+        aria-label={show ? 'Hide password' : 'Show password'}
       >
         {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
       </button>
@@ -43,34 +80,169 @@ const PasswordInput: React.FC<{
   );
 };
 
+const EmailInput: React.FC<{
+  value: string;
+  onChange: (v: string) => void;
+  onEnter?: () => void;
+  autoFocus?: boolean;
+}> = ({ value, onChange, onEnter, autoFocus }) => {
+  const [focused, setFocused] = useState(false);
+  return (
+    <div className="relative">
+      <Mail
+        className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+        style={{ color: 'var(--color-text-muted)' }}
+        aria-hidden="true"
+      />
+      <input
+        type="email"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onKeyDown={e => e.key === 'Enter' && onEnter?.()}
+        placeholder="your@email.com"
+        autoFocus={autoFocus}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={{
+          ...inputStyle,
+          borderColor: focused ? 'rgba(47,109,242,0.6)' : 'var(--color-border)',
+        }}
+      />
+    </div>
+  );
+};
+
 const ErrBox: React.FC<{ msg: string }> = ({ msg }) => (
-  <div className="flex items-start gap-3 p-4 rounded-2xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20">
-    <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-    <p className="text-sm text-red-600 dark:text-red-400 font-semibold">{msg}</p>
+  <div
+    className="flex items-start gap-3 p-4 rounded-[10px]"
+    style={{ backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)' }}
+  >
+    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: '#f87171' }} />
+    <p className="text-sm font-medium" style={{ color: '#f87171' }}>{msg}</p>
   </div>
 );
 
-const Login: React.FC<LoginProps> = ({ onWalletLogin }) => {
+const PrimaryBtn: React.FC<{
+  onClick: () => void;
+  disabled?: boolean;
+  loading?: boolean;
+  children: React.ReactNode;
+}> = ({ onClick, disabled, loading, children }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled || loading}
+    className="w-full flex items-center justify-center gap-2 py-3 rounded-[10px] text-sm font-semibold text-white transition-colors duration-150 disabled:opacity-60"
+    style={{ backgroundColor: 'var(--color-accent)' }}
+    onMouseEnter={e => !disabled && !loading && (e.currentTarget.style.backgroundColor = 'var(--color-accent-hover)')}
+    onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'var(--color-accent)')}
+  >
+    {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+    {children}
+  </button>
+);
+
+// ── FINODIV logo SVG ──────────────────────────────────────────────────────────
+
+const Logo: React.FC<{ size?: number }> = ({ size = 36 }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs>
+      <linearGradient id="lg-login" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#7C3AED" />
+        <stop offset="100%" stopColor="#3B82F6" />
+      </linearGradient>
+    </defs>
+    <rect width="100" height="100" rx="28" fill="url(#lg-login)" />
+    <ellipse cx="54" cy="36" rx="22" ry="9" fill="white" transform="rotate(-35 54 36)" />
+    <ellipse cx="47" cy="53" rx="17" ry="7" fill="white" transform="rotate(-35 47 53)" />
+    <ellipse cx="40" cy="68" rx="11" ry="4.5" fill="white" transform="rotate(-35 40 68)" />
+  </svg>
+);
+
+// ── Left branding panel ───────────────────────────────────────────────────────
+
+const BrandPanel: React.FC = () => (
+  <div
+    className="hidden lg:flex flex-1 flex-col justify-between p-14 relative overflow-hidden"
+    style={{ backgroundColor: 'var(--color-bg-deep)', borderRight: '1px solid var(--color-border)' }}
+  >
+    {/* Subtle ambient glow */}
+    <div
+      className="absolute top-0 left-0 w-full h-full pointer-events-none"
+      style={{ background: 'radial-gradient(ellipse at 30% 20%, rgba(47,109,242,0.08) 0%, transparent 60%)' }}
+      aria-hidden="true"
+    />
+
+    {/* Middle: main copy */}
+    <div className="relative z-10 max-w-sm">
+      <p className="eyebrow mb-5">Africa's #1 Financial Education Platform</p>
+
+      <h1 className="text-4xl font-semibold leading-tight tracking-tight mb-6" style={{ color: 'var(--color-text-primary)' }}>
+        Learn to build{' '}
+        <span style={{
+          background: 'linear-gradient(135deg, #7C3AED, #3B82F6)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+        }}>
+          real wealth
+        </span>
+        {' '}in any economy.
+      </h1>
+
+      <p className="text-sm leading-relaxed mb-10" style={{ color: 'var(--color-text-muted)' }}>
+        Master forex, crypto, DeFi, and digital income skills — taught in plain language, priced in Naira.
+      </p>
+
+      {/* Stats row */}
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          { value: '12,400+', label: 'Students' },
+          { value: '34',      label: 'Courses'  },
+          { value: '91%',     label: 'Completion' },
+        ].map(({ value, label }) => (
+          <div
+            key={label}
+            className="flex flex-col gap-1 p-4 rounded-[14px]"
+            style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}
+          >
+            <span className="text-xl font-semibold" style={{ color: 'var(--color-text-primary)' }}>{value}</span>
+            <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    {/* Bottom: copyright */}
+    <p className="text-xs relative z-10" style={{ color: 'var(--color-text-muted)' }}>
+      © 2026 FINODIV. All rights reserved.
+    </p>
+  </div>
+);
+
+// ── Main Login component ──────────────────────────────────────────────────────
+
+const Login: React.FC<LoginProps> = ({ onWalletLogin: _ }) => {
+  const navigate = useNavigate();
   const [tab, setTab]           = useState<Tab>('signin');
   const [loading, setLoading]   = useState(false);
   const [errMsg, setErrMsg]     = useState('');
-  const [signedUp, setSignedUp] = useState(false); // email-confirm-required state
+  const [signedUp, setSignedUp] = useState(false);
 
   /* Sign-in fields */
-  const [siEmail, setSiEmail]   = useState('');
-  const [siPass,  setSiPass]    = useState('');
+  const [siEmail, setSiEmail] = useState('');
+  const [siPass,  setSiPass]  = useState('');
 
   /* Sign-up fields */
   const [suName,    setSuName]    = useState('');
   const [suEmail,   setSuEmail]   = useState('');
   const [suPass,    setSuPass]    = useState('');
   const [suConfirm, setSuConfirm] = useState('');
-  const [suRole,    setSuRole]    = useState<'LEARNER' | 'EMPLOYER'>('LEARNER');
+  const [suRole,    setSuRole]    = useState<'LEARNER' | 'EMPLOYER' | 'EDUCATOR'>('LEARNER');
 
-  /* Wallet */
-  const [pendingAddr,    setPendingAddr]    = useState<string | null>(null);
-  const [showSignPrompt, setShowSignPrompt] = useState(false);
-  const [walletLoading,  setWalletLoading]  = useState(false);
+  /* Forgot password */
+  const [forgotMode,    setForgotMode]    = useState(false);
+  const [forgotEmail,   setForgotEmail]   = useState('');
+  const [forgotSent,    setForgotSent]    = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   const clearErr = () => setErrMsg('');
 
@@ -87,62 +259,50 @@ const Login: React.FC<LoginProps> = ({ onWalletLogin }) => {
     setLoading(false);
     if (error) {
       if (error.message.includes('Invalid login credentials')) {
-        setErrMsg('Incorrect email or password. Please try again.');
+        setErrMsg('Incorrect email or password. If you signed in via a magic link before, tap "Forgot?" to set a password.');
       } else if (error.message.includes('Email not confirmed')) {
         setErrMsg('Please confirm your email before signing in. Check your inbox.');
       } else {
         setErrMsg(error.message);
       }
     }
-    // On success: App.tsx SIGNED_IN event fires and handles routing
+    // App.tsx onAuthStateChange(SIGNED_IN) handles the redirect — do NOT navigate here.
   };
 
   /* ── Sign Up ────────────────────────────────────────────────────────────── */
   const handleSignUp = async () => {
     clearErr();
-    if (!suName.trim())   { setErrMsg('Please enter your full name.'); return; }
-    if (!suEmail.trim())  { setErrMsg('Please enter your email.'); return; }
-    if (suPass.length < 8){ setErrMsg('Password must be at least 8 characters.'); return; }
+    if (!suName.trim())    { setErrMsg('Please enter your full name.'); return; }
+    if (!suEmail.trim())   { setErrMsg('Please enter your email.'); return; }
+    if (suPass.length < 8) { setErrMsg('Password must be at least 8 characters.'); return; }
     if (suPass !== suConfirm) { setErrMsg('Passwords do not match.'); return; }
 
     setLoading(true);
     const { data, error } = await supabase.auth.signUp({
       email: suEmail.trim().toLowerCase(),
       password: suPass,
-      options: {
-        data: { name: suName.trim(), role: suRole },
-      },
+      options: { data: { name: suName.trim(), role: suRole } },
     });
     setLoading(false);
 
     if (error) {
-      if (error.message.includes('User already registered')) {
-        setErrMsg('An account with this email already exists. Sign in instead.');
-      } else {
-        setErrMsg(error.message);
-      }
+      setErrMsg(error.message.includes('User already registered')
+        ? 'An account with this email already exists. Sign in instead.'
+        : error.message);
       return;
     }
 
     if (data.session) {
-      // Email confirmation is disabled → user is immediately signed in
-      // If EMPLOYER role, update profile (the trigger defaults to LEARNER)
-      if (suRole === 'EMPLOYER' && data.user) {
-        await supabase.from('profiles').update({ role: 'EMPLOYER' }).eq('id', data.user.id);
+      if (suRole !== 'LEARNER' && data.user) {
+        await supabase.from('profiles').update({ role: suRole }).eq('id', data.user.id);
       }
-      // App.tsx SIGNED_IN event handles routing
+      navigate('/dashboard');
     } else {
-      // Email confirmation is required — show the confirmation screen
       setSignedUp(true);
     }
   };
 
   /* ── Forgot Password ───────────────────────────────────────────────────── */
-  const [forgotMode, setForgotMode]       = useState(false);
-  const [forgotEmail, setForgotEmail]     = useState('');
-  const [forgotSent, setForgotSent]       = useState(false);
-  const [forgotLoading, setForgotLoading] = useState(false);
-
   const handleForgotPassword = async () => {
     clearErr();
     if (!forgotEmail.trim()) { setErrMsg('Please enter your email address.'); return; }
@@ -155,381 +315,279 @@ const Login: React.FC<LoginProps> = ({ onWalletLogin }) => {
     if (error) { setErrMsg(error.message); } else { setForgotSent(true); }
   };
 
-  /* ── Wallet ─────────────────────────────────────────────────────────────── */
-  const handleWalletAuth = async () => {
-    setWalletLoading(true);
-    try {
-      let accounts: string[] = [];
-      if (typeof (window as any).ethereum !== 'undefined') {
-        accounts = await (window as any).ethereum.request({ method: 'eth_requestAccounts' });
-      } else {
-        accounts = ['0x71C24961234567890ABCDEF12345678901234567'];
-      }
-      setPendingAddr(accounts[0]);
-      setShowSignPrompt(true);
-    } catch { /* user rejected */ }
-    setWalletLoading(false);
-  };
-
-  const confirmWalletSignature = async () => {
-    if (!pendingAddr) return;
-    setWalletLoading(true);
-    await new Promise(r => setTimeout(r, 1000));
-    onWalletLogin(pendingAddr, UserRole.LEARNER);
-    setWalletLoading(false);
-    setShowSignPrompt(false);
-  };
-
-  /* ── Email confirm sent screen ──────────────────────────────────────────── */
-  if (signedUp) {
-    return (
-      <div className="min-h-screen bg-slate-50 dark:bg-[#0b0e14] flex items-center justify-center p-8 transition-colors duration-300">
-        <div className="w-full max-w-md bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[48px] p-12 text-center shadow-2xl">
-          <div className="w-20 h-20 rounded-3xl bg-emerald-500/10 flex items-center justify-center mx-auto mb-8 text-emerald-500">
-            <CheckCircle2 className="w-10 h-10" />
-          </div>
-          <h2 className="text-3xl font-black mb-4 text-slate-900 dark:text-white">Check Your Email</h2>
-          <p className="text-slate-500 dark:text-gray-400 text-sm mb-2 leading-relaxed">
-            A confirmation link was sent to
-          </p>
-          <p className="font-bold text-blue-500 mb-8">{suEmail}</p>
-          <p className="text-slate-400 dark:text-gray-600 text-xs leading-relaxed mb-10">
-            Click the link in your email to activate your account, then come back and sign in.
-          </p>
-          <button
-            onClick={() => { setSignedUp(false); setTab('signin'); setSiEmail(suEmail); }}
-            className="w-full py-4 rounded-2xl bg-blue-600 text-white font-black hover:bg-blue-500 transition-all"
-          >
-            Go to Sign In
-          </button>
-        </div>
+  // ── Card wrapper shared by full-page flows ─────────────────────────────────
+  const card = (children: React.ReactNode) => (
+    <div className="min-h-screen flex items-center justify-center p-6" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
+      <div
+        className="w-full max-w-md rounded-[20px] p-8"
+        style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}
+      >
+        {children}
       </div>
-    );
-  }
+    </div>
+  );
 
-  /* ── Forgot password screen ─────────────────────────────────────────────── */
-  if (forgotMode) {
-    return (
-      <div className="min-h-screen bg-slate-50 dark:bg-[#0b0e14] flex items-center justify-center p-8 transition-colors duration-300">
-        <div className="w-full max-w-md bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[48px] p-12 shadow-2xl">
-          {forgotSent ? (
-            <div className="text-center">
-              <div className="w-20 h-20 rounded-3xl bg-emerald-500/10 flex items-center justify-center mx-auto mb-8 text-emerald-500">
-                <CheckCircle2 className="w-10 h-10" />
-              </div>
-              <h2 className="text-3xl font-black mb-4 text-slate-900 dark:text-white">Reset Email Sent</h2>
-              <p className="text-slate-500 dark:text-gray-400 text-sm mb-2 leading-relaxed">
-                We sent a password reset link to
-              </p>
-              <p className="font-bold text-blue-500 mb-8">{forgotEmail}</p>
-              <p className="text-slate-400 dark:text-gray-600 text-xs leading-relaxed mb-10">
-                Click the link in your email to set a new password. Check your spam folder if you don't see it.
-              </p>
-              <button
-                onClick={() => { setForgotMode(false); setForgotSent(false); setSiEmail(forgotEmail); }}
-                className="w-full py-4 rounded-2xl bg-blue-600 text-white font-black hover:bg-blue-500 transition-all"
-              >
-                Back to Sign In
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              <div className="text-center mb-2">
-                <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Reset Password</h2>
-                <p className="text-slate-500 dark:text-gray-500 text-sm mt-1">We'll send you a reset link</p>
-              </div>
-
-              {errMsg && <ErrBox msg={errMsg} />}
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-gray-500 px-1">
-                  Your Email
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input
-                    type="email"
-                    value={forgotEmail}
-                    onChange={e => { setForgotEmail(e.target.value); clearErr(); }}
-                    onKeyDown={e => e.key === 'Enter' && handleForgotPassword()}
-                    placeholder="your@email.com"
-                    className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl py-4 pl-11 pr-5 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-600"
-                    autoFocus
-                  />
-                </div>
-              </div>
-
-              <button
-                onClick={handleForgotPassword}
-                disabled={forgotLoading}
-                className="w-full py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black shadow-xl shadow-blue-500/20 flex items-center justify-center gap-3 transition-all disabled:opacity-60"
-              >
-                {forgotLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Mail className="w-5 h-5" />}
-                Send Reset Link
-              </button>
-
-              <button
-                onClick={() => { setForgotMode(false); clearErr(); }}
-                className="w-full py-3 text-slate-400 font-bold hover:text-slate-600 dark:hover:text-white transition-colors text-sm"
-              >
-                ← Back to Sign In
-              </button>
-            </div>
-          )}
-        </div>
+  /* ── Email confirmation screen ────────────────────────────────────────── */
+  if (signedUp) return card(
+    <div className="flex flex-col items-center text-center">
+      <div
+        className="w-16 h-16 rounded-full flex items-center justify-center mb-6"
+        style={{ backgroundColor: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)' }}
+      >
+        <CheckCircle2 className="w-8 h-8" style={{ color: '#4ade80' }} />
       </div>
-    );
-  }
+      <h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--color-text-primary)' }}>Check your email</h2>
+      <p className="text-sm mb-1" style={{ color: 'var(--color-text-muted)' }}>
+        A confirmation link was sent to
+      </p>
+      <p className="text-sm font-semibold mb-6" style={{ color: 'var(--color-accent-hover)' }}>{suEmail}</p>
+      <p className="text-xs leading-relaxed mb-8" style={{ color: 'var(--color-text-muted)' }}>
+        Click the link in your email to activate your account, then come back and sign in.
+      </p>
+      <PrimaryBtn onClick={() => { setSignedUp(false); setTab('signin'); setSiEmail(suEmail); }}>
+        Go to Sign In
+      </PrimaryBtn>
+    </div>
+  );
 
-  /* ── Wallet signature prompt ─────────────────────────────────────────────── */
-  if (showSignPrompt) {
-    return (
-      <div className="min-h-screen bg-slate-50 dark:bg-[#0b0e14] flex items-center justify-center p-8 transition-colors duration-300">
-        <div className="w-full max-w-md bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[48px] p-12 text-center shadow-2xl">
-          <div className="w-20 h-20 rounded-3xl bg-blue-500/10 flex items-center justify-center mx-auto mb-8 text-blue-500">
-            <Key className="w-10 h-10" />
-          </div>
-          <h2 className="text-3xl font-black mb-4 dark:text-white">Sign Message</h2>
-          <p className="text-slate-500 dark:text-gray-400 text-sm mb-10 leading-relaxed">
-            Verify ownership of{' '}
-            <span className="font-mono text-blue-500">
-              {pendingAddr?.slice(0, 6)}...{pendingAddr?.slice(-4)}
-            </span>
-          </p>
-          <div className="space-y-4">
-            <button
-              onClick={confirmWalletSignature}
-              disabled={walletLoading}
-              className="w-full py-4 rounded-2xl bg-blue-600 text-white font-black hover:bg-blue-500 transition-all flex items-center justify-center gap-3 disabled:opacity-60"
-            >
-              {walletLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Sign & Enter'}
-            </button>
-            <button
-              onClick={() => setShowSignPrompt(false)}
-              className="w-full py-4 text-slate-400 font-bold hover:text-slate-600 dark:hover:text-white transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
+  /* ── Forgot password screen ───────────────────────────────────────────── */
+  if (forgotMode) return card(
+    forgotSent ? (
+      <div className="flex flex-col items-center text-center">
+        <div
+          className="w-16 h-16 rounded-full flex items-center justify-center mb-6"
+          style={{ backgroundColor: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)' }}
+        >
+          <CheckCircle2 className="w-8 h-8" style={{ color: '#4ade80' }} />
         </div>
-      </div>
-    );
-  }
-
-  /* ══════════════════════════════════════════════════════════════════════════ */
-  return (
-    <div className="min-h-screen w-full bg-slate-50 dark:bg-[#0b0e14] flex flex-col lg:flex-row relative overflow-x-hidden transition-colors duration-300">
-
-      {/* Left: Branding */}
-      <div className="hidden lg:flex flex-1 flex-col justify-between p-16 relative z-10 border-r border-slate-200 dark:border-white/5">
-        <Link to="/" className="flex items-center gap-4 group w-fit">
-          <Logo className="w-12 h-12 group-hover:scale-110 transition-transform" />
-          <span className="text-2xl font-black tracking-widest text-slate-900 dark:text-white">FINODIV</span>
-        </Link>
-        <div className="max-w-xl">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-black uppercase tracking-widest mb-8">
-            <Zap className="w-4 h-4 fill-current" /> Next-Gen Web3 Talent
-          </div>
-          <h1 className="text-6xl font-black mb-8 leading-tight tracking-tight text-slate-900 dark:text-white">
-            The Future of<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-500">
-              Decentralized Work
-            </span>
-          </h1>
-          <p className="text-slate-500 dark:text-gray-400 text-xl leading-relaxed">
-            Learn Web3 skills, verify proficiency on-chain, and get discovered by top projects.
-          </p>
-        </div>
-        <p className="text-sm text-slate-400 dark:text-gray-600 font-bold uppercase tracking-widest">
-          &copy; 2025 FINODIV ECOSYSTEM. ALL RIGHTS RESERVED.
+        <h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--color-text-primary)' }}>Reset email sent</h2>
+        <p className="text-sm mb-1" style={{ color: 'var(--color-text-muted)' }}>
+          We sent a password reset link to
         </p>
+        <p className="text-sm font-semibold mb-6" style={{ color: 'var(--color-accent-hover)' }}>{forgotEmail}</p>
+        <p className="text-xs leading-relaxed mb-8" style={{ color: 'var(--color-text-muted)' }}>
+          Click the link in your email to set a new password. Check your spam folder if you don't see it.
+        </p>
+        <PrimaryBtn onClick={() => { setForgotMode(false); setForgotSent(false); setSiEmail(forgotEmail); }}>
+          Back to Sign In
+        </PrimaryBtn>
       </div>
+    ) : (
+      <div className="flex flex-col gap-5">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-1" style={{ color: 'var(--color-text-primary)' }}>Reset password</h2>
+          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>We'll send you a reset link</p>
+        </div>
+        {errMsg && <ErrBox msg={errMsg} />}
+        <div>
+          <label style={labelStyle}>Your email</label>
+          <EmailInput
+            value={forgotEmail}
+            onChange={v => { setForgotEmail(v); clearErr(); }}
+            onEnter={handleForgotPassword}
+            autoFocus
+          />
+        </div>
+        <PrimaryBtn onClick={handleForgotPassword} loading={forgotLoading}>
+          {!forgotLoading && <Mail className="w-4 h-4" />}
+          Send Reset Link
+        </PrimaryBtn>
+        <button
+          onClick={() => { setForgotMode(false); clearErr(); }}
+          className="text-sm text-center transition-opacity hover:opacity-70"
+          style={{ color: 'var(--color-text-muted)' }}
+        >
+          ← Back to Sign In
+        </button>
+      </div>
+    )
+  );
 
-      {/* Right: Form */}
-      <div className="flex-1 flex flex-col items-center justify-center p-8 lg:p-16 relative z-20">
-        <div className="w-full max-w-md bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[48px] p-10 lg:p-12 shadow-2xl backdrop-blur-3xl">
+  /* ══════════════════════════════════════════════════════════════════════════
+     Main layout: branding left + form right
+  ══════════════════════════════════════════════════════════════════════════ */
+  return (
+    <div className="min-h-screen flex" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
+      <BrandPanel />
 
-          {/* Tabs */}
-          <div className="flex p-1.5 bg-slate-100 dark:bg-white/5 rounded-2xl mb-10">
+      {/* Right: form panel */}
+      <div className="flex-1 flex flex-col items-center justify-center p-6 lg:p-12">
+
+        {/* Mobile logo — visible on small screens only */}
+        <Link to="/" className="flex items-center gap-3 mb-8 lg:hidden">
+          <Logo size={32} />
+          <span className="text-base font-semibold tracking-widest" style={{ color: 'var(--color-text-primary)' }}>FINODIV</span>
+        </Link>
+
+        <div
+          className="w-full max-w-sm rounded-[20px] p-7"
+          style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}
+        >
+          {/* Tab switcher */}
+          <div
+            className="flex p-1 rounded-[10px] mb-7"
+            style={{ backgroundColor: 'var(--color-bg-deep)' }}
+          >
             {(['signin', 'signup'] as Tab[]).map(t => (
               <button
                 key={t}
                 onClick={() => { setTab(t); clearErr(); }}
-                className={`flex-1 py-3 rounded-xl text-sm font-black transition-all ${
-                  tab === t
-                    ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
-                    : 'text-slate-500 dark:text-gray-500 hover:text-slate-700 dark:hover:text-gray-300'
-                }`}
+                className="flex-1 py-2 rounded-[8px] text-xs font-semibold transition-all duration-150"
+                style={{
+                  backgroundColor: tab === t ? 'var(--color-bg-card)' : 'transparent',
+                  color: tab === t ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
+                  boxShadow: tab === t ? '0 1px 3px rgba(0,0,0,0.15)' : 'none',
+                }}
               >
                 {t === 'signin' ? 'Sign In' : 'Create Account'}
               </button>
             ))}
           </div>
 
-          {/* ── SIGN IN ─────────────────────────────────────────────────────── */}
+          {/* ── SIGN IN ─────────────────────────────────────────────────── */}
           {tab === 'signin' && (
-            <div className="space-y-5 animate-in fade-in duration-200">
-              <div className="text-center mb-8">
-                <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Welcome back</h2>
-                <p className="text-slate-500 dark:text-gray-500 text-sm mt-1">Sign in to your professional hub</p>
+            <div className="flex flex-col gap-5">
+              <div className="mb-1">
+                <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>Welcome back</h2>
+                <p className="text-sm mt-0.5" style={{ color: 'var(--color-text-muted)' }}>Sign in to your account</p>
               </div>
 
               {errMsg && <ErrBox msg={errMsg} />}
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-gray-500 px-1">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input
-                    type="email"
-                    value={siEmail}
-                    onChange={e => { setSiEmail(e.target.value); clearErr(); }}
-                    onKeyDown={e => e.key === 'Enter' && handleSignIn()}
-                    placeholder="your@email.com"
-                    className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl py-4 pl-11 pr-5 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-600"
-                  />
-                </div>
+              <div>
+                <label style={labelStyle}>Email address</label>
+                <EmailInput
+                  value={siEmail}
+                  onChange={v => { setSiEmail(v); clearErr(); }}
+                  onEnter={handleSignIn}
+                />
               </div>
 
-              <div className="space-y-1">
-                <div className="flex items-center justify-between px-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-gray-500">
-                    Password
-                  </label>
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label style={{ ...labelStyle, marginBottom: 0 }}>Password</label>
                   <button
                     type="button"
-                    className="text-[10px] font-black text-blue-500 hover:text-blue-600 uppercase tracking-widest transition-colors"
+                    className="text-[10px] font-semibold uppercase tracking-wide transition-opacity hover:opacity-70"
+                    style={{ color: 'var(--color-accent-hover)' }}
                     onClick={() => { setForgotEmail(siEmail); setForgotMode(true); clearErr(); }}
                   >
                     Forgot?
                   </button>
                 </div>
-                <PasswordInput value={siPass} onChange={v => { setSiPass(v); clearErr(); }} onEnter={handleSignIn} />
+                <PasswordInput
+                  value={siPass}
+                  onChange={v => { setSiPass(v); clearErr(); }}
+                  onEnter={handleSignIn}
+                />
               </div>
 
-              <button
-                onClick={handleSignIn}
-                disabled={loading}
-                className="w-full py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black shadow-xl shadow-blue-500/20 flex items-center justify-center gap-3 transition-all disabled:opacity-60 mt-2"
-              >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Lock className="w-5 h-5" />}
+              <PrimaryBtn onClick={handleSignIn} loading={loading}>
+                {!loading && <Lock className="w-4 h-4" />}
                 Sign In
-              </button>
+              </PrimaryBtn>
 
-              <div className="flex items-center gap-4 py-2">
-                <div className="flex-1 h-px bg-slate-200 dark:bg-white/5" />
-                <span className="text-[10px] font-black text-slate-400 dark:text-gray-700 uppercase tracking-[0.3em]">OR</span>
-                <div className="flex-1 h-px bg-slate-200 dark:bg-white/5" />
-              </div>
-
-              <button
-                onClick={handleWalletAuth}
-                disabled={walletLoading}
-                className="w-full py-4 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-white/10 font-black flex items-center justify-center gap-3 text-slate-700 dark:text-gray-200 transition-all disabled:opacity-60"
-              >
-                {walletLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Wallet className="w-5 h-5 text-blue-500" />}
-                Connect Wallet
-              </button>
-
-              <p className="text-center text-sm text-slate-500 dark:text-gray-500 pt-4">
-                Don't have an account?{' '}
-                <button onClick={() => { setTab('signup'); clearErr(); }} className="text-blue-500 font-black hover:text-blue-600 transition-colors">
+              <p className="text-center text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                No account?{' '}
+                <button
+                  onClick={() => { setTab('signup'); clearErr(); }}
+                  className="font-semibold transition-opacity hover:opacity-75"
+                  style={{ color: 'var(--color-accent-hover)' }}
+                >
                   Create one <ArrowRight className="w-3 h-3 inline" />
                 </button>
               </p>
             </div>
           )}
 
-          {/* ── SIGN UP ─────────────────────────────────────────────────────── */}
+          {/* ── SIGN UP ─────────────────────────────────────────────────── */}
           {tab === 'signup' && (
-            <div className="space-y-4 animate-in fade-in duration-200">
-              <div className="text-center mb-6">
-                <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Join FINODIV</h2>
-                <p className="text-slate-500 dark:text-gray-500 text-sm mt-1">Create your professional Web3 profile</p>
+            <div className="flex flex-col gap-4">
+              <div className="mb-1">
+                <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>Join FINODIV</h2>
+                <p className="text-sm mt-0.5" style={{ color: 'var(--color-text-muted)' }}>Start your financial education journey</p>
               </div>
 
               {errMsg && <ErrBox msg={errMsg} />}
 
               {/* Role selector */}
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-gray-500 px-1">
-                  I am a…
-                </label>
-                <div className="flex gap-3">
-                  {(['LEARNER', 'EMPLOYER'] as const).map(r => (
+              <div>
+                <label style={labelStyle}>I am a…</label>
+                <div className="flex gap-2">
+                  {([
+                    { role: 'LEARNER',  label: 'Learner'  },
+                    { role: 'EDUCATOR', label: 'Educator' },
+                    { role: 'EMPLOYER', label: 'Employer' },
+                  ] as const).map(({ role: r, label }) => (
                     <button
                       key={r}
                       onClick={() => setSuRole(r)}
-                      className={`flex-1 py-3 rounded-2xl border-2 text-sm font-black transition-all ${
-                        suRole === r
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-600/10 text-blue-600 dark:text-blue-400'
-                          : 'border-slate-200 dark:border-white/10 text-slate-500 dark:text-gray-500 hover:border-blue-300 dark:hover:border-blue-500/30'
-                      }`}
+                      className="flex-1 py-2 rounded-[8px] text-xs font-medium transition-all duration-150"
+                      style={{
+                        backgroundColor: suRole === r ? 'rgba(47,109,242,0.12)' : 'var(--color-bg-deep)',
+                        border: `1px solid ${suRole === r ? 'rgba(47,109,242,0.4)' : 'var(--color-border)'}`,
+                        color: suRole === r ? 'var(--color-accent-hover)' : 'var(--color-text-muted)',
+                      }}
                     >
-                      {r === 'LEARNER' ? '🎓 Learner' : '💼 Employer'}
+                      {label}
                     </button>
                   ))}
                 </div>
               </div>
 
               {/* Full name */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-gray-500 px-1">Full Name</label>
+              <div>
+                <label style={labelStyle}>Full name</label>
                 <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input
-                    type="text"
-                    value={suName}
-                    onChange={e => { setSuName(e.target.value); clearErr(); }}
-                    placeholder="Your full name"
-                    className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl py-4 pl-11 pr-5 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-600"
+                  <User
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+                    style={{ color: 'var(--color-text-muted)' }}
+                    aria-hidden="true"
                   />
+                  <NameInput value={suName} onChange={v => { setSuName(v); clearErr(); }} />
                 </div>
               </div>
 
               {/* Email */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-gray-500 px-1">Email Address</label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input
-                    type="email"
-                    value={suEmail}
-                    onChange={e => { setSuEmail(e.target.value); clearErr(); }}
-                    placeholder="your@email.com"
-                    className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl py-4 pl-11 pr-5 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-600"
-                  />
-                </div>
+              <div>
+                <label style={labelStyle}>Email address</label>
+                <EmailInput value={suEmail} onChange={v => { setSuEmail(v); clearErr(); }} />
               </div>
 
               {/* Password */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-gray-500 px-1">
-                  Password <span className="normal-case font-normal">(min. 8 characters)</span>
+              <div>
+                <label style={labelStyle}>
+                  Password <span style={{ textTransform: 'none', fontWeight: 400 }}>(min. 8 chars)</span>
                 </label>
-                <PasswordInput value={suPass} onChange={v => { setSuPass(v); clearErr(); }} placeholder="Create a password" />
+                <PasswordInput
+                  value={suPass}
+                  onChange={v => { setSuPass(v); clearErr(); }}
+                  placeholder="Create a password"
+                />
               </div>
 
-              {/* Confirm password */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-gray-500 px-1">Confirm Password</label>
-                <PasswordInput value={suConfirm} onChange={v => { setSuConfirm(v); clearErr(); }} placeholder="Repeat password" onEnter={handleSignUp} />
+              {/* Confirm */}
+              <div>
+                <label style={labelStyle}>Confirm password</label>
+                <PasswordInput
+                  value={suConfirm}
+                  onChange={v => { setSuConfirm(v); clearErr(); }}
+                  placeholder="Repeat password"
+                  onEnter={handleSignUp}
+                />
               </div>
 
-              <button
-                onClick={handleSignUp}
-                disabled={loading}
-                className="w-full py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black shadow-xl shadow-blue-500/20 flex items-center justify-center gap-3 transition-all disabled:opacity-60 mt-2"
-              >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-                {loading ? 'Creating Account…' : 'Create My Account'}
-              </button>
+              <PrimaryBtn onClick={handleSignUp} loading={loading}>
+                {loading ? 'Creating account…' : 'Create My Account'}
+              </PrimaryBtn>
 
-              <p className="text-center text-sm text-slate-500 dark:text-gray-500 pt-2">
+              <p className="text-center text-xs" style={{ color: 'var(--color-text-muted)' }}>
                 Already a member?{' '}
-                <button onClick={() => { setTab('signin'); clearErr(); }} className="text-blue-500 font-black hover:text-blue-600 transition-colors">
+                <button
+                  onClick={() => { setTab('signin'); clearErr(); }}
+                  className="font-semibold transition-opacity hover:opacity-75"
+                  style={{ color: 'var(--color-accent-hover)' }}
+                >
                   Sign in
                 </button>
               </p>
@@ -538,6 +596,25 @@ const Login: React.FC<LoginProps> = ({ onWalletLogin }) => {
         </div>
       </div>
     </div>
+  );
+};
+
+// Separate inline component to avoid hook-in-callback issues
+const NameInput: React.FC<{ value: string; onChange: (v: string) => void }> = ({ value, onChange }) => {
+  const [focused, setFocused] = useState(false);
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder="Your full name"
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      style={{
+        ...inputStyle,
+        borderColor: focused ? 'rgba(47,109,242,0.6)' : 'var(--color-border)',
+      }}
+    />
   );
 };
 
