@@ -158,7 +158,7 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
       .order('created_at', { ascending: true })
       .limit(200);
     if (error) console.error('load messages:', error);
-    setMessages((data as Message[]) || []);
+    setMessages((data as unknown as Message[]) || []);
     setLoadingMsgs(false);
   }, []);
 
