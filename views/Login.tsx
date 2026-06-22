@@ -137,6 +137,24 @@ const Login: React.FC<LoginProps> = ({ onWalletLogin }) => {
     }
   };
 
+  /* ── Forgot Password ───────────────────────────────────────────────────── */
+  const [forgotMode, setForgotMode]       = useState(false);
+  const [forgotEmail, setForgotEmail]     = useState('');
+  const [forgotSent, setForgotSent]       = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
+
+  const handleForgotPassword = async () => {
+    clearErr();
+    if (!forgotEmail.trim()) { setErrMsg('Please enter your email address.'); return; }
+    setForgotLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      forgotEmail.trim().toLowerCase(),
+      { redirectTo: window.location.origin },
+    );
+    setForgotLoading(false);
+    if (error) { setErrMsg(error.message); } else { setForgotSent(true); }
+  };
+
   /* ── Wallet ─────────────────────────────────────────────────────────────── */
   const handleWalletAuth = async () => {
     setWalletLoading(true);
@@ -184,6 +202,80 @@ const Login: React.FC<LoginProps> = ({ onWalletLogin }) => {
           >
             Go to Sign In
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Forgot password screen ─────────────────────────────────────────────── */
+  if (forgotMode) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-[#0b0e14] flex items-center justify-center p-8 transition-colors duration-300">
+        <div className="w-full max-w-md bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[48px] p-12 shadow-2xl">
+          {forgotSent ? (
+            <div className="text-center">
+              <div className="w-20 h-20 rounded-3xl bg-emerald-500/10 flex items-center justify-center mx-auto mb-8 text-emerald-500">
+                <CheckCircle2 className="w-10 h-10" />
+              </div>
+              <h2 className="text-3xl font-black mb-4 text-slate-900 dark:text-white">Reset Email Sent</h2>
+              <p className="text-slate-500 dark:text-gray-400 text-sm mb-2 leading-relaxed">
+                We sent a password reset link to
+              </p>
+              <p className="font-bold text-blue-500 mb-8">{forgotEmail}</p>
+              <p className="text-slate-400 dark:text-gray-600 text-xs leading-relaxed mb-10">
+                Click the link in your email to set a new password. Check your spam folder if you don't see it.
+              </p>
+              <button
+                onClick={() => { setForgotMode(false); setForgotSent(false); setSiEmail(forgotEmail); }}
+                className="w-full py-4 rounded-2xl bg-blue-600 text-white font-black hover:bg-blue-500 transition-all"
+              >
+                Back to Sign In
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="text-center mb-2">
+                <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Reset Password</h2>
+                <p className="text-slate-500 dark:text-gray-500 text-sm mt-1">We'll send you a reset link</p>
+              </div>
+
+              {errMsg && <ErrBox msg={errMsg} />}
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-gray-500 px-1">
+                  Your Email
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="email"
+                    value={forgotEmail}
+                    onChange={e => { setForgotEmail(e.target.value); clearErr(); }}
+                    onKeyDown={e => e.key === 'Enter' && handleForgotPassword()}
+                    placeholder="your@email.com"
+                    className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl py-4 pl-11 pr-5 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-600"
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={handleForgotPassword}
+                disabled={forgotLoading}
+                className="w-full py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black shadow-xl shadow-blue-500/20 flex items-center justify-center gap-3 transition-all disabled:opacity-60"
+              >
+                {forgotLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Mail className="w-5 h-5" />}
+                Send Reset Link
+              </button>
+
+              <button
+                onClick={() => { setForgotMode(false); clearErr(); }}
+                className="w-full py-3 text-slate-400 font-bold hover:text-slate-600 dark:hover:text-white transition-colors text-sm"
+              >
+                ← Back to Sign In
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -309,10 +401,7 @@ const Login: React.FC<LoginProps> = ({ onWalletLogin }) => {
                   <button
                     type="button"
                     className="text-[10px] font-black text-blue-500 hover:text-blue-600 uppercase tracking-widest transition-colors"
-                    onClick={() => {
-                      // TODO: implement forgot password via magic link
-                      alert('Contact support at devolufinodiv@gmail.com to reset your password.');
-                    }}
+                    onClick={() => { setForgotEmail(siEmail); setForgotMode(true); clearErr(); }}
                   >
                     Forgot?
                   </button>

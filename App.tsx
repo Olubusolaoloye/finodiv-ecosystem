@@ -26,6 +26,7 @@ import ManageCourses from './views/admin/ManageCourses';
 import ManageUsers from './views/admin/ManageUsers';
 import SystemControl from './views/admin/SystemControl';
 import Jobs from './views/Jobs';
+import ResetPassword from './views/ResetPassword';
 
 // Components
 import Navbar from './components/Navbar';
@@ -132,6 +133,9 @@ const App: React.FC = () => {
         if (!hash || hash === '#/' || hash === '#/login' || hash === '#/join') {
           window.location.hash = '#/dashboard';
         }
+      } else if (event === 'PASSWORD_RECOVERY') {
+        // Fired when user clicks the password-reset link in their email
+        window.location.hash = '#/reset-password';
       } else if (event === 'SIGNED_OUT') {
         setRole(UserRole.GUEST);
         setUserId(null);
@@ -327,6 +331,7 @@ const App: React.FC = () => {
 
               <Route path="/jobs" element={role === UserRole.GUEST ? <Navigate to="/login" /> : <Jobs />} />
               <Route path="/messages" element={role === UserRole.GUEST ? <Navigate to="/login" /> : <ComingSoon title="Messages" />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
 
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
