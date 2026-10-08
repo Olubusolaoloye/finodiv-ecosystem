@@ -3,6 +3,7 @@ export enum UserRole {
   GUEST = 'GUEST',
   LEARNER = 'LEARNER',
   EMPLOYER = 'EMPLOYER',
+  EDUCATOR = 'EDUCATOR',
   ADMIN = 'ADMIN',
   MOD = 'MOD'
 }
@@ -145,4 +146,31 @@ export interface Achievement {
   issuedAt: string;
   image: string;
   chain: string;
+}
+
+export interface Assignment {
+  id: string;
+  courseId: string;
+  title: string;
+  description: string;
+  dueDate: string | null;
+  maxGrade: number;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface Submission {
+  id: string;
+  assignmentId: string;
+  courseId: string;
+  userId: string;
+  content: string;
+  fileUrl: string | null;
+  submittedAt: string;
+  grade: number | null;
+  feedback: string | null;
+  gradedAt: string | null;
+  status: 'SUBMITTED' | 'GRADED' | 'RETURNED';
+  studentName?: string;
+  studentEmail?: string;
 }

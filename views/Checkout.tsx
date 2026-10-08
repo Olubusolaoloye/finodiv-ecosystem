@@ -1,8 +1,10 @@
-
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../services/backend';
-import { CreditCard, Wallet, ShieldCheck, Lock, CheckCircle, Loader2 } from 'lucide-react';
+import {
+  CreditCard, Wallet, CheckCircle2, Loader2, ArrowRight, ShieldCheck,
+} from 'lucide-react';
 
 interface CheckoutProps {
   userId: string;
@@ -10,193 +12,374 @@ interface CheckoutProps {
   walletAddress: string | null;
 }
 
-const COURSE_ID = '1';
+const COURSE_PRICE_USD = 49;
+const COURSE_PRICE_NGN = COURSE_PRICE_USD * 1600;
+const COURSE_TITLE = 'Full Access Pass';
+
+const INCLUDES = [
+  'Lifetime access to course materials',
+  'Certificate of completion',
+  'Private community access',
+  'Live Q&A sessions',
+  'Mobile-friendly content',
+];
+
+type PayMethod = 'paystack' | 'usdt';
+type Status = 'idle' | 'processing' | 'success' | 'error';
+
+// ── Step indicator ─────────────────────────────────────────────────────────────
+
+const StepIndicator: React.FC<{ current: number }> = ({ current }) => {
+  const steps = ['Order', 'Payment', 'Confirmation'];
+  return (
+    <div className="flex items-center gap-0 mb-10">
+      {steps.map((label, i) => {
+        const done = i < current;
+        const active = i === current;
+        return (
+          <React.Fragment key={label}>
+            <div className="flex flex-col items-center gap-1.5">
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-300"
+                style={{
+                  backgroundColor: done || active ? 'var(--color-accent)' : 'var(--color-border)',
+                  color: done || active ? '#fff' : 'var(--color-text-muted)',
+                }}
+              >
+                {done ? <CheckCircle2 className="w-3.5 h-3.5" /> : i + 1}
+              </div>
+              <span
+                className="text-[10px] font-medium"
+                style={{ color: active ? 'var(--color-text-primary)' : 'var(--color-text-muted)' }}
+              >
+                {label}
+              </span>
+            </div>
+            {i < steps.length - 1 && (
+              <div
+                className="flex-1 h-px mx-3 mb-4 transition-all duration-500"
+                style={{ backgroundColor: i < current ? 'var(--color-accent)' : 'var(--color-border)' }}
+              />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+};
+
+// ── Order summary (step 1) ─────────────────────────────────────────────────────
+
+const OrderStep: React.FC<{ onNext: () => void }> = ({ onNext }) => (
+  <motion.div
+    key="order"
+    initial={{ opacity: 0, x: 20 }}
+    animate={{ opacity: 1, x: 0 }}
+    exit={{ opacity: 0, x: -20 }}
+    transition={{ duration: 0.25 }}
+  >
+    {/* Course thumbnail — media placeholder, intentionally deep */}
+    <div
+      className="w-full aspect-video rounded-[16px] flex items-center justify-center mb-6"
+      style={{ backgroundColor: 'var(--color-bg-deep)', border: '1px solid var(--color-border)' }}
+    >
+      <div
+        className="w-14 h-14 rounded-full flex items-center justify-center"
+        style={{ backgroundColor: 'rgba(47,109,242,0.15)' }}
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M5 3l14 9-14 9V3z" fill="var(--color-accent)" />
+        </svg>
+      </div>
+    </div>
+
+    {/* Title & price */}
+    <div className="mb-6">
+      <h2 className="text-lg font-semibold mb-1" style={{ color: 'var(--color-text-primary)' }}>{COURSE_TITLE}</h2>
+      <div className="flex items-baseline gap-2">
+        <span className="text-2xl font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+          ₦{COURSE_PRICE_NGN.toLocaleString()}
+        </span>
+        <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}>~${COURSE_PRICE_USD}</span>
+      </div>
+    </div>
+
+    {/* Includes */}
+    <div
+      className="p-5 rounded-[14px] mb-8"
+      style={{ backgroundColor: 'var(--color-bg-deep)', border: '1px solid var(--color-border)' }}
+    >
+      <p className="text-[10px] uppercase tracking-widest font-semibold mb-4" style={{ color: 'var(--color-text-muted)' }}>
+        What's included
+      </p>
+      <ul className="flex flex-col gap-2.5">
+        {INCLUDES.map(item => (
+          <li key={item} className="flex items-center gap-2.5 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--color-accent)' }} />
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
+
+    <button
+      onClick={onNext}
+      className="w-full flex items-center justify-center gap-2 py-3 rounded-[12px] text-sm font-semibold text-white transition-colors duration-150"
+      style={{ backgroundColor: 'var(--color-accent)' }}
+      onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-accent-hover)')}
+      onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'var(--color-accent)')}
+    >
+      Proceed to payment
+      <ArrowRight className="w-4 h-4" />
+    </button>
+  </motion.div>
+);
+
+// ── Payment step (step 2) ──────────────────────────────────────────────────────
+
+const PaymentStep: React.FC<{
+  method: PayMethod;
+  onMethod: (m: PayMethod) => void;
+  onPay: () => void;
+  status: Status;
+  walletAddress: string | null;
+}> = ({ method, onMethod, onPay, status, walletAddress }) => {
+  const METHODS: { id: PayMethod; icon: React.ReactNode; label: string; desc: string }[] = [
+    {
+      id: 'paystack',
+      icon: <CreditCard className="w-5 h-5" style={{ color: 'var(--color-accent)' }} />,
+      label: 'Paystack',
+      desc: 'Card, bank transfer, or USSD',
+    },
+    {
+      id: 'usdt',
+      icon: <Wallet className="w-5 h-5" style={{ color: 'var(--color-accent)' }} />,
+      label: 'USDT (BNB Chain)',
+      desc: walletAddress ? `Wallet: ${walletAddress.slice(0, 6)}…${walletAddress.slice(-4)}` : 'Connect wallet to pay with crypto',
+    },
+  ];
+
+  return (
+    <motion.div
+      key="payment"
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      transition={{ duration: 0.25 }}
+    >
+      <h2 className="text-base font-semibold mb-5" style={{ color: 'var(--color-text-primary)' }}>
+        Choose payment method
+      </h2>
+
+      <div className="flex flex-col gap-3 mb-8">
+        {METHODS.map(m => (
+          <button
+            key={m.id}
+            onClick={() => onMethod(m.id)}
+            className="flex items-center gap-4 p-4 rounded-[14px] text-left transition-all duration-150"
+            style={{
+              backgroundColor: method === m.id ? 'rgba(47,109,242,0.08)' : 'var(--color-bg-card)',
+              border: `1px solid ${method === m.id ? 'rgba(47,109,242,0.5)' : 'var(--color-border)'}`,
+            }}
+          >
+            <div
+              className="w-10 h-10 rounded-[10px] flex items-center justify-center shrink-0"
+              style={{ backgroundColor: 'rgba(47,109,242,0.12)' }}
+            >
+              {m.icon}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>{m.label}</p>
+              <p className="text-xs truncate" style={{ color: 'var(--color-text-muted)' }}>{m.desc}</p>
+            </div>
+            {/* Radio indicator */}
+            <div
+              className="w-4 h-4 rounded-full shrink-0 flex items-center justify-center"
+              style={{ border: `2px solid ${method === m.id ? 'var(--color-accent)' : 'var(--color-border)'}` }}
+            >
+              {method === m.id && (
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-accent)' }} />
+              )}
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Security note */}
+      <div
+        className="flex items-start gap-3 p-4 rounded-[12px] mb-6"
+        style={{ backgroundColor: 'var(--color-bg-deep)', border: '1px solid var(--color-border)' }}
+      >
+        <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5" style={{ color: 'var(--color-accent)' }} />
+        <p className="text-xs leading-relaxed" style={{ color: 'var(--color-text-muted)' }}>
+          All payments are encrypted and secure. Paystack is PCI-DSS compliant.
+          USDT payments are processed on-chain.
+        </p>
+      </div>
+
+      <button
+        onClick={onPay}
+        disabled={status === 'processing' || (method === 'usdt' && !walletAddress)}
+        className="w-full flex items-center justify-center gap-2 py-3 rounded-[12px] text-sm font-semibold text-white transition-colors duration-150 disabled:opacity-60 disabled:cursor-not-allowed"
+        style={{ backgroundColor: 'var(--color-accent)' }}
+        onMouseEnter={e => status !== 'processing' && (e.currentTarget.style.backgroundColor = 'var(--color-accent-hover)')}
+        onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'var(--color-accent)')}
+      >
+        {status === 'processing' ? (
+          <><Loader2 className="w-4 h-4 animate-spin" /> Processing…</>
+        ) : (
+          <>Pay ₦{COURSE_PRICE_NGN.toLocaleString()} <ArrowRight className="w-4 h-4" /></>
+        )}
+      </button>
+
+      {method === 'usdt' && !walletAddress && (
+        <p className="text-xs text-center mt-3" style={{ color: 'var(--color-text-muted)' }}>
+          Connect your wallet from the navbar to pay with USDT.
+        </p>
+      )}
+    </motion.div>
+  );
+};
+
+// ── Confirmation step (step 3) ─────────────────────────────────────────────────
+
+const ConfirmStep: React.FC<{ txId?: string; onDone: () => void }> = ({ txId, onDone }) => (
+  <motion.div
+    key="confirm"
+    initial={{ opacity: 0, scale: 0.97 }}
+    animate={{ opacity: 1, scale: 1 }}
+    transition={{ duration: 0.3 }}
+    className="flex flex-col items-center text-center py-4"
+  >
+    {/* Animated checkmark */}
+    <motion.div
+      initial={{ scale: 0 }}
+      animate={{ scale: 1 }}
+      transition={{ type: 'spring', damping: 12, stiffness: 200, delay: 0.1 }}
+      className="w-20 h-20 rounded-full flex items-center justify-center mb-6"
+      style={{ backgroundColor: 'rgba(47,109,242,0.15)', border: '2px solid rgba(47,109,242,0.4)' }}
+    >
+      <CheckCircle2 className="w-9 h-9" style={{ color: 'var(--color-accent)' }} />
+    </motion.div>
+
+    <h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--color-text-primary)' }}>
+      Payment confirmed!
+    </h2>
+    <p className="text-sm mb-4 leading-relaxed" style={{ color: 'var(--color-text-muted)' }}>
+      You're now enrolled. Start learning at your own pace.
+    </p>
+
+    {txId && (
+      <p className="text-xs font-mono mb-6 px-4 py-2 rounded-[8px]" style={{ backgroundColor: 'var(--color-bg-deep)', color: 'var(--color-text-muted)' }}>
+        Ref: {txId}
+      </p>
+    )}
+
+    <button
+      onClick={onDone}
+      className="flex items-center gap-2 px-6 py-3 rounded-[12px] text-sm font-semibold text-white"
+      style={{ backgroundColor: 'var(--color-accent)' }}
+    >
+      Start your course
+      <ArrowRight className="w-4 h-4" />
+    </button>
+  </motion.div>
+);
+
+// ── Main component ─────────────────────────────────────────────────────────────
 
 const Checkout: React.FC<CheckoutProps> = ({ userId, userEmail, walletAddress }) => {
   const navigate = useNavigate();
-  const [method, setMethod] = useState<'fiat_paystack' | 'crypto_usdt'>('fiat_paystack');
-  const [status, setStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
-  const [record, setRecord] = useState<any>(null);
+  const [params] = useSearchParams();
+  const courseId = params.get('course') || '1';
 
-  const courseAmount = 999;
+  const [step,   setStep]   = useState(0);
+  const [method, setMethod] = useState<PayMethod>('paystack');
+  const [status, setStatus] = useState<Status>('idle');
+  const [txId,   setTxId]   = useState<string | undefined>();
 
-  const handlePaystackPayment = async () => {
-    setStatus('processing');
-    const payment = await api.initiatePayment(userId, COURSE_ID, 'fiat_paystack', courseAmount);
-    if ((window as any).PaystackPop) {
-      const handler = (window as any).PaystackPop.setup({
-        key: 'pk_test_demo',
-        email: userEmail,
-        amount: courseAmount * 100 * 450,
-        currency: 'NGN',
-        callback: async (response: any) => {
-          const confirmed = await api.confirmPayment(payment.id, response.reference);
-          await api.enrollCourse(userId, COURSE_ID);
-          setRecord(confirmed);
-          setStatus('success');
-        },
-        onClose: () => setStatus('idle'),
-      });
-      handler.openIframe();
-    } else {
-      setTimeout(async () => {
-        const confirmed = await api.confirmPayment(payment.id, 'REF-123456');
-        await api.enrollCourse(userId, COURSE_ID);
-        setRecord(confirmed);
-        setStatus('success');
-      }, 2000);
-    }
-  };
-
-  const handleUsdtPayment = async () => {
-    if (!walletAddress) {
-      alert('Please connect your wallet first!');
-      return;
-    }
+  const handlePay = async () => {
     setStatus('processing');
     try {
-      const payment = await api.initiatePayment(userId, COURSE_ID, 'crypto_usdt', courseAmount);
-      setTimeout(async () => {
-        const txHash = `0x${Math.random().toString(16).substr(2, 64)}`;
-        const confirmed = await api.confirmPayment(payment.id, txHash);
-        await api.enrollCourse(userId, COURSE_ID);
-        setRecord(confirmed);
+      const payment = await api.initiatePayment(userId, courseId, method === 'paystack' ? 'fiat_paystack' : 'crypto_usdt', COURSE_PRICE_USD);
+
+      if (method === 'paystack' && (window as any).PaystackPop) {
+        const handler = (window as any).PaystackPop.setup({
+          key: 'pk_test_demo',
+          email: userEmail,
+          amount: COURSE_PRICE_NGN * 100,
+          currency: 'NGN',
+          callback: async (response: any) => {
+            const confirmed = await api.confirmPayment(payment.id, response.reference);
+            await api.enrollCourse(userId, courseId);
+            setTxId(confirmed?.id || response.reference);
+            setStatus('success');
+            setStep(2);
+          },
+          onClose: () => setStatus('idle'),
+        });
+        handler.openIframe();
+      } else {
+        // Fallback / USDT mock
+        await new Promise(r => setTimeout(r, 2000));
+        const ref = method === 'usdt'
+          ? `0x${Math.random().toString(16).slice(2, 18)}`
+          : `REF-${Date.now()}`;
+        const confirmed = await api.confirmPayment(payment.id, ref);
+        await api.enrollCourse(userId, courseId);
+        setTxId(confirmed?.id || ref);
         setStatus('success');
-      }, 3000);
-    } catch (e) {
+        setStep(2);
+      }
+    } catch {
       setStatus('error');
     }
   };
 
-  if (status === 'success') {
-    return (
-      <div className="fixed inset-0 bg-slate-50 dark:bg-[#0b0e14] z-[100] flex items-center justify-center p-6 transition-colors">
-        <div className="w-full max-w-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[48px] p-12 text-center relative overflow-hidden shadow-2xl">
-           <div className="absolute top-0 right-0 w-64 h-64 bg-green-500/5 blur-[80px] rounded-full translate-x-1/2 -translate-y-1/2"></div>
-           <div className="w-24 h-24 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-10 text-green-500">
-              <CheckCircle className="w-12 h-12" />
-           </div>
-           <h1 className="text-4xl font-black mb-6 text-slate-900 dark:text-white">Order Confirmed</h1>
-           <p className="text-slate-500 dark:text-gray-400 text-lg mb-12 max-w-sm mx-auto leading-relaxed">
-             Payment normalized and verified. Internal ID: <span className="font-mono text-blue-500">{record?.id}</span>
-           </p>
-           
-           {record?.txHash && (
-              <div className="mb-8 p-5 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/10 text-[10px] font-mono text-slate-500 break-all text-left">
-                <p className="text-blue-500 font-bold mb-2 uppercase">BNB Chain TX Hash:</p>
-                {record.txHash}
-              </div>
-           )}
-
-           <button onClick={() => navigate('/dashboard')} className="w-full py-5 rounded-3xl bg-[#2F6DF2] hover:bg-blue-600 transition-all font-black text-lg shadow-xl shadow-blue-500/20 text-white">
-              Go to Learning Hub
-           </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="max-w-6xl mx-auto p-8 pt-16 pb-32">
-      <div className="mb-12">
-        <h1 className="text-5xl font-black mb-4 tracking-tight text-slate-900 dark:text-white">Checkout</h1>
-        <p className="text-slate-500 dark:text-gray-500 text-lg">Secure your spot in the ecosystem</p>
-      </div>
+    <div className="min-h-screen flex items-start justify-center px-4 py-12" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
+      <div className="w-full max-w-md">
+        {/* Card */}
+        <div
+          className="rounded-[20px] p-6 sm:p-8"
+          style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}
+        >
+          <h1 className="text-lg font-semibold mb-6" style={{ color: 'var(--color-text-primary)' }}>Checkout</h1>
 
-      <div className="flex flex-col xl:flex-row gap-16">
-        <div className="flex-1">
-          <h2 className="text-2xl font-black mb-10 text-slate-900 dark:text-white">Select Payment Method</h2>
-          
-          <div className="space-y-6">
-            <div 
-              onClick={() => setMethod('fiat_paystack')}
-              className={`
-                p-8 rounded-[32px] border-2 cursor-pointer transition-all relative
-                ${method === 'fiat_paystack' ? 'bg-blue-600/5 border-blue-600 dark:border-blue-500' : 'bg-white dark:bg-white/5 border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/20'}
-              `}
-            >
-              <div className="flex items-center gap-6">
-                <div className="w-14 h-14 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-600 dark:text-blue-400">
-                  <CreditCard className="w-7 h-7" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold mb-1 text-slate-900 dark:text-white">Paystack (Fiat)</h3>
-                  <p className="text-sm text-slate-500 dark:text-gray-500">Pay via Card, USSD, or Bank Transfer</p>
-                </div>
-                <div className={`ml-auto w-6 h-6 rounded-full border-2 flex items-center justify-center ${method === 'fiat_paystack' ? 'border-blue-600 dark:border-blue-500' : 'border-slate-300 dark:border-gray-700'}`}>
-                   {method === 'fiat_paystack' && <div className="w-3 h-3 rounded-full bg-blue-600 dark:bg-blue-500"></div>}
-                </div>
-              </div>
-            </div>
+          <StepIndicator current={step} />
 
-            <div 
-              onClick={() => setMethod('crypto_usdt')}
-              className={`
-                p-8 rounded-[32px] border-2 cursor-pointer transition-all relative
-                ${method === 'crypto_usdt' ? 'bg-orange-600/5 border-orange-600 dark:border-orange-500' : 'bg-white dark:bg-white/5 border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/20'}
-              `}
-            >
-              <div className="flex items-center gap-6">
-                <div className="w-14 h-14 bg-orange-500/10 rounded-2xl flex items-center justify-center text-orange-600 dark:text-orange-500">
-                  <Wallet className="w-7 h-7" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold mb-1 text-slate-900 dark:text-white">USDT (Binance Smart Chain)</h3>
-                  <p className="text-sm text-slate-500 dark:text-gray-500">Web3 on-chain payment processor</p>
-                </div>
-                <div className={`ml-auto w-6 h-6 rounded-full border-2 flex items-center justify-center ${method === 'crypto_usdt' ? 'border-orange-600 dark:border-orange-500' : 'border-slate-300 dark:border-gray-700'}`}>
-                   {method === 'crypto_usdt' && <div className="w-3 h-3 rounded-full bg-orange-600 dark:bg-orange-500"></div>}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-20 p-8 rounded-[40px] bg-slate-100 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5">
-            <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-slate-900 dark:text-white">
-               <ShieldCheck className="w-5 h-5 text-emerald-500" /> Encrypted Transaction
-            </h3>
-            <p className="text-sm text-slate-500 dark:text-gray-500 leading-relaxed mb-8">
-              All payments are processed through specialized secure channels. Fiat transactions are secured by Paystack, and USDT transactions are executed via audited smart contracts.
-            </p>
-            <button 
-              onClick={method === 'fiat_paystack' ? handlePaystackPayment : handleUsdtPayment}
-              disabled={status === 'processing'}
-              className={`
-                w-full py-6 rounded-3xl font-black text-xl transition-all shadow-2xl flex items-center justify-center gap-4
-                ${status === 'processing' ? 'bg-slate-200 dark:bg-gray-800 text-slate-400 dark:text-gray-500' : 'bg-blue-600 text-white hover:scale-105 active:scale-95 shadow-blue-500/20'}
-              `}
-            >
-              {status === 'processing' ? (
-                <>
-                  <Loader2 className="w-6 h-6 animate-spin" />
-                  Securing Channel...
-                </>
-              ) : (
-                <>Confirm Payment ${courseAmount}</>
-              )}
-            </button>
-          </div>
+          <AnimatePresence mode="wait">
+            {step === 0 && <OrderStep key="order" onNext={() => setStep(1)} />}
+            {step === 1 && (
+              <PaymentStep
+                key="payment"
+                method={method}
+                onMethod={setMethod}
+                onPay={handlePay}
+                status={status}
+                walletAddress={walletAddress}
+              />
+            )}
+            {step === 2 && (
+              <ConfirmStep
+                key="confirm"
+                txId={txId}
+                onDone={() => navigate(`/learning/${courseId}`)}
+              />
+            )}
+          </AnimatePresence>
         </div>
 
-        <div className="w-full xl:w-[450px]">
-           <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-[48px] p-10 sticky top-32 shadow-sm dark:shadow-none">
-              <h2 className="text-2xl font-black mb-10 text-slate-900 dark:text-white">Summary</h2>
-              <div className="space-y-4 mb-10 text-sm font-medium">
-                <div className="flex justify-between text-slate-500">
-                  <span>Product</span>
-                  <span className="text-slate-900 dark:text-white">Full Access Pass</span>
-                </div>
-                <div className="flex justify-between text-slate-500">
-                  <span>Quantity</span>
-                  <span className="text-slate-900 dark:text-white">1 Lifetime Seat</span>
-                </div>
-              </div>
-              <div className="pt-8 border-t border-slate-200 dark:border-white/5 flex items-end justify-between">
-                 <span className="text-2xl font-black text-slate-900 dark:text-white">Total Due</span>
-                 <span className="text-4xl font-black text-blue-600 dark:text-blue-400">${courseAmount}</span>
-              </div>
-           </div>
-        </div>
+        {/* Back link — not shown on confirmation */}
+        {step < 2 && (
+          <button
+            onClick={() => step > 0 ? setStep(s => s - 1) : navigate(-1)}
+            className="mt-4 text-xs w-full text-center transition-opacity hover:opacity-70"
+            style={{ color: 'var(--color-text-muted)' }}
+          >
+            {step === 0 ? '← Back to course' : '← Back to order summary'}
+          </button>
+        )}
       </div>
     </div>
   );

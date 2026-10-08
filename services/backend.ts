@@ -134,6 +134,18 @@ class BackendService {
     if (error) console.error('deleteCourse:', error);
   }
 
+  async updateCourse(id: string, patch: Partial<Course>): Promise<void> {
+    const row: any = {};
+    if (patch.title       !== undefined) row.title         = patch.title;
+    if (patch.description !== undefined) row.description   = patch.description;
+    if (patch.price       !== undefined) { row.price_usd   = patch.price; row.price_usdt = patch.price; }
+    if (patch.category    !== undefined) row.category      = patch.category;
+    if (patch.level       !== undefined) row.level         = patch.level;
+    if (patch.instructor  !== undefined) row.instructor    = patch.instructor;
+    const { error } = await supabase.from('courses').update(row).eq('id', id);
+    if (error) console.error('updateCourse:', error);
+  }
+
   // --- Talents ---
 
   async getTalents(): Promise<Talent[]> {
@@ -326,7 +338,7 @@ class BackendService {
       { onConflict: 'user_id,course_id' }
     );
     // Bump enrolled_count
-    await supabase.rpc('increment_enrolled_count', { course_id_arg: courseId }).catch(() => {});
+    await supabase.rpc('increment_enrolled_count', { course_id_arg: courseId }).then(null, () => {});
   }
 
   async isEnrolled(userId: string, courseId: string): Promise<boolean> {
@@ -445,6 +457,35 @@ class BackendService {
       }
     }, 5000);
     return cert;
+  }
+
+  // --- Assignments & Submissions ---
+
+  async getAssignment(courseId: string): Promise<{ id: string; title: string; description: string; dueDate: string | null } | null> {
+    const { data } = await supabase
+      .from('assignments')
+      .select('id, title, description, due_date')
+      .eq('course_id', courseId)
+      .maybeSingle();
+    if (!data) return null;
+    return { id: data.id, title: data.title, description: data.description, dueDate: data.due_date };
+  }
+
+  async getMySubmission(assignmentId: string, userId: string): Promise<{ id: string; content: string; status: string; grade: number | null; feedback: string | null } | null> {
+    const { data } = await supabase
+      .from('submissions')
+      .select('id, content, status, grade, feedback')
+      .eq('assignment_id', assignmentId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    return data ? { id: data.id, content: data.content, status: data.status, grade: data.grade, feedback: data.feedback } : null;
+  }
+
+  async submitAssignment(assignmentId: string, courseId: string, userId: string, content: string): Promise<void> {
+    await supabase.from('submissions').upsert(
+      { assignment_id: assignmentId, course_id: courseId, user_id: userId, content, status: 'SUBMITTED', submitted_at: new Date().toISOString() },
+      { onConflict: 'assignment_id,user_id' }
+    );
   }
 }
 

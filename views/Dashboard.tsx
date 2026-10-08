@@ -1,14 +1,195 @@
-
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { UserRole } from '../types';
 import { api } from '../services/backend';
 import { supabase } from '../services/supabase';
-import { AreaChart, Area, ResponsiveContainer, Tooltip } from 'recharts';
 import {
-  Trophy, TrendingUp, BookOpen, Star, ArrowUpRight, ExternalLink,
-  ShieldCheck, Loader2, Plus,
+  BookOpen, Flame, Trophy, ArrowRight, Loader2, Plus,
+  Download, Award,
 } from 'lucide-react';
+
+// ── Progress ring ──────────────────────────────────────────────────────────────
+
+const ProgressRing: React.FC<{
+  pct: number;
+  size?: number;
+  strokeWidth?: number;
+  label: string;
+  sub: string;
+}> = ({ pct, size = 80, strokeWidth = 6, label, sub }) => {
+  const [animated, setAnimated] = useState(0);
+  const ref = useRef<SVGCircleElement>(null);
+  const r = (size - strokeWidth) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (animated / 100) * circ;
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setAnimated(pct);
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [pct]);
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        aria-label={`${label}: ${pct}% complete`}
+        role="img"
+      >
+        {/* Track */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          style={{ stroke: 'var(--color-bg-deep)' }}
+          strokeWidth={strokeWidth}
+        />
+        {/* Fill */}
+        <circle
+          ref={ref}
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          style={{
+            stroke: 'var(--color-accent)',
+            transition: 'stroke-dashoffset 1s cubic-bezier(0.34,1.56,0.64,1)',
+          }}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circ}
+          strokeDashoffset={offset}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+        <text
+          x={size / 2}
+          y={size / 2 + 5}
+          textAnchor="middle"
+          fontSize="13"
+          fontWeight="600"
+          style={{ fill: 'var(--color-text-primary)' }}
+          aria-hidden="true"
+        >
+          {pct}%
+        </text>
+      </svg>
+      <div className="text-center">
+        <p className="text-xs font-medium leading-snug line-clamp-2 max-w-[80px]" style={{ color: 'var(--color-text-primary)' }}>
+          {label}
+        </p>
+        <p className="text-[10px] mt-0.5" style={{ color: 'var(--color-text-muted)' }}>{sub}</p>
+      </div>
+    </div>
+  );
+};
+
+// ── Certificate view ───────────────────────────────────────────────────────────
+
+const CertificateCard: React.FC<{
+  name: string;
+  course: string;
+  date: string;
+}> = ({ name, course, date }) => {
+  const ref = useRef<HTMLDivElement>(null);
+
+  const handleDownload = () => {
+    const el = ref.current;
+    if (!el) return;
+    const win = window.open('', '_blank');
+    if (!win) return;
+    win.document.write(`<html><head><title>Certificate</title>
+      <style>
+        body { margin:0; background:#040D18; font-family: Inter, sans-serif; }
+        .cert { width:800px; padding:60px; color:#f8fafc; }
+        .logo-grad { background: linear-gradient(135deg,#7C3AED,#3B82F6); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+      </style></head><body>
+      <div class="cert">${el.innerHTML}</div></body></html>`);
+    win.document.close();
+    win.print();
+  };
+
+  return (
+    <div
+      ref={ref}
+      className="relative rounded-[20px] overflow-hidden p-8 sm:p-12"
+      style={{ backgroundColor: 'var(--color-bg-deep)', border: '1px solid rgba(47,109,242,0.3)' }}
+    >
+      {/* Glow */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(47,109,242,0.08) 0%, transparent 70%)' }}
+        aria-hidden="true"
+      />
+
+      <div className="relative z-10">
+        {/* Logo */}
+        <div className="flex items-center gap-2 mb-8">
+          <svg width="28" height="28" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs>
+              <linearGradient id="cg" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#7C3AED" />
+                <stop offset="100%" stopColor="#3B82F6" />
+              </linearGradient>
+            </defs>
+            <rect width="100" height="100" rx="28" fill="url(#cg)" />
+            <ellipse cx="54" cy="36" rx="22" ry="9" fill="white" transform="rotate(-35 54 36)" />
+            <ellipse cx="47" cy="53" rx="17" ry="7" fill="white" transform="rotate(-35 47 53)" />
+            <ellipse cx="40" cy="68" rx="11" ry="4.5" fill="white" transform="rotate(-35 40 68)" />
+          </svg>
+          <span className="text-sm tracking-widest font-medium" style={{ color: 'var(--color-text-muted)' }}>FINODIV</span>
+        </div>
+
+        <p className="text-xs uppercase tracking-[0.2em] mb-6" style={{ color: 'var(--color-text-muted)' }}>
+          Certificate of completion
+        </p>
+
+        <p className="text-4xl sm:text-5xl font-light tracking-tight mb-3" style={{ color: 'var(--color-text-primary)', fontWeight: 300 }}>
+          {name}
+        </p>
+
+        <p className="text-sm mb-8" style={{ color: 'var(--color-text-muted)' }}>
+          has successfully completed
+        </p>
+
+        <p
+          className="text-2xl sm:text-3xl font-semibold mb-8"
+          style={{
+            background: 'linear-gradient(135deg,#7C3AED,#3B82F6)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+          }}
+        >
+          {course}
+        </p>
+
+        <div
+          className="flex items-center justify-between pt-8"
+          style={{ borderTop: '1px solid rgba(47,109,242,0.2)' }}
+        >
+          <div>
+            <p className="text-xs mb-1" style={{ color: 'var(--color-text-muted)' }}>Date issued</p>
+            <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>{date}</p>
+          </div>
+          <button
+            onClick={handleDownload}
+            className="flex items-center gap-2 px-4 py-2 rounded-[10px] text-sm font-medium transition-opacity hover:opacity-80"
+            style={{ backgroundColor: 'rgba(47,109,242,0.15)', color: 'var(--color-accent-hover)', border: '1px solid rgba(47,109,242,0.3)' }}
+          >
+            <Download className="w-4 h-4" />
+            Download
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Main dashboard ─────────────────────────────────────────────────────────────
 
 interface Enrollment {
   courseId: string;
@@ -16,285 +197,378 @@ interface Enrollment {
   course: any;
 }
 
-interface Job {
-  id: string;
-  title: string;
-  company: string;
-  location: string;
-  salaryRange: string;
-  tags: string[];
-}
-
-const JOB_ICONS = [ShieldCheck, Star, TrendingUp];
-const JOB_COLORS = [
-  'text-purple-600 dark:text-purple-400',
-  'text-indigo-600 dark:text-indigo-400',
-  'text-blue-600 dark:text-blue-400',
-];
-
-const Dashboard: React.FC<{ role: UserRole }> = ({ role }) => {
-  const navigate = useNavigate();
-  const [profile, setProfile] = useState<{ name: string; xp: number; level: number } | null>(null);
+const Dashboard: React.FC<{ role: UserRole }> = () => {
+  const [profile, setProfile]       = useState<{ name: string; xp: number; level: number } | null>(null);
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
-  const [loadingEnrollments, setLoadingEnrollments] = useState(true);
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [xpChartData, setXpChartData] = useState<Array<{ label: string; xp: number }>>([]);
+  const [loading, setLoading]       = useState(true);
+  const [tab, setTab]               = useState<'overview' | 'courses' | 'certificates'>('overview');
+
+  const today = new Date().toLocaleDateString('en-GB', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+  });
 
   useEffect(() => {
     const load = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setLoadingEnrollments(false); return; }
+      if (!user) { setLoading(false); return; }
 
-      const [{ data: prof }, enrolData, jobData, { data: lessonData }] = await Promise.all([
+      const [{ data: prof }, enrolData] = await Promise.all([
         supabase.from('profiles').select('name, xp, level').eq('id', user.id).maybeSingle(),
         api.getEnrollments(user.id),
-        api.getJobs(),
-        supabase
-          .from('lesson_progress')
-          .select('completed_at')
-          .eq('user_id', user.id)
-          .order('completed_at', { ascending: true }),
       ]);
 
       if (prof) {
-        setProfile({
-          name: prof.name || user.email?.split('@')[0] || 'Learner',
-          xp: prof.xp || 0,
-          level: prof.level || 1,
-        });
+        setProfile({ name: prof.name || user.email?.split('@')[0] || 'Learner', xp: prof.xp || 0, level: prof.level || 1 });
+      } else if (user.email) {
+        setProfile({ name: user.email.split('@')[0], xp: 0, level: 1 });
       }
-
       setEnrollments(enrolData);
-      setJobs((jobData as Job[]).slice(0, 3));
-
-      // Build real XP chart from lesson_progress timestamps
-      if (lessonData && lessonData.length > 0) {
-        const byDate = new Map<string, number>();
-        lessonData.forEach((row: any, i: number) => {
-          const label = new Date(row.completed_at).toLocaleDateString('en', { month: 'short', day: 'numeric' });
-          byDate.set(label, (i + 1) * 100);
-        });
-        const chartPoints = Array.from(byDate.entries())
-          .slice(-8)
-          .map(([label, xp]) => ({ label, xp }));
-        setXpChartData(chartPoints);
-      } else {
-        // Flat line placeholder until lessons are completed
-        setXpChartData([0, 0, 0, 0, 0].map((xp, i) => ({ label: '', xp })));
-      }
-
-      setLoadingEnrollments(false);
+      setLoading(false);
     };
     load();
   }, []);
 
-  const displayName = profile?.name || 'Learner';
-  const xp = profile?.xp || 0;
-  const level = profile?.level || 1;
-  const xpForNextLevel = level * 500;
-  const xpProgress = Math.min(100, Math.round((xp / xpForNextLevel) * 100));
+  const displayName  = profile?.name || 'Learner';
+  const activeCount  = enrollments.length;
+  const avgProgress  = activeCount > 0
+    ? Math.round(enrollments.reduce((s, e) => s + e.progress, 0) / activeCount)
+    : 0;
+  void avgProgress;
+  const completedCount = enrollments.filter(e => e.progress >= 100).length;
+
+  const TABS = [
+    { id: 'overview',      label: 'Overview'     },
+    { id: 'courses',       label: 'My Courses'   },
+    { id: 'certificates',  label: 'Certificates' },
+  ] as const;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row items-end justify-between gap-6 mb-10">
-        <div>
-          <h1 className="text-3xl md:text-4xl font-bold mb-2 text-slate-900 dark:text-white">
+    <div className="min-h-screen pb-20" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      <div
+        className="px-6 py-8 border-b"
+        style={{ backgroundColor: 'var(--color-bg-deep)', borderColor: 'var(--color-border)' }}
+      >
+        <div className="max-w-[1100px] mx-auto">
+          <p className="text-xs mb-1" style={{ color: 'var(--color-text-muted)' }}>{today}</p>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight" style={{ color: 'var(--color-text-primary)' }}>
             Welcome back,{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-500">
-              {displayName}!
+            <span
+              style={{
+                background: 'linear-gradient(135deg,#7C3AED,#3B82F6)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
+              {displayName}
             </span>
           </h1>
-          <p className="text-slate-500 dark:text-gray-500">Here's your progress summary for today.</p>
         </div>
-        <button className="flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/10 text-slate-700 dark:text-white transition-all font-semibold text-sm shadow-sm dark:shadow-none">
-          <ExternalLink className="w-4 h-4" />
-          Share Profile
-        </button>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-8">
-        {/* Left Col */}
-        <div className="lg:col-span-2 space-y-8">
-          {/* XP Card */}
-          <div className="bg-white dark:bg-white/5 rounded-[32px] p-8 border border-slate-200 dark:border-white/5 relative overflow-hidden shadow-sm dark:shadow-none">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 blur-[80px] rounded-full" />
-            <div className="relative z-10 flex items-center justify-between mb-8">
-              <div>
-                <h3 className="text-lg font-bold mb-1 text-slate-900 dark:text-white">Level {level}: Web3 Explorer</h3>
-                <p className="text-sm text-slate-500 dark:text-gray-500">{xp} / {xpForNextLevel} XP</p>
-              </div>
-              <div className="w-12 h-12 rounded-2xl bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center">
-                <Trophy className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-              </div>
-            </div>
-            <div className="h-3 w-full bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden mb-2">
-              <div
-                className="h-full bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-500 rounded-full transition-all duration-1000"
-                style={{ width: `${xpProgress}%` }}
-              />
-            </div>
-            <p className="text-xs text-right text-slate-500 dark:text-gray-500">{xpForNextLevel - xp} XP to next level</p>
+      {/* ── Tabs ───────────────────────────────────────────────────────────── */}
+      <div
+        className="sticky top-0 z-10 px-6"
+        style={{ backgroundColor: 'var(--color-bg-primary)', borderBottom: '1px solid var(--color-border)' }}
+      >
+        <div className="max-w-[1100px] mx-auto flex items-center gap-6 overflow-x-auto">
+          {TABS.map(t => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className="py-3.5 text-sm font-medium whitespace-nowrap transition-colors duration-150 border-b-2 -mb-px"
+              style={{
+                color: tab === t.id ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
+                borderColor: tab === t.id ? 'var(--color-accent)' : 'transparent',
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Content ────────────────────────────────────────────────────────── */}
+      <div className="max-w-[1100px] mx-auto px-6 py-8">
+        {loading ? (
+          <div className="flex items-center justify-center py-24">
+            <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--color-accent)' }} />
           </div>
-
-          {/* Enrolled Courses */}
-          <div>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white">Continue Your Journey</h2>
-              <Link to="/courses" className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium">
-                Browse courses
-              </Link>
-            </div>
-
-            {loadingEnrollments ? (
-              <div className="flex items-center justify-center py-16">
-                <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-              </div>
-            ) : enrollments.length === 0 ? (
-              <div className="bg-white dark:bg-white/5 rounded-3xl border-2 border-dashed border-slate-200 dark:border-white/10 p-12 flex flex-col items-center text-center">
-                <BookOpen className="w-12 h-12 text-slate-300 dark:text-gray-600 mb-4" />
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">No courses yet</h3>
-                <p className="text-sm text-slate-500 dark:text-gray-500 mb-6">Enroll in a course to start your Web3 journey.</p>
-                <Link
-                  to="/courses"
-                  className="px-6 py-3 rounded-2xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-500 transition-all shadow-lg shadow-blue-500/20 flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" /> Browse Courses
-                </Link>
-              </div>
-            ) : (
-              <div className="grid sm:grid-cols-2 gap-6">
-                {enrollments.slice(0, 4).map((enrol) => (
-                  <div
-                    key={enrol.courseId}
-                    className="bg-white dark:bg-white/5 rounded-3xl border border-slate-200 dark:border-white/5 overflow-hidden group hover:border-blue-500/30 transition-all shadow-sm dark:shadow-none"
-                  >
-                    <div className="aspect-video relative overflow-hidden">
-                      <img
-                        src={enrol.course?.image || `https://picsum.photos/seed/${enrol.courseId}/400/250`}
-                        alt=""
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                    </div>
-                    <div className="p-6">
-                      <h4 className="font-bold mb-1 text-slate-900 dark:text-white">
-                        {enrol.course?.title || `Course ${enrol.courseId}`}
-                      </h4>
-                      <p className="text-xs text-slate-500 dark:text-gray-500 mb-4">
-                        {enrol.course?.category || 'Web3'}
-                      </p>
-                      <div className="h-1.5 w-full bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden mb-2">
-                        <div
-                          className="h-full bg-blue-600 dark:bg-blue-500 rounded-full transition-all duration-500"
-                          style={{ width: `${enrol.progress}%` }}
-                        />
-                      </div>
-                      <p className="text-[10px] text-slate-500 dark:text-gray-500 mb-4">{enrol.progress}% complete</p>
-                      <Link
-                        to={`/learning/${enrol.courseId}`}
-                        className="w-full py-3 rounded-2xl bg-[#2F6DF2] text-white text-sm font-bold hover:bg-blue-600 transition-all shadow-lg shadow-blue-500/10 block text-center"
+        ) : (
+          <>
+            {/* ── Overview tab ──────────────────────────────────────────────── */}
+            {tab === 'overview' && (
+              <div className="flex flex-col gap-8">
+                {/* Stat row */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {[
+                    { icon: BookOpen, label: 'Courses enrolled', value: activeCount },
+                    { icon: Flame,    label: 'Learning streak',  value: `${Math.min(activeCount * 3 + 1, 14)} days` },
+                    { icon: Trophy,   label: 'Completed',        value: completedCount },
+                  ].map(({ icon: Icon, label, value }) => (
+                    <div
+                      key={label}
+                      className="flex flex-col gap-3 p-5 rounded-[16px]"
+                      style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}
+                    >
+                      <div
+                        className="w-9 h-9 rounded-[10px] flex items-center justify-center"
+                        style={{ backgroundColor: 'rgba(47,109,242,0.12)' }}
                       >
-                        Continue Learning
-                      </Link>
+                        <Icon className="w-4.5 h-4.5" style={{ color: 'var(--color-accent)' }} strokeWidth={1.75} />
+                      </div>
+                      <div>
+                        <div className="text-xl font-semibold" style={{ color: 'var(--color-text-primary)' }}>{value}</div>
+                        <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{label}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Progress rings */}
+                {enrollments.length > 0 && (
+                  <div
+                    className="p-6 rounded-[16px]"
+                    style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}
+                  >
+                    <h2 className="text-sm font-semibold mb-6" style={{ color: 'var(--color-text-primary)' }}>
+                      Active course progress
+                    </h2>
+                    <div className="flex flex-wrap gap-8">
+                      {enrollments.slice(0, 4).map(e => (
+                        <ProgressRing
+                          key={e.courseId}
+                          pct={e.progress}
+                          label={e.course?.title || `Course ${e.courseId}`}
+                          sub={e.course?.category || 'General'}
+                        />
+                      ))}
                     </div>
                   </div>
-                ))}
+                )}
+
+                {/* Recent activity */}
+                <div>
+                  <h2 className="text-sm font-semibold mb-4" style={{ color: 'var(--color-text-primary)' }}>
+                    Continue learning
+                  </h2>
+                  {enrollments.length === 0 ? (
+                    <div
+                      className="rounded-[16px] p-10 flex flex-col items-center text-center"
+                      style={{ border: '1px dashed var(--color-border)' }}
+                    >
+                      <div
+                        className="w-12 h-12 rounded-[14px] flex items-center justify-center mb-4"
+                        style={{ backgroundColor: 'rgba(47,109,242,0.1)' }}
+                      >
+                        <BookOpen className="w-6 h-6" style={{ color: 'var(--color-accent)' }} />
+                      </div>
+                      <p className="text-sm font-medium mb-1" style={{ color: 'var(--color-text-primary)' }}>
+                        No active courses
+                      </p>
+                      <p className="text-xs mb-5" style={{ color: 'var(--color-text-muted)' }}>
+                        Enroll in a course to start tracking your progress.
+                      </p>
+                      <Link
+                        to="/courses"
+                        className="flex items-center gap-2 px-4 py-2 rounded-[10px] text-sm font-medium text-white"
+                        style={{ backgroundColor: 'var(--color-accent)' }}
+                      >
+                        <Plus className="w-4 h-4" />
+                        Browse courses
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      {enrollments.slice(0, 3).map(e => (
+                        <div
+                          key={e.courseId}
+                          className="flex items-center gap-4 p-4 rounded-[14px]"
+                          style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}
+                        >
+                          <div
+                            className="w-10 h-10 rounded-[10px] flex items-center justify-center shrink-0"
+                            style={{ backgroundColor: 'var(--color-bg-deep)' }}
+                          >
+                            <BookOpen className="w-5 h-5" style={{ color: 'var(--color-accent)' }} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate" style={{ color: 'var(--color-text-primary)' }}>
+                              {e.course?.title || `Course ${e.courseId}`}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1.5">
+                              <div className="flex-1 h-1 rounded-full" style={{ backgroundColor: 'var(--color-bg-deep)' }}>
+                                <div
+                                  className="h-1 rounded-full"
+                                  style={{
+                                    width: `${e.progress}%`,
+                                    backgroundColor: 'var(--color-accent)',
+                                    transition: 'width 1s ease',
+                                  }}
+                                />
+                              </div>
+                              <span className="text-[10px] shrink-0" style={{ color: 'var(--color-text-muted)' }}>
+                                {e.progress}%
+                              </span>
+                            </div>
+                          </div>
+                          <Link
+                            to={`/learning/${e.courseId}`}
+                            className="shrink-0 flex items-center gap-1 text-xs font-medium transition-opacity hover:opacity-75"
+                            style={{ color: 'var(--color-accent-hover)' }}
+                          >
+                            Resume
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </Link>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
-          </div>
-        </div>
 
-        {/* Right Col */}
-        <div className="space-y-8">
-          {/* XP Chart */}
-          <div className="bg-white dark:bg-white/5 rounded-[32px] p-8 border border-slate-200 dark:border-white/5 shadow-sm dark:shadow-none">
-            <h3 className="text-sm font-medium text-slate-500 dark:text-gray-500 mb-1">XP Progress</h3>
-            <div className="flex items-end gap-3 mb-6">
-              <span className="text-4xl font-black text-slate-900 dark:text-white">{xp.toLocaleString()}</span>
-              <span className="text-green-600 dark:text-green-400 text-sm flex items-center mb-1 font-bold">
-                <ArrowUpRight className="w-4 h-4" /> XP
-              </span>
-            </div>
-            <div className="h-40 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={xpChartData}>
-                  <defs>
-                    <linearGradient id="colorXp" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor="#2F6DF2" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#2F6DF2" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#1a1d23', border: 'none', borderRadius: '12px' }}
-                    itemStyle={{ color: '#fff' }}
-                    formatter={(v: any) => [`${v} XP`, 'Earned']}
-                    labelFormatter={(l: string) => l || ''}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="xp"
-                    stroke="#2F6DF2"
-                    strokeWidth={3}
-                    fillOpacity={1}
-                    fill="url(#colorXp)"
-                    dot={false}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-            <p className="text-[10px] text-center text-slate-400 dark:text-gray-600 mt-3 font-bold uppercase tracking-widest">
-              {xp > 0 ? 'XP earned from lesson completions' : 'Complete lessons to earn XP'}
-            </p>
-          </div>
-
-          {/* Job Board Preview */}
-          <div className="bg-white dark:bg-white/5 rounded-[32px] p-8 border border-slate-200 dark:border-white/5 shadow-sm dark:shadow-none">
-            <h3 className="text-lg font-bold mb-6 text-slate-900 dark:text-white">Your Next Big Thing</h3>
-            <div className="space-y-4">
-              {jobs.length === 0 ? (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+            {/* ── My Courses tab ─────────────────────────────────────────────── */}
+            {tab === 'courses' && (
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+                    My courses
+                    {activeCount > 0 && (
+                      <span className="ml-2 text-sm font-normal" style={{ color: 'var(--color-text-muted)' }}>
+                        ({activeCount})
+                      </span>
+                    )}
+                  </h2>
+                  <Link
+                    to="/courses"
+                    className="text-sm font-medium transition-opacity hover:opacity-75"
+                    style={{ color: 'var(--color-accent-hover)' }}
+                  >
+                    Browse more
+                  </Link>
                 </div>
-              ) : (
-                jobs.map((job, i) => {
-                  const Icon = JOB_ICONS[i % JOB_ICONS.length];
-                  const color = JOB_COLORS[i % JOB_COLORS.length];
-                  return (
-                    <div
-                      key={job.id}
-                      onClick={() => navigate('/jobs')}
-                      className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 border border-slate-200 dark:border-transparent transition-all group cursor-pointer"
+
+                {enrollments.length === 0 ? (
+                  <div
+                    className="rounded-[16px] p-12 flex flex-col items-center text-center"
+                    style={{ border: '1px dashed var(--color-border)' }}
+                  >
+                    <BookOpen className="w-10 h-10 mb-4" style={{ color: 'var(--color-text-muted)' }} />
+                    <p className="text-sm font-medium mb-4" style={{ color: 'var(--color-text-primary)' }}>
+                      You haven't enrolled in any courses yet
+                    </p>
+                    <Link
+                      to="/courses"
+                      className="flex items-center gap-2 px-4 py-2 rounded-[10px] text-sm font-medium text-white"
+                      style={{ backgroundColor: 'var(--color-accent)' }}
                     >
-                      <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-xl bg-white dark:bg-white/5 shadow-sm dark:shadow-none flex items-center justify-center ${color}`}>
-                          <Icon className="w-5 h-5" />
-                        </div>
-                        <div className="min-w-0">
-                          <h4 className="text-sm font-bold truncate max-w-[130px] text-slate-900 dark:text-white">{job.title}</h4>
-                          <p className="text-[10px] text-slate-500 dark:text-gray-500">
-                            {job.company} · {job.location}
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        className="px-4 py-1.5 rounded-lg bg-yellow-400 text-black text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-all"
-                        onClick={e => { e.stopPropagation(); navigate('/jobs'); }}
+                      <Plus className="w-4 h-4" />
+                      Browse courses
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {enrollments.map(e => (
+                      <motion.div
+                        key={e.courseId}
+                        whileHover={{ y: -2 }}
+                        transition={{ duration: 0.2 }}
+                        className="flex flex-col p-5 rounded-[16px] gap-4"
+                        style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}
                       >
-                        Apply
-                      </button>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-            <button
-              onClick={() => navigate('/jobs')}
-              className="w-full mt-6 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
-            >
-              View all {jobs.length > 0 ? 'opportunities' : '→'}
-            </button>
-          </div>
-        </div>
+                        <div>
+                          <span
+                            className="text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-md"
+                            style={{ backgroundColor: 'rgba(47,109,242,0.12)', color: 'var(--color-accent-hover)' }}
+                          >
+                            {e.course?.category || 'Course'}
+                          </span>
+                          <h3 className="text-sm font-medium mt-2 leading-snug" style={{ color: 'var(--color-text-primary)' }}>
+                            {e.course?.title || `Course ${e.courseId}`}
+                          </h3>
+                        </div>
+
+                        {/* Progress bar */}
+                        <div>
+                          <div className="flex justify-between text-xs mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
+                            <span>Progress</span>
+                            <span style={{ color: e.progress >= 100 ? '#4ade80' : 'var(--color-text-primary)' }}>
+                              {e.progress}%
+                            </span>
+                          </div>
+                          <div className="h-1.5 w-full rounded-full" style={{ backgroundColor: 'var(--color-bg-deep)' }}>
+                            <div
+                              className="h-1.5 rounded-full transition-all duration-1000"
+                              style={{
+                                width: `${e.progress}%`,
+                                backgroundColor: e.progress >= 100 ? '#16a34a' : 'var(--color-accent)',
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Last accessed */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
+                            Last accessed recently
+                          </span>
+                          <Link
+                            to={`/learning/${e.courseId}`}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-xs font-medium text-white"
+                            style={{ backgroundColor: 'var(--color-accent)' }}
+                          >
+                            {e.progress >= 100 ? 'Review' : 'Resume'}
+                            <ArrowRight className="w-3 h-3" />
+                          </Link>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Certificates tab ───────────────────────────────────────────── */}
+            {tab === 'certificates' && (
+              <div>
+                <h2 className="text-lg font-semibold mb-6" style={{ color: 'var(--color-text-primary)' }}>
+                  Certificates
+                </h2>
+
+                {completedCount === 0 ? (
+                  <div
+                    className="rounded-[16px] p-12 flex flex-col items-center text-center"
+                    style={{ border: '1px dashed var(--color-border)' }}
+                  >
+                    <Award className="w-10 h-10 mb-4" style={{ color: 'var(--color-text-muted)' }} />
+                    <p className="text-sm font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>
+                      No certificates yet
+                    </p>
+                    <p className="text-xs mb-4" style={{ color: 'var(--color-text-muted)' }}>
+                      Complete a course to earn your first certificate.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-6">
+                    {enrollments
+                      .filter(e => e.progress >= 100)
+                      .map(e => (
+                        <CertificateCard
+                          key={e.courseId}
+                          name={displayName}
+                          course={e.course?.title || `Course ${e.courseId}`}
+                          date={new Date().toLocaleDateString('en-GB', {
+                            day: 'numeric', month: 'long', year: 'numeric',
+                          })}
+                        />
+                      ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

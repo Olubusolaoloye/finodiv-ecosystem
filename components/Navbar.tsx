@@ -82,7 +82,7 @@ const Navbar: React.FC<NavbarProps> = ({
         <Link to="/courses" className="hover:text-blue-500 dark:hover:text-white transition-colors">Courses</Link>
         {role === UserRole.GUEST ? (
           <>
-            <Link to="/join"  className="hover:text-blue-500 dark:hover:text-white transition-colors">For Employers</Link>
+            <Link to="/login"  className="hover:text-blue-500 dark:hover:text-white transition-colors">For Employers</Link>
             <Link to="/"     className="hover:text-blue-500 dark:hover:text-white transition-colors">About Us</Link>
           </>
         ) : (
@@ -106,14 +106,9 @@ const Navbar: React.FC<NavbarProps> = ({
         </button>
 
         {role === UserRole.GUEST ? (
-          <>
-            <Link to="/login" className="px-4 py-2 rounded-xl text-xs md:text-sm font-semibold text-slate-600 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white transition-colors">
-              Login
-            </Link>
-            <Link to="/join" className="px-4 md:px-5 py-2 rounded-xl bg-[#2F6DF2] hover:bg-blue-600 text-white text-xs md:text-sm font-semibold transition-all shadow-lg shadow-blue-500/20">
-              Sign Up
-            </Link>
-          </>
+          <Link to="/login" className="px-5 py-2.5 rounded-xl bg-[#2F6DF2] hover:bg-blue-600 text-white text-xs md:text-sm font-semibold transition-all shadow-lg shadow-blue-500/20">
+            Login
+          </Link>
         ) : (
           <div className="flex items-center gap-3 md:gap-4">
             {/* Search */}
