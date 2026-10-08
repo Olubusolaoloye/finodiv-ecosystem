@@ -3,6 +3,42 @@ import React from 'react';
 import { Course, Talent, Achievement, UserRole, CareerPath, AssessmentQuestion } from './types';
 
 export const CAREER_PATHS: Record<string, CareerPath> = {
+  RWA: {
+    id: 'RWA',
+    title: 'Real World Asset (RWA) Developer',
+    description: 'The tokenization architect. You bridge TradFi and DeFi by tokenizing real-world assets — real estate, bonds, private credit, and commodities — onto blockchain rails that settle in seconds, not days.',
+    traits: ['Bridge Builder', 'Compliance-Aware', 'Finance-Literate'],
+    skills: ['ERC-3643', 'ERC-1400', 'Solidity', 'KYC/AML Integration', 'Oracle Design', 'Legal Frameworks'],
+    duration: '8-14 Months',
+    demand: 'Very High',
+    overlap: 88,
+    freelanceRate: '$120–$280/hr',
+    platforms: ['Securitize', 'Centrifuge', 'Maple Finance', 'Ondo Finance'],
+  },
+  MEV: {
+    id: 'MEV',
+    title: 'MEV / Quantitative Searcher',
+    description: 'The on-chain arbitrageur. You write bots that capture Maximal Extractable Value through sandwich attacks, liquidations, and arbitrage — operating in the most competitive, high-stakes environment in crypto.',
+    traits: ['Hyper-Competitive', 'Mathematically Precise', 'Low-Latency Obsessed'],
+    skills: ['Rust', 'Solidity', 'Flashloans', 'Flashbots', 'Mempool Analysis', 'Statistics'],
+    duration: '10-18 Months',
+    demand: 'Very High',
+    overlap: 80,
+    freelanceRate: '$150–$400/hr or profit-share',
+    platforms: ['Flashbots', 'EigenLayer', 'Ultra Sound Relay', 'Independent'],
+  },
+  DEVREL: {
+    id: 'DEVREL',
+    title: 'Web3 Developer Relations',
+    description: 'The ecosystem catalyst. You are the human bridge between a protocol and its builders — writing documentation, creating tutorials, running hackathons, and ensuring thousands of developers can build with your tech.',
+    traits: ['Technically Fluent', 'Empathetic', 'Exceptional Communicator'],
+    skills: ['Developer Advocacy', 'SDK Documentation', 'Workshop Facilitation', 'GitHub', 'Content Creation', 'API Design Feedback'],
+    duration: '4-8 Months',
+    demand: 'High',
+    overlap: 68,
+    freelanceRate: '$70–$140/hr',
+    platforms: ['Protocol Teams', 'Alchemy', 'Infura', 'Chainlink', 'Crypto.jobs'],
+  },
   SCD: {
     id: 'SCD',
     title: 'Smart Contract Developer',
@@ -155,21 +191,21 @@ export const CAREER_QUESTIONS: AssessmentQuestion[] = [
     question: "What excites you most when working on a project?",
     options: [
       { label: "Building unbreakable cryptographic logic and smart contracts", impact: { SCD: 3, SEC: 2, ZKD: 1 } },
-      { label: "Designing beautiful, interactive Web3 interfaces", impact: { FWD: 3, WPM: 1 } },
-      { label: "Finding hidden patterns in on-chain data and market moves", impact: { BDA: 3, DEF: 2 } },
-      { label: "Building AI agents that operate autonomously on-chain", impact: { AIW: 3, SCD: 1 } },
-      { label: "Educating, leading communities, and onboarding newcomers", impact: { TW: 2, WCM: 2, DAO: 1 } },
+      { label: "Designing beautiful, interactive Web3 interfaces", impact: { FWD: 3, WPM: 1, DEVREL: 1 } },
+      { label: "Finding hidden patterns in on-chain data and market moves", impact: { BDA: 3, DEF: 2, MEV: 1 } },
+      { label: "Building AI agents or RWA systems on-chain", impact: { AIW: 3, RWA: 2, SCD: 1 } },
+      { label: "Educating, leading communities, and onboarding newcomers", impact: { TW: 2, WCM: 2, DEVREL: 2, DAO: 1 } },
     ]
   },
   {
     id: 2,
     question: "Which sector of Web3 energizes you the most?",
     options: [
-      { label: "DeFi protocols, money markets, and yield infrastructure", impact: { SCD: 2, DEF: 3, SEC: 1 } },
+      { label: "DeFi, money markets, and Real World Asset tokenization", impact: { DEF: 3, RWA: 3, SEC: 1 } },
       { label: "Layer 2s, zero-knowledge proofs, and blockchain scaling", impact: { ZKD: 3, SCD: 1 } },
       { label: "Gaming, metaverse, and digital ownership economies", impact: { WGD: 3, FWD: 1 } },
-      { label: "AI agents, autonomous protocols, and on-chain intelligence", impact: { AIW: 3 } },
-      { label: "DAOs, governance, and decentralized community coordination", impact: { DAO: 3, WCM: 2 } },
+      { label: "MEV, quantitative trading, and on-chain arbitrage", impact: { MEV: 3, BDA: 2, DEF: 1 } },
+      { label: "DAOs, developer ecosystems, and community coordination", impact: { DAO: 3, DEVREL: 2, WCM: 2 } },
     ]
   },
   {

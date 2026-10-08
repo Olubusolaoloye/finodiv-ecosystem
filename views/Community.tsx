@@ -3,9 +3,9 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { UserRole } from '../types';
 import { supabase } from '../services/supabase';
 import {
-  Send, Pin, ShieldCheck, Trash2, X, Loader2,
+  Send, Pin, ShieldCheck, Trash2, X, XCircle, Loader2,
   Plus, Hash, Users, LogIn, LogOut as LeaveIcon, Check,
-  TrendingUp, DollarSign, Globe, AlertCircle, ImagePlus, XCircle,
+  TrendingUp, DollarSign, Globe, AlertCircle, ImagePlus, ChevronDown,
 } from 'lucide-react';
 
 interface CommunityProps { role: UserRole; }
@@ -81,6 +81,9 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadingImg, setUploadingImg] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /* mobile room picker */
+  const [showMobileRooms, setShowMobileRooms] = useState(false);
 
   /* admin create-room modal */
   const [showCreate, setShowCreate]   = useState(false);
@@ -367,12 +370,55 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
 
   /* ═══════════════════════════════════════════════════════════════════════ */
   return (
-    <div className="flex h-full overflow-hidden bg-slate-50 dark:bg-[#0b0e14]">
+    <div className="flex flex-col h-full overflow-hidden bg-slate-50 dark:bg-[#0b0e14] md:flex-row">
 
       {/* Toast */}
       {toastMsg && <Toast msg={toastMsg} onDismiss={() => setToastMsg(null)} />}
 
-      {/* ── Sidebar ──────────────────────────────────────────────────────── */}
+      {/* ── Mobile room picker bar ───────────────────────────────────────── */}
+      <div className="md:hidden shrink-0 border-b border-slate-200 dark:border-white/5 bg-white dark:bg-[#0b0e14]">
+        <button
+          onClick={() => setShowMobileRooms(v => !v)}
+          className="w-full flex items-center gap-3 px-4 py-3"
+        >
+          {activeRoom && (
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white shrink-0"
+              style={{ backgroundColor: activeRoom.icon_color }}>
+              {ROOM_ICONS[activeRoom.slug] ?? <Hash className="w-4 h-4" />}
+            </div>
+          )}
+          <span className="flex-1 text-left font-bold text-sm text-slate-900 dark:text-white truncate">
+            {activeRoom?.name ?? 'Select a room'}
+          </span>
+          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${showMobileRooms ? 'rotate-180' : ''}`} />
+        </button>
+
+        {showMobileRooms && (
+          <div className="border-t border-slate-100 dark:border-white/5 max-h-48 overflow-y-auto">
+            {rooms.map(room => (
+              <button
+                key={room.id}
+                onClick={() => { setActiveRoom(room); setShowMobileRooms(false); }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors ${
+                  activeRoom?.id === room.id ? 'bg-blue-50 dark:bg-blue-600/10' : 'hover:bg-slate-50 dark:hover:bg-white/5'
+                }`}
+              >
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white shrink-0"
+                  style={{ backgroundColor: room.icon_color }}>
+                  {ROOM_ICONS[room.slug] ?? <Hash className="w-4 h-4" />}
+                </div>
+                <span className={`text-sm font-bold flex-1 text-left ${activeRoom?.id === room.id ? 'text-blue-600 dark:text-blue-400' : 'text-slate-800 dark:text-white'}`}>
+                  {room.name}
+                </span>
+                <span className="text-[10px] text-slate-400 dark:text-gray-600">{room.memberCount ?? 0} members</span>
+                {joinedRoomIds.has(room.id) && <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Sidebar (desktop) ────────────────────────────────────────────── */}
       <aside className="w-64 shrink-0 border-r border-slate-200 dark:border-white/5 flex-col bg-white dark:bg-[#0b0e14] hidden md:flex">
         <div className="p-5 border-b border-slate-200 dark:border-white/5">
           <p className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-gray-500">Chat Rooms</p>

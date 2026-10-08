@@ -5,6 +5,7 @@ import { UserRole, SystemSettings } from './types';
 import { supabase } from './services/supabase';
 
 // Views
+import LandingPage from './views/LandingPage';
 import Home from './views/Home';
 import Dashboard from './views/Dashboard';
 import AdminDashboard from './views/AdminDashboard';
@@ -15,7 +16,6 @@ import TalentSearch from './views/TalentSearch';
 import Profile from './views/Profile';
 import Checkout from './views/Checkout';
 import Login from './views/Login';
-import JoinAs from './views/JoinAs';
 import CompanyVerification from './views/CompanyVerification';
 import ProjectSubmission from './views/ProjectSubmission';
 import Certificates from './views/Certificates';
@@ -27,6 +27,9 @@ import ManageUsers from './views/admin/ManageUsers';
 import SystemControl from './views/admin/SystemControl';
 import Jobs from './views/Jobs';
 import ResetPassword from './views/ResetPassword';
+import EducatorDashboard from './views/educator/EducatorDashboard';
+import CourseUpload from './views/educator/CourseUpload';
+import ViewSubmissions from './views/educator/ViewSubmissions';
 
 // Components
 import Navbar from './components/Navbar';
@@ -86,14 +89,16 @@ const App: React.FC = () => {
   // ── Supabase auth listener ──────────────────────────────────────────────────
   useEffect(() => {
     const loadProfile = async (uid: string, email: string | null) => {
+      // Set userId + email immediately so route guards don't redirect before role loads
+      setUserId(uid);
+      setAuthEmail(email);
+
       const { data: profile } = await supabase
         .from('profiles')
         .select('role, wallet_address, name')
         .eq('id', uid)
         .maybeSingle();
 
-      setUserId(uid);
-      setAuthEmail(email);
       setRole((profile?.role as UserRole) || UserRole.LEARNER);
       setDisplayName(profile?.name || email?.split('@')[0] || null);
       if (profile?.wallet_address) {
@@ -128,9 +133,9 @@ const App: React.FC = () => {
           setAuthEmail(session.user.email ?? null);
           setRole(UserRole.LEARNER);
         }
-        // Redirect to dashboard after magic-link login
+        // Redirect to appropriate dashboard after sign-in
         const hash = window.location.hash;
-        if (!hash || hash === '#/' || hash === '#/login' || hash === '#/join') {
+        if (!hash || hash === '#/' || hash === '#/login' || hash === '#/reset-password') {
           window.location.hash = '#/dashboard';
         }
       } else if (event === 'PASSWORD_RECOVERY') {
@@ -256,20 +261,17 @@ const App: React.FC = () => {
 
           <main className="flex-1 overflow-y-auto custom-scrollbar relative transition-all duration-300 w-full">
             <Routes>
-              <Route path="/" element={<Home onJoin={() => { window.location.hash = '#/login'; }} />} />
+              <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<Login onWalletLogin={handleWalletLogin} />} />
-              <Route path="/join" element={<JoinAs onSelect={() => { window.location.hash = '#/login'; }} />} />
+              <Route path="/join" element={<Navigate to="/login" />} />
 
               <Route
                 path="/dashboard"
                 element={
-                  role === UserRole.GUEST ? (
-                    <Navigate to="/login" />
-                  ) : role === UserRole.ADMIN ? (
-                    <AdminDashboard />
-                  ) : (
-                    <Dashboard role={role} />
-                  )
+                  !userId                    ? <Navigate to="/login"    /> :
+                  role === UserRole.ADMIN    ? <AdminDashboard />         :
+                  role === UserRole.EDUCATOR ? <Navigate to="/educator" /> :
+                  <Dashboard role={role} />
                 }
               />
 
@@ -286,7 +288,7 @@ const App: React.FC = () => {
                 }
               />
 
-              <Route path="/career-compass" element={role === UserRole.GUEST ? <Navigate to="/login" /> : <CareerCompass />} />
+              <Route path="/career-compass" element={!userId ? <Navigate to="/login" /> : <CareerCompass />} />
               <Route path="/courses" element={<CourseList />} />
               <Route path="/courses/:id" element={<CourseDetail />} />
               <Route path="/learning/:id" element={<LearningPlayer />} />
@@ -310,12 +312,12 @@ const App: React.FC = () => {
               />
               <Route
                 path="/community"
-                element={role === UserRole.GUEST ? <Navigate to="/login" /> : <Community role={role} />}
+                element={!userId ? <Navigate to="/login" /> : <Community role={role} />}
               />
               <Route
                 path="/settings"
                 element={
-                  role === UserRole.GUEST ? (
+                  !userId ? (
                     <Navigate to="/login" />
                   ) : (
                     <Settings
@@ -329,9 +331,15 @@ const App: React.FC = () => {
                 }
               />
 
-              <Route path="/jobs" element={role === UserRole.GUEST ? <Navigate to="/login" /> : <Jobs />} />
-              <Route path="/messages" element={role === UserRole.GUEST ? <Navigate to="/login" /> : <ComingSoon title="Messages" />} />
+              <Route path="/jobs" element={!userId ? <Navigate to="/login" /> : <Jobs />} />
+              <Route path="/messages" element={!userId ? <Navigate to="/login" /> : <ComingSoon title="Messages" />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+
+              {/* Educator portal */}
+              <Route path="/educator" element={!userId ? <Navigate to="/login" /> : (role === UserRole.EDUCATOR || role === UserRole.ADMIN ? <EducatorDashboard /> : <Navigate to="/dashboard" />)} />
+              <Route path="/educator/upload" element={!userId ? <Navigate to="/login" /> : (role === UserRole.EDUCATOR || role === UserRole.ADMIN ? <CourseUpload /> : <Navigate to="/dashboard" />)} />
+              <Route path="/educator/submissions" element={!userId ? <Navigate to="/login" /> : (role === UserRole.EDUCATOR || role === UserRole.ADMIN ? <EducatorDashboard /> : <Navigate to="/dashboard" />)} />
+              <Route path="/educator/submissions/:courseId" element={!userId ? <Navigate to="/login" /> : (role === UserRole.EDUCATOR || role === UserRole.ADMIN ? <ViewSubmissions /> : <Navigate to="/dashboard" />)} />
 
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>

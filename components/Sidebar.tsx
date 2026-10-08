@@ -2,21 +2,23 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { UserRole } from '../types';
-import { 
-  LayoutDashboard, 
-  BookOpen, 
-  Users, 
-  Briefcase, 
-  Settings, 
-  LogOut, 
+import {
+  LayoutDashboard,
+  BookOpen,
+  Users,
+  Briefcase,
+  Settings,
+  LogOut,
   Award,
   ChevronLeft,
   ChevronRight,
   ShieldCheck,
-  FolderOpen,
   MessageSquare,
   Compass,
-  Zap
+  Zap,
+  Upload,
+  ClipboardList,
+  GraduationCap,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -31,30 +33,41 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, setIsOpen, onLogout, displayName, authEmail, userId }) => {
   const learnerLinks = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-    { icon: Compass, label: 'Career Compass', path: '/career-compass' },
-    { icon: BookOpen, label: 'Courses', path: '/courses' },
-    { icon: FolderOpen, label: 'Projects', path: '/submit-project' },
-    { icon: Award, label: 'Certificates', path: '/certificates' },
-    { icon: MessageSquare, label: 'Community', path: '/community' },
+    { icon: LayoutDashboard, label: 'Dashboard',     path: '/dashboard' },
+    { icon: Compass,         label: 'Career Compass', path: '/career-compass' },
+    { icon: BookOpen,        label: 'Courses',        path: '/courses' },
+    { icon: Award,           label: 'Certificates',   path: '/certificates' },
+    { icon: MessageSquare,   label: 'Community',      path: '/community' },
   ];
 
   const employerLinks = [
-    { icon: LayoutDashboard, label: 'Overview', path: '/dashboard' },
-    { icon: Users, label: 'Talent Search', path: '/talent' },
-    { icon: Briefcase, label: 'Job Posts', path: '/jobs' },
-    { icon: MessageSquare, label: 'Messages', path: '/messages' },
-    { icon: ShieldCheck, label: 'Company Profile', path: '/profile/current' },
+    { icon: LayoutDashboard, label: 'Overview',        path: '/dashboard' },
+    { icon: Users,           label: 'Talent Search',   path: '/talent' },
+    { icon: Briefcase,       label: 'Job Posts',       path: '/jobs' },
+    { icon: MessageSquare,   label: 'Messages',        path: '/messages' },
+    { icon: ShieldCheck,     label: 'Company Profile', path: '/profile/current' },
+  ];
+
+  const educatorLinks = [
+    { icon: GraduationCap,  label: 'Teaching Hub',    path: '/educator' },
+    { icon: Upload,         label: 'Upload Course',   path: '/educator/upload' },
+    { icon: ClipboardList,  label: 'Submissions',     path: '/educator/submissions' },
+    { icon: BookOpen,       label: 'Browse Courses',  path: '/courses' },
+    { icon: MessageSquare,  label: 'Community',       path: '/community' },
   ];
 
   const adminLinks = [
-    { icon: LayoutDashboard, label: 'Admin Hub', path: '/dashboard' },
-    { icon: BookOpen, label: 'Manage Courses', path: '/admin/courses' },
-    { icon: Users, label: 'Platform Users', path: '/admin/users' },
-    { icon: Zap, label: 'System Control', path: '/admin/settings' },
+    { icon: LayoutDashboard, label: 'Admin Hub',       path: '/dashboard' },
+    { icon: BookOpen,        label: 'Manage Courses',  path: '/admin/courses' },
+    { icon: Users,           label: 'Platform Users',  path: '/admin/users' },
+    { icon: Zap,             label: 'System Control',  path: '/admin/settings' },
   ];
 
-  const links = role === UserRole.ADMIN ? adminLinks : role === UserRole.EMPLOYER ? employerLinks : learnerLinks;
+  const links =
+    role === UserRole.ADMIN    ? adminLinks    :
+    role === UserRole.EMPLOYER ? employerLinks :
+    role === UserRole.EDUCATOR ? educatorLinks :
+    learnerLinks;
 
   // On Mobile: Fixed, full height, z-index high, width 72 (or full screen minus some gap)
   // On Desktop: Sticky/Static, variable width

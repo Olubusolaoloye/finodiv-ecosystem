@@ -24,19 +24,9 @@ const Logo: React.FC<LogoProps> = ({ className = "w-10 h-10", variant = 'icon' }
         {/* Background rounded square */}
         <rect width="100" height="100" rx="28" fill="url(#logoGradient)" />
         
-        {/* Stylized White Waves */}
-        <path 
-          d="M60.5 39C62.5 37 57.5 33.5 50.5 34.5C43.5 35.5 33 42 33 42L41.5 51.5C41.5 51.5 52.5 47 60.5 39Z" 
-          fill="white" 
-        />
-        <path 
-          d="M58 52.5C60 50.5 56.5 48 51.5 48.5C46.5 49 39 53 39 53L43.5 59.5C43.5 59.5 51 59.5 58 52.5Z" 
-          fill="white" 
-        />
-        <path 
-          d="M54.5 63.5C56 62.5 53 60.5 49 61C45 61.5 40 64.5 40 64.5L43 69.5C43 69.5 49.5 68.5 54.5 63.5Z" 
-          fill="white" 
-        />
+        <ellipse cx="54" cy="36" rx="22" ry="9" fill="white" transform="rotate(-35 54 36)" />
+        <ellipse cx="47" cy="53" rx="17" ry="7" fill="white" transform="rotate(-35 47 53)" />
+        <ellipse cx="40" cy="68" rx="11" ry="4.5" fill="white" transform="rotate(-35 40 68)" />
       </svg>
     </div>
   );
