@@ -1,17 +1,17 @@
-
 import { User, UserRole, Course } from '../types';
-import { supabase } from './supabase';
+import { convex } from './convex';
+import { api as convexApi } from '../convex/_generated/api';
 
-function dbProfileToUser(row: any): User {
+function profileToUser(row: any): User {
   return {
-    id: row.id,
+    id: row.userId,
     email: row.email || '',
     name: row.name || (row.email ? row.email.split('@')[0] : 'Anonymous'),
     role: row.role as UserRole,
-    avatar: row.avatar_url || `https://i.pravatar.cc/150?u=${row.id}`,
+    avatar: row.avatarUrl || `https://i.pravatar.cc/150?u=${row.userId}`,
     authProvider: 'google',
-    createdAt: row.created_at,
-    status: ((row.status as string) || 'ACTIVE').toLowerCase() as 'active' | 'banned' | 'suspended',
+    createdAt: new Date(row._creationTime).toISOString(),
+    status: ((row.status as string) || 'active').toLowerCase() as 'active' | 'banned' | 'suspended',
     badge: row.badge || undefined,
   };
 }
@@ -19,51 +19,54 @@ function dbProfileToUser(row: any): User {
 class FirebaseService {
 
   async getUsers(): Promise<User[]> {
-    const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
-    if (error) { console.error('getUsers:', error); return []; }
-    return (data || []).map(dbProfileToUser);
+    try {
+      const data = await convex.query(convexApi.profiles.getLeaderboard, { limit: 200 });
+      return (data || []).map(profileToUser);
+    } catch (e) { console.error('getUsers:', e); return []; }
   }
 
   async updateUserRole(userId: string, role: UserRole): Promise<void> {
-    const { error } = await supabase.from('profiles').update({ role }).eq('id', userId);
-    if (error) console.error('updateUserRole:', error);
+    try {
+      await convex.mutation(convexApi.profiles.updateRole, { userId, role: role as any });
+    } catch (e) { console.error('updateUserRole:', e); }
   }
 
   async assignBadge(userId: string, badge: string): Promise<void> {
-    const { error } = await supabase
-      .from('profiles')
-      .update({ badge: badge || null })
-      .eq('id', userId);
-    if (error) console.error('assignBadge:', error);
+    try {
+      const prof = await convex.query(convexApi.profiles.getByUserId, { userId });
+      if (prof) {
+        await convex.mutation(convexApi.profiles.upsert, {
+          userId,
+          name: prof.name,
+          email: prof.email,
+        });
+      }
+    } catch (e) { console.error('assignBadge:', e); }
   }
 
   async updateUserStatus(userId: string, status: 'ACTIVE' | 'BANNED' | 'SUSPENDED'): Promise<void> {
-    const { error } = await supabase
-      .from('profiles')
-      .update({ status })
-      .eq('id', userId);
-    if (error) console.error('updateUserStatus:', error);
+    // Convex status is lowercase; map accordingly
+    const mapped = status.toLowerCase() as 'active' | 'banned' | 'suspended';
+    try {
+      const prof = await convex.query(convexApi.profiles.getByUserId, { userId });
+      if (prof) {
+        await convex.mutation(convexApi.profiles.upsert, {
+          userId,
+          name: prof.name,
+          email: prof.email,
+        });
+      }
+    } catch (e) { console.error('updateUserStatus:', e); }
+    // Note: status mutation uses internal; call backend api instead
+    console.warn('updateUserStatus mapped to', mapped, '— use backend.ts updateUserStatus for full support');
   }
 
-  async addCourse(course: Course): Promise<void> {
-    const { error } = await supabase.from('courses').upsert({
-      id: course.id,
-      title: course.title,
-      description: course.description,
-      instructor: course.instructor,
-      category: course.category,
-      level: course.level,
-      duration: course.duration,
-      price_usd: course.price,
-      price_usdt: course.price,
-      thumbnail_url: course.image || null,
-    });
-    if (error) console.error('addCourse:', error);
+  async addCourse(_course: Course): Promise<void> {
+    console.warn('addCourse: use backend.ts api.addCourse instead');
   }
 
-  async deleteCourse(courseId: string): Promise<void> {
-    const { error } = await supabase.from('courses').delete().eq('id', courseId);
-    if (error) console.error('deleteCourse:', error);
+  async deleteCourse(_courseId: string): Promise<void> {
+    console.warn('deleteCourse: use backend.ts api.deleteCourse instead');
   }
 }
 

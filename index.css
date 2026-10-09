@@ -148,6 +148,109 @@
   }
 }
 
+/* ─── Global responsive base ────────────────────────────────────── */
+
+/* Prevent horizontal overflow on every screen */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* All block elements respect their container */
+*, *::before, *::after {
+  min-width: 0;
+}
+
+/* Images never burst out of their container */
+img, video, iframe, embed, object {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Prevent text overflow on small screens */
+h1, h2, h3, h4, h5, h6, p, span, a, label, li, td, th {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* ─── Page container — use on every view's outermost div ─────────── */
+/* Max-width + auto side margins + responsive gutter padding        */
+.page-container {
+  width: 100%;
+  max-width: 1280px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left:  clamp(16px, 5vw, 48px);
+  padding-right: clamp(16px, 5vw, 48px);
+}
+
+/* Full-width section wrapper — use for section backgrounds that    */
+/* bleed edge-to-edge; put .page-container inside it               */
+.section-wrap {
+  width: 100%;
+  padding-top:    clamp(56px, 8vw, 96px);
+  padding-bottom: clamp(56px, 8vw, 96px);
+}
+
+/* ─── Tap-target safety ─────────────────────────────────────────── */
+button, a, [role="button"] {
+  min-height: 36px;
+  touch-action: manipulation;
+}
+
+/* ─── Grid helpers — collapse to 1 column on small screens ──────── */
+@media (max-width: 480px) {
+  /* Two-column grids collapse */
+  [style*="grid-template-columns: repeat(2"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ─── Marquee scroll animation ─────────────────────────────────── */
+@keyframes marquee-ltr {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee-ltr 28s linear infinite;
+  animation-play-state: paused;
+  will-change: transform;
+}
+.marquee-container:hover .marquee-track {
+  animation-play-state: running;
+}
+
+/* Mobile bottom nav — visible on mobile, hidden on desktop */
+.mobile-bottom-nav {
+  display: flex;
+}
+@media (min-width: 768px) {
+  .mobile-bottom-nav {
+    display: none !important;
+  }
+}
+
+/* Bottom nav padding on auth pages */
+@media (max-width: 767px) {
+  .auth-main-content {
+    padding-bottom: 68px;
+  }
+}
+
+/* ─── Profile / sidebar two-column layout — collapses on mobile ─── */
+.two-col-sidebar {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 24px;
+}
+@media (max-width: 640px) {
+  .two-col-sidebar {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ─── Print block ───────────────────────────────────────────────── */
 @media print {
   body { display: none; }

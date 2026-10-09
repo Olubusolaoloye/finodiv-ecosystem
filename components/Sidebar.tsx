@@ -28,7 +28,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     { icon: Compass,          label: 'Career Compass', path: '/career-compass' },
     { icon: BookOpen,         label: 'Courses',        path: '/courses' },
     { icon: Award,            label: 'Certificates',   path: '/certificates' },
-    { icon: MessageSquare,    label: 'Community',      path: '/community' },
+    { icon: MessageSquare,    label: 'Chats',           path: '/community' },
   ];
 
   const employerLinks = [
@@ -44,7 +44,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     { icon: Upload,        label: 'Upload Course',  path: '/educator/upload' },
     { icon: ClipboardList, label: 'Submissions',    path: '/educator/submissions' },
     { icon: BookOpen,      label: 'Browse Courses', path: '/courses' },
-    { icon: MessageSquare, label: 'Community',      path: '/community' },
+    { icon: MessageSquare, label: 'Chats',           path: '/community' },
   ];
 
   const adminLinks = [
@@ -62,34 +62,26 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const initials = (displayName || authEmail || 'U').charAt(0).toUpperCase();
 
+  const gradientBg = isDarkMode
+    ? 'linear-gradient(160deg, #2D1B69 0%, #1E3A8A 100%)'
+    : 'linear-gradient(160deg, #4C1D95 0%, #1D4ED8 100%)';
+
   return (
     <>
-      {/* Mobile overlay */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 z-30 lg:hidden"
-          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
-          onClick={() => setIsOpen(false)}
-        />
-      )}
-
+      {/* ── Desktop sidebar (hidden on mobile) ─────────────────────── */}
       <aside
+        className="hidden md:flex flex-col overflow-hidden"
         style={{
-          background: isDarkMode
-            ? 'linear-gradient(160deg, #2D1B69 0%, #1E3A8A 100%)'
-            : 'linear-gradient(160deg, #4C1D95 0%, #1D4ED8 100%)',
+          background: gradientBg,
           width: isOpen ? 260 : 72,
           minHeight: '100vh',
           flexShrink: 0,
-          display: 'flex',
-          flexDirection: 'column',
           transition: 'width 0.3s cubic-bezier(0.4,0,0.2,1)',
           position: 'relative',
           zIndex: 40,
         }}
-        className="overflow-hidden"
       >
-        {/* ── Logo area ─────────────────────────────────────────────── */}
+        {/* Logo */}
         <div
           className="flex items-center shrink-0"
           style={{
@@ -108,32 +100,24 @@ const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
 
-        {/* ── Collapse toggle ───────────────────────────────────────── */}
+        {/* Collapse toggle */}
         <button
           onClick={() => setIsOpen(!isOpen)}
           style={{
-            position: 'absolute',
-            right: -12,
-            top: 84,
-            width: 24,
-            height: 24,
-            borderRadius: '50%',
+            position: 'absolute', right: -12, top: 84,
+            width: 24, height: 24, borderRadius: '50%',
             background: '#fff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-            cursor: 'pointer',
-            border: 'none',
-            zIndex: 10,
-            color: '#4C1D95',
+            cursor: 'pointer', border: 'none', zIndex: 10, color: '#4C1D95',
+            transition: 'transform 0.15s',
           }}
-          className="hidden lg:flex transition-transform hover:scale-110"
+          className="hover:scale-110"
         >
           {isOpen ? <ChevronLeft className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
         </button>
 
-        {/* ── Section label ─────────────────────────────────────────── */}
+        {/* Section label */}
         {isOpen && (
           <div style={{ padding: '20px 20px 8px' }}>
             <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase' }}>
@@ -142,7 +126,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         )}
 
-        {/* ── Nav links ─────────────────────────────────────────────── */}
+        {/* Nav links */}
         <nav
           className="flex-1 overflow-y-auto custom-scrollbar"
           style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}
@@ -151,18 +135,11 @@ const Sidebar: React.FC<SidebarProps> = ({
             <NavLink
               key={link.path}
               to={link.path}
-              onClick={() => window.innerWidth < 1024 && setIsOpen(false)}
               style={({ isActive }) => ({
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: '11px 12px',
-                borderRadius: 12,
-                textDecoration: 'none',
-                transition: 'all 0.15s',
-                whiteSpace: 'nowrap',
-                fontWeight: isActive ? 600 : 500,
-                fontSize: 14,
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '11px 12px', borderRadius: 12, textDecoration: 'none',
+                transition: 'all 0.15s', whiteSpace: 'nowrap',
+                fontWeight: isActive ? 600 : 500, fontSize: 14,
                 justifyContent: isOpen ? 'flex-start' : 'center',
                 backgroundColor: isActive ? 'rgba(255,255,255,0.95)' : 'transparent',
                 color: isActive ? '#4C1D95' : 'rgba(255,255,255,0.75)',
@@ -176,20 +153,16 @@ const Sidebar: React.FC<SidebarProps> = ({
           ))}
         </nav>
 
-        {/* ── Decorative circles ────────────────────────────────────── */}
+        {/* Decorative circles */}
         <div style={{ position: 'relative', height: 80, overflow: 'hidden', flexShrink: 0 }}>
           <div style={{ position: 'absolute', right: -20, bottom: -20, width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
           <div style={{ position: 'absolute', right: 20, bottom: -30, width: 70, height: 70, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
-          <div style={{ position: 'absolute', right: -10, bottom: 20, width: 50, height: 50, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
         </div>
 
-        {/* ── Bottom section ────────────────────────────────────────── */}
+        {/* Bottom: settings + logout + user */}
         <div style={{ padding: '0 10px 12px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: 2 }}>
-
-          {/* Settings */}
           <NavLink
             to="/settings"
-            onClick={() => window.innerWidth < 1024 && setIsOpen(false)}
             style={({ isActive }) => ({
               display: 'flex', alignItems: 'center', gap: 12,
               padding: '10px 12px', borderRadius: 12, textDecoration: 'none',
@@ -205,7 +178,6 @@ const Sidebar: React.FC<SidebarProps> = ({
             {isOpen && <span>Settings</span>}
           </NavLink>
 
-          {/* Logout */}
           <button
             onClick={onLogout}
             style={{
@@ -213,10 +185,8 @@ const Sidebar: React.FC<SidebarProps> = ({
               padding: '10px 12px', borderRadius: 12, border: 'none',
               fontSize: 14, fontWeight: 500, cursor: 'pointer',
               justifyContent: isOpen ? 'flex-start' : 'center',
-              backgroundColor: 'transparent',
-              color: 'rgba(255,120,120,0.85)',
-              width: '100%',
-              transition: 'all 0.15s',
+              backgroundColor: 'transparent', color: 'rgba(255,120,120,0.85)',
+              width: '100%', transition: 'all 0.15s',
             }}
             className="hover:bg-red-500/15 hover:!text-red-300"
           >
@@ -224,31 +194,16 @@ const Sidebar: React.FC<SidebarProps> = ({
             {isOpen && <span>Log Out</span>}
           </button>
 
-          {/* User card */}
-          <div
-            style={{
-              marginTop: 8,
-              padding: '10px 12px',
-              borderRadius: 12,
-              background: 'rgba(255,255,255,0.08)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              justifyContent: isOpen ? 'flex-start' : 'center',
-            }}
-          >
+          <div style={{
+            marginTop: 8, padding: '10px 12px', borderRadius: 12,
+            background: 'rgba(255,255,255,0.08)',
+            display: 'flex', alignItems: 'center', gap: 10,
+            justifyContent: isOpen ? 'flex-start' : 'center',
+          }}>
             {userId ? (
-              <img
-                src={`https://i.pravatar.cc/100?u=${userId}`}
-                alt="avatar"
-                style={{ width: 34, height: 34, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }}
-              />
+              <img src={`https://i.pravatar.cc/100?u=${userId}`} alt="avatar" style={{ width: 34, height: 34, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />
             ) : (
-              <div style={{
-                width: 34, height: 34, borderRadius: 10, background: 'rgba(255,255,255,0.2)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#fff', fontWeight: 700, fontSize: 14, flexShrink: 0,
-              }}>
+              <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
                 {initials}
               </div>
             )}
@@ -265,6 +220,73 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
       </aside>
+
+      {/* ── Mobile bottom nav (visible only on mobile) ──────────────── */}
+      <nav
+        className="mobile-bottom-nav fixed bottom-0 left-0 right-0 z-50"
+        style={{
+          background: gradientBg,
+          borderTop: '1px solid rgba(255,255,255,0.12)',
+          alignItems: 'stretch',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          boxShadow: '0 -4px 24px rgba(0,0,0,0.35)',
+        }}
+      >
+        {links.slice(0, 4).map((link) => (
+          <NavLink
+            key={link.path}
+            to={link.path}
+            style={({ isActive }) => ({
+              flex: 1,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              gap: 4, padding: '10px 4px',
+              textDecoration: 'none',
+              color: isActive ? '#fff' : 'rgba(255,255,255,0.45)',
+              position: 'relative',
+              transition: 'color 0.15s',
+            })}
+          >
+            {({ isActive }) => (
+              <>
+                {isActive && (
+                  <span style={{
+                    position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
+                    width: 32, height: 2, borderRadius: 999,
+                    background: 'rgba(255,255,255,0.9)',
+                  }} />
+                )}
+                <link.icon style={{ width: 20, height: 20 }} strokeWidth={isActive ? 2 : 1.5} />
+                <span style={{ fontSize: 9, fontWeight: isActive ? 700 : 500, letterSpacing: '0.04em' }}>
+                  {link.label.split(' ')[0]}
+                </span>
+              </>
+            )}
+          </NavLink>
+        ))}
+
+        {/* Settings link */}
+        <NavLink
+          to="/settings"
+          style={({ isActive }) => ({
+            flex: 1,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            gap: 4, padding: '10px 4px',
+            textDecoration: 'none',
+            color: isActive ? '#fff' : 'rgba(255,255,255,0.45)',
+            position: 'relative', transition: 'color 0.15s',
+          })}
+        >
+          {({ isActive }) => (
+            <>
+              {isActive && (
+                <span style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 32, height: 2, borderRadius: 999, background: 'rgba(255,255,255,0.9)' }} />
+              )}
+              <Settings style={{ width: 20, height: 20 }} strokeWidth={isActive ? 2 : 1.5} />
+              <span style={{ fontSize: 9, fontWeight: isActive ? 700 : 500, letterSpacing: '0.04em' }}>More</span>
+            </>
+          )}
+        </NavLink>
+      </nav>
     </>
   );
 };

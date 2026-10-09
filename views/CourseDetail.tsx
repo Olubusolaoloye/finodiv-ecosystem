@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../services/backend';
-import { supabase } from '../services/supabase';
+import { getSession } from '../services/session';
 import {
   Play, Lock, ChevronDown, CheckCircle2, Clock, BarChart2,
   Globe, Star, Users, Loader2, X, ClipboardList,
@@ -331,9 +331,8 @@ const CourseDetail: React.FC = () => {
   const [submitting,      setSubmitting]      = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setUserId(user.id);
-    });
+    const session = getSession();
+    if (session) setUserId(session.userId);
     api.getCourses().then(courses => {
       const found = courses.find(c => c.id === courseId) || courses[0];
       setCourse(found ?? null);

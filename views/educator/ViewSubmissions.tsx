@@ -1,7 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { supabase } from '../../services/supabase';
+import { api as backendApi } from '../../services/backend';
+import { convex } from '../../services/convex';
+import { api as convexApi } from '../../convex/_generated/api';
 import {
   ArrowLeft, CheckCircle2, Clock, User, Loader2,
   Star, MessageSquare, ExternalLink, ClipboardList,
@@ -34,35 +36,31 @@ const ViewSubmissions: React.FC = () => {
   useEffect(() => {
     if (!courseId) return;
     const load = async () => {
-      const [{ data: courseData }, { data: subData }] = await Promise.all([
-        supabase.from('courses').select('title').eq('id', courseId).maybeSingle(),
-        supabase
-          .from('submissions')
-          .select(`
-            id, user_id, content, file_url, submitted_at, grade, feedback, status,
-            profiles!user_id (name, email),
-            assignments!assignment_id (title)
-          `)
-          .eq('course_id', courseId)
-          .order('submitted_at', { ascending: false }),
-      ]);
-
-      setCourseTitle(courseData?.title ?? 'Course');
-      setSubs(
-        (subData ?? []).map((r: any) => ({
-          id: r.id,
-          user_id: r.user_id,
-          content: r.content,
-          file_url: r.file_url,
-          submitted_at: r.submitted_at,
-          grade: r.grade,
-          feedback: r.feedback,
-          status: r.status,
-          studentName: r.profiles?.name ?? 'Unknown',
-          studentEmail: r.profiles?.email ?? '',
-          assignmentTitle: r.assignments?.title ?? 'Assignment',
-        }))
-      );
+      try {
+        const [courses, subData] = await Promise.all([
+          backendApi.getCourses(),
+          backendApi.getAssignment(courseId),
+        ]);
+        const course = courses.find((c: any) => c.id === courseId);
+        setCourseTitle(course?.title ?? 'Course');
+        setSubs(
+          (Array.isArray(subData) ? subData : []).map((r: any) => ({
+            id: r._id ?? r.id,
+            user_id: r.userId ?? r.user_id,
+            content: r.content,
+            file_url: r.fileUrl ?? r.file_url ?? null,
+            submitted_at: r._creationTime ? new Date(r._creationTime).toISOString() : '',
+            grade: r.grade ?? null,
+            feedback: r.feedback ?? null,
+            status: r.status,
+            studentName: r.studentName ?? 'Student',
+            studentEmail: r.studentEmail ?? '',
+            assignmentTitle: r.title ?? 'Assignment',
+          }))
+        );
+      } catch (e) {
+        console.error('ViewSubmissions load:', e);
+      }
       setLoading(false);
     };
     load();
@@ -71,17 +69,12 @@ const ViewSubmissions: React.FC = () => {
   const handleGrade = async () => {
     if (!selected) return;
     setGrading(true);
-    const { error } = await supabase
-      .from('submissions')
-      .update({
-        grade: Number(grade) || null,
-        feedback: feedback || null,
-        graded_at: new Date().toISOString(),
-        status: 'GRADED',
-      })
-      .eq('id', selected.id);
-
-    if (!error) {
+    try {
+      await convex.mutation(convexApi.submissions.grade, {
+        id: selected.id as any,
+        grade: Number(grade) || 0,
+        feedback: feedback || '',
+      });
       setSubs(prev => prev.map(s => s.id === selected.id
         ? { ...s, grade: Number(grade) || null, feedback, status: 'GRADED' }
         : s
@@ -89,130 +82,106 @@ const ViewSubmissions: React.FC = () => {
       setSelected(null);
       setGrade('');
       setFeedback('');
+    } catch (e) {
+      console.error('grade error:', e);
     }
     setGrading(false);
   };
 
-  const statusBadge = (status: string) => {
-    if (status === 'GRADED') return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
-    return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
-  };
+  const statusBadgeStyle = (status: string): React.CSSProperties =>
+    status === 'GRADED'
+      ? { background: 'rgba(52,211,153,0.08)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)' }
+      : { background: 'rgba(245,158,11,0.08)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)' };
+
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-[50vh]">
+      <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--color-accent)' }} />
+    </div>
+  );
 
   return (
-    <div className="p-6 md:p-10 max-w-7xl mx-auto pb-32">
-      <div className="flex items-center gap-4 mb-10">
-        <Link to="/educator" className="p-2.5 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/10 transition-all text-slate-500 dark:text-gray-400">
+    <div className="p-6 max-w-5xl mx-auto">
+      <div className="flex items-center gap-3 mb-6">
+        <Link to="/educator/submissions" className="p-2 rounded-lg hover:bg-white/5 transition-colors" style={{ color: 'var(--color-text-muted)' }}>
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-blue-500 block mb-1">Educator Portal</span>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white">
-            Submissions — <span className="text-blue-500">{courseTitle}</span>
-          </h1>
+          <h1 className="text-xl font-semibold" style={{ color: 'var(--color-text-primary)' }}>Submissions</h1>
+          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>{courseTitle}</p>
         </div>
       </div>
 
-      {loading ? (
-        <div className="py-24 flex justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-        </div>
-      ) : subs.length === 0 ? (
-        <div className="py-24 flex flex-col items-center text-center">
-          <div className="w-20 h-20 rounded-[32px] bg-slate-100 dark:bg-white/5 flex items-center justify-center mb-6 text-slate-300 dark:text-gray-700">
-            <ClipboardList className="w-10 h-10" />
-          </div>
-          <h3 className="text-2xl font-black mb-3 text-slate-900 dark:text-white">No submissions yet</h3>
-          <p className="text-slate-500 dark:text-gray-500 max-w-sm">Students haven't submitted work for this course yet.</p>
+      {subs.length === 0 ? (
+        <div className="text-center py-16" style={{ color: 'var(--color-text-muted)' }}>
+          <ClipboardList className="w-12 h-12 mx-auto mb-4 opacity-30" />
+          <p>No submissions yet.</p>
         </div>
       ) : (
-        <div className="grid lg:grid-cols-3 gap-8 items-start">
-          {/* List */}
-          <div className="lg:col-span-2 space-y-4">
-            {subs.map(sub => (
-              <button
-                key={sub.id}
-                onClick={() => { setSelected(sub); setGrade(sub.grade?.toString() ?? ''); setFeedback(sub.feedback ?? ''); }}
-                className={`w-full text-left p-6 rounded-[28px] border transition-all ${selected?.id === sub.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/5' : 'border-slate-200 dark:border-white/5 bg-white dark:bg-white/5 hover:border-blue-500/40 hover:bg-slate-50 dark:hover:bg-white/[0.07]'}`}
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 font-black text-sm shrink-0">
-                      {sub.studentName.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="font-bold text-slate-900 dark:text-white text-sm">{sub.studentName}</p>
-                      <p className="text-[10px] text-slate-500 dark:text-gray-500">{sub.studentEmail}</p>
-                    </div>
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${statusBadge(sub.status)}`}>
-                    {sub.status}
-                  </span>
-                </div>
-                <p className="text-xs font-bold text-slate-500 dark:text-gray-500 mb-2">{sub.assignmentTitle}</p>
-                <p className="text-sm text-slate-700 dark:text-gray-300 line-clamp-2 leading-relaxed">{sub.content}</p>
-                {sub.grade !== null && (
-                  <div className="flex items-center gap-1.5 mt-3 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
-                    <Star className="w-3.5 h-3.5" /> Grade: {sub.grade}/100
-                  </div>
-                )}
-                <div className="flex items-center gap-1.5 mt-2 text-slate-400 dark:text-gray-600 text-[10px] font-bold">
-                  <Clock className="w-3 h-3" />
-                  {new Date(sub.submitted_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                </div>
-              </button>
-            ))}
-          </div>
-
-          {/* Grade panel */}
-          <div className="lg:sticky lg:top-28">
-            {selected ? (
-              <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[32px] p-8">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
-                    <User className="w-5 h-5" />
+        <div className="space-y-3">
+          {subs.map(sub => (
+            <div
+              key={sub.id}
+              className="rounded-[14px] p-4 cursor-pointer transition-colors"
+              style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}
+              onClick={() => { setSelected(sub); setGrade(String(sub.grade ?? '')); setFeedback(sub.feedback ?? ''); }}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center">
+                    <User className="w-4 h-4" style={{ color: 'var(--color-accent)' }} />
                   </div>
                   <div>
-                    <p className="font-black text-slate-900 dark:text-white">{selected.studentName}</p>
-                    <p className="text-xs text-slate-500 dark:text-gray-500">{selected.studentEmail}</p>
+                    <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>{sub.studentName}</p>
+                    <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{sub.studentEmail}</p>
                   </div>
                 </div>
-
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-100 dark:border-white/5 mb-6 max-h-48 overflow-y-auto">
-                  <p className="text-sm text-slate-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{selected.content}</p>
-                  {selected.file_url && (
-                    <a href={selected.file_url} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-2 mt-3 text-blue-500 text-xs font-bold hover:underline">
-                      <ExternalLink className="w-3.5 h-3.5" /> View Attachment
-                    </a>
-                  )}
-                </div>
-
-                <div className="space-y-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-gray-500">Grade (out of 100)</label>
-                    <input type="number" min="0" max="100" value={grade} onChange={e => setGrade(e.target.value)}
-                      placeholder="e.g. 85"
-                      className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl py-3 px-4 focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-900 dark:text-white text-sm" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-gray-500">Feedback</label>
-                    <textarea rows={4} value={feedback} onChange={e => setFeedback(e.target.value)}
-                      placeholder="Leave constructive feedback for the student…"
-                      className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl py-3 px-4 focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-900 dark:text-white text-sm resize-none" />
-                  </div>
-                  <button onClick={handleGrade} disabled={grading}
-                    className="w-full py-4 rounded-2xl bg-blue-600 text-white font-black hover:bg-blue-500 transition-all shadow-xl shadow-blue-500/20 flex items-center justify-center gap-2 disabled:opacity-60">
-                    {grading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-                    {grading ? 'Saving…' : 'Save Grade'}
-                  </button>
-                </div>
+                <span style={{ fontSize: 10, padding: '3px 10px', borderRadius: 99, fontWeight: 700, ...statusBadgeStyle(sub.status) }}>{sub.status}</span>
               </div>
-            ) : (
-              <div className="bg-slate-100 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5 rounded-[32px] p-10 flex flex-col items-center text-center">
-                <MessageSquare className="w-10 h-10 text-slate-300 dark:text-gray-700 mb-4" />
-                <p className="text-sm font-bold text-slate-400 dark:text-gray-600">Select a submission to grade it</p>
+              <p className="text-sm mt-3 line-clamp-2" style={{ color: 'var(--color-text-muted)' }}>{sub.content}</p>
+              <div className="flex items-center gap-4 mt-3 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{sub.submitted_at ? new Date(sub.submitted_at).toLocaleDateString() : '—'}</span>
+                {sub.grade !== null && <span className="flex items-center gap-1"><Star className="w-3 h-3" />{sub.grade}/100</span>}
+                {sub.file_url && <a href={sub.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:underline" onClick={e => e.stopPropagation()}><ExternalLink className="w-3 h-3" />Attachment</a>}
               </div>
-            )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Grade modal */}
+      {selected && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(4,13,24,0.85)' }}>
+          <div className="w-full max-w-lg rounded-[20px] p-6" style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-text-primary)' }}>Grade Submission</h2>
+            <p className="text-sm mb-1 font-medium" style={{ color: 'var(--color-text-primary)' }}>{selected.studentName}</p>
+            <p className="text-sm mb-4 line-clamp-4" style={{ color: 'var(--color-text-muted)' }}>{selected.content}</p>
+
+            <div className="flex gap-3 mb-3">
+              <div className="flex-1">
+                <label className="text-xs uppercase tracking-wide mb-1 block" style={{ color: 'var(--color-text-muted)' }}>Grade (0–100)</label>
+                <input
+                  type="number" min={0} max={100} value={grade}
+                  onChange={e => setGrade(e.target.value)}
+                  className="w-full rounded-[10px] px-3 py-2 text-sm"
+                  style={{ backgroundColor: 'var(--color-bg-deep)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}
+                />
+              </div>
+            </div>
+            <div className="mb-4">
+              <label className="text-xs uppercase tracking-wide mb-1 block" style={{ color: 'var(--color-text-muted)' }}>Feedback</label>
+              <textarea
+                rows={3} value={feedback} onChange={e => setFeedback(e.target.value)}
+                className="w-full rounded-[10px] px-3 py-2 text-sm resize-none"
+                style={{ backgroundColor: 'var(--color-bg-deep)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}
+              />
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setSelected(null)} className="flex-1 py-2 rounded-[10px] text-sm" style={{ backgroundColor: 'var(--color-bg-deep)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}>Cancel</button>
+              <button onClick={handleGrade} disabled={grading} className="flex-1 py-2 rounded-[10px] text-sm font-semibold text-white flex items-center justify-center gap-2" style={{ backgroundColor: 'var(--color-accent)' }}>
+                {grading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                Save Grade
+              </button>
+            </div>
           </div>
         </div>
       )}

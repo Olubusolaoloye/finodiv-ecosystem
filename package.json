@@ -10,7 +10,6 @@
     "convex": "convex dev"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.106.1",
     "convex": "^1.46.0",
     "framer-motion": "^13.0.0",
     "lucide-react": "^0.562.0",

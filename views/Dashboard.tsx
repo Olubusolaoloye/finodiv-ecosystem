@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { UserRole } from '../types';
 import { api } from '../services/backend';
-import { supabase } from '../services/supabase';
+import { getSession } from '../services/session';
+import { convex } from '../services/convex';
+import { api as convexApi } from '../convex/_generated/api';
 import {
   BookOpen, Flame, Trophy, ArrowRight, Loader2, Plus,
   Download, Award, Bell, GraduationCap,
@@ -209,18 +211,18 @@ const Dashboard: React.FC<{ role: UserRole }> = () => {
 
   useEffect(() => {
     const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setLoading(false); return; }
+      const session = getSession();
+      if (!session) { setLoading(false); return; }
 
-      const [{ data: prof }, enrolData] = await Promise.all([
-        supabase.from('profiles').select('name, xp, level').eq('id', user.id).maybeSingle(),
-        api.getEnrollments(user.id),
+      const [prof, enrolData] = await Promise.all([
+        convex.query(convexApi.profiles.getByUserId, { userId: session.userId }),
+        api.getEnrollments(session.userId),
       ]);
 
       if (prof) {
-        setProfile({ name: prof.name || user.email?.split('@')[0] || 'Learner', xp: prof.xp || 0, level: prof.level || 1 });
-      } else if (user.email) {
-        setProfile({ name: user.email.split('@')[0], xp: 0, level: 1 });
+        setProfile({ name: prof.name || session.email?.split('@')[0] || 'Learner', xp: prof.xp || 0, level: (prof as any).level || 1 });
+      } else {
+        setProfile({ name: session.email?.split('@')[0] || 'Learner', xp: 0, level: 1 });
       }
       setEnrollments(enrolData);
       setLoading(false);

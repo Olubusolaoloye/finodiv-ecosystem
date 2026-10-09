@@ -1,21 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
 import { UserRole, WalletBinding } from '../types';
 import { api } from '../services/backend';
-import { supabase } from '../services/supabase';
+import { convex } from '../services/convex';
+import { api as convexApi } from '../convex/_generated/api';
 import {
-  User,
-  Lock,
-  CreditCard,
-  Wallet,
-  ShieldCheck,
-  Globe,
-  Camera,
-  Check,
-  Mail,
-  Link2,
-  Loader2,
-  CheckCircle,
+  User, Lock, CreditCard, Wallet, ShieldCheck, Globe,
+  Camera, Check, Mail, Link2, Loader2, CheckCircle,
 } from 'lucide-react';
 
 interface SettingsProps {
@@ -30,8 +20,6 @@ const Settings: React.FC<SettingsProps> = ({ userId, role, authEmail, walletAddr
   const [activeTab, setActiveTab] = useState('Profile');
   const [binding, setBinding] = useState<WalletBinding | null>(null);
   const [isBinding, setIsBinding] = useState(false);
-
-  // Profile form state
   const [displayName, setDisplayName] = useState('');
   const [professionalTitle, setProfessionalTitle] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
@@ -39,18 +27,21 @@ const Settings: React.FC<SettingsProps> = ({ userId, role, authEmail, walletAddr
 
   useEffect(() => {
     api.getBinding(userId).then(b => { if (b) setBinding(b); });
-    // Load real profile data
-    supabase.from('profiles').select('name, title').eq('id', userId).maybeSingle().then(({ data }) => {
+    convex.query(convexApi.profiles.getByUserId, { userId }).then((data) => {
       if (data) {
         setDisplayName(data.name || '');
-        setProfessionalTitle(data.title || '');
+        setProfessionalTitle((data as any).title || '');
       }
     });
   }, [userId]);
 
   const handleSaveProfile = async () => {
     setSavingProfile(true);
-    await supabase.from('profiles').update({ name: displayName, title: professionalTitle }).eq('id', userId);
+    await convex.mutation(convexApi.profiles.upsert, {
+      userId,
+      name: displayName,
+      email: (await convex.query(convexApi.profiles.getByUserId, { userId }))?.email || '',
+    });
     setSavingProfile(false);
     setProfileSaved(true);
     setTimeout(() => setProfileSaved(false), 2500);
@@ -59,16 +50,14 @@ const Settings: React.FC<SettingsProps> = ({ userId, role, authEmail, walletAddr
   const handleBindClick = async () => {
     setIsBinding(true);
     try {
-      const nonce = await api.generateBindingNonce(userId);
+      await api.generateBindingNonce(userId);
       setTimeout(async () => {
         const newBinding = await api.bindWallet(userId, walletAddress || '0xDemoAddress', 'sig_verify');
         setBinding(newBinding);
         setIsBinding(false);
         onBindWallet();
       }, 1500);
-    } catch (e) {
-      setIsBinding(false);
-    }
+    } catch { setIsBinding(false); }
   };
 
   const tabs = [
@@ -79,190 +68,259 @@ const Settings: React.FC<SettingsProps> = ({ userId, role, authEmail, walletAddr
     { id: 'Integrations', icon: Globe },
   ];
 
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '12px 16px', borderRadius: 10,
+    background: 'var(--color-bg-deep)',
+    border: '1px solid var(--color-border)',
+    color: 'var(--color-text-primary)',
+    fontSize: 14, outline: 'none',
+    transition: 'border-color 0.15s',
+    fontFamily: 'inherit',
+  };
+
   return (
-    <div className="max-w-6xl mx-auto p-8 lg:p-12 pb-32">
-      <div className="mb-12">
-        <h1 className="text-4xl font-black mb-4 text-slate-900 dark:text-white">Account Settings</h1>
-        <p className="text-slate-500 dark:text-gray-500">Manage your profile, security, and linked identities.</p>
+    <div style={{ maxWidth: 960, margin: '0 auto', padding: '40px 24px 80px' }}>
+      <div style={{ marginBottom: 36 }}>
+        <p className="eyebrow" style={{ marginBottom: 8 }}>Account</p>
+        <h1 style={{ fontSize: 'clamp(1.6rem,4vw,2rem)', fontWeight: 600, letterSpacing: '-0.02em', color: 'var(--color-text-primary)', marginBottom: 6 }}>
+          Settings
+        </h1>
+        <p style={{ fontSize: 14, color: 'var(--color-text-muted)' }}>
+          Manage your profile, security, and linked identities.
+        </p>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-12">
-        <aside className="w-full lg:w-64 space-y-2">
-          {tabs.map((tab) => (
+      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+        {/* Sidebar */}
+        <aside style={{ width: 200, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`
-                w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all font-bold text-sm
-                ${activeTab === tab.id ? 'bg-[#2F6DF2] text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'}
-              `}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '10px 14px', borderRadius: 10,
+                background: activeTab === tab.id ? 'var(--color-accent)' : 'transparent',
+                color: activeTab === tab.id ? '#fff' : 'var(--color-text-muted)',
+                border: activeTab === tab.id ? 'none' : '1px solid transparent',
+                fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { if (activeTab !== tab.id) { (e.currentTarget as HTMLElement).style.background = 'var(--color-bg-card)'; (e.currentTarget as HTMLElement).style.color = 'var(--color-text-primary)'; } }}
+              onMouseLeave={e => { if (activeTab !== tab.id) { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'var(--color-text-muted)'; } }}
             >
-              <tab.icon className="w-5 h-5" />
+              <tab.icon style={{ width: 15, height: 15 }} />
               {tab.id}
             </button>
           ))}
         </aside>
 
-        <main className="flex-1 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-[40px] p-8 lg:p-12 backdrop-blur-xl shadow-sm dark:shadow-none">
-          {activeTab === 'Identity' && (
-            <div className="space-y-12">
-               <div>
-                  <h3 className="text-xl font-black mb-2 text-slate-900 dark:text-white">Connected Identities</h3>
-                  <p className="text-sm text-slate-500 dark:text-gray-500 mb-8">Binding your wallet to your Gmail account allows for multi-factor authentication and verified proof-of-work.</p>
-                  
-                  <div className="space-y-4">
-                     {/* Google Identity */}
-                     <div className="p-6 rounded-3xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                           <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400">
-                              <Mail className="w-5 h-5" />
-                           </div>
-                           <div>
-                              <p className="font-bold text-sm text-slate-900 dark:text-white">Google Account</p>
-                              <p className="text-[10px] text-slate-500 dark:text-gray-500">{authEmail || 'Not Connected'}</p>
-                           </div>
-                        </div>
-                        {authEmail ? (
-                          <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Primary</span>
-                        ) : (
-                          <button className="text-xs font-bold text-blue-500">Connect</button>
-                        )}
-                     </div>
-
-                     {/* Web3 Identity */}
-                     <div className="p-6 rounded-3xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                           <div className="w-10 h-10 bg-orange-500/10 rounded-xl flex items-center justify-center text-orange-600 dark:text-orange-500">
-                              <Wallet className="w-5 h-5" />
-                           </div>
-                           <div>
-                              <p className="font-bold text-sm text-slate-900 dark:text-white">Web3 Identity (BSC)</p>
-                              <p className="text-[10px] text-slate-500 dark:text-gray-500">
-                                {binding ? `${binding.address.slice(0,6)}...${binding.address.slice(-4)}` : (walletAddress ? 'Pending Binding' : 'Not Connected')}
-                              </p>
-                           </div>
-                        </div>
-                        
-                        {binding ? (
-                           <div className="flex items-center gap-4">
-                              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">
-                                <Check className="w-3 h-3" /> Bound
-                              </div>
-                              <button className="text-[10px] text-red-500 font-bold hover:underline">Unbind</button>
-                           </div>
-                        ) : walletAddress ? (
-                          <button 
-                            onClick={handleBindClick}
-                            disabled={isBinding}
-                            className="px-6 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold shadow-lg shadow-blue-500/20 hover:bg-blue-500 transition-all flex items-center gap-2"
-                          >
-                             {isBinding ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sign to Bind"}
-                          </button>
-                        ) : (
-                          <button 
-                            onClick={onBindWallet}
-                            className="px-6 py-2 rounded-xl bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-white text-xs font-bold transition-all"
-                          >
-                             Connect Wallet
-                          </button>
-                        )}
-                     </div>
-                  </div>
-               </div>
-
-               <div className="p-8 rounded-[40px] bg-blue-500/5 border border-blue-500/10 dark:border-blue-500/20">
-                  <div className="flex items-center gap-4 mb-4">
-                     <Link2 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                     <h4 className="text-lg font-bold text-slate-900 dark:text-white">Identity Sync</h4>
-                  </div>
-                  <p className="text-sm text-slate-600 dark:text-gray-400 leading-relaxed">By syncing your identities, your earned NFT certificates will be automatically associated with your professional profile regardless of how you sign in.</p>
-               </div>
-            </div>
-          )}
-
-          {activeTab === 'Payments' && (
-            <div className="space-y-12">
-               <div>
-                  <h3 className="text-xl font-black mb-2 text-slate-900 dark:text-white">Payment Channels</h3>
-                  <p className="text-sm text-slate-500 dark:text-gray-500 mb-8">Choose between traditional Fiat via Paystack or USDT on the Binance Smart Chain.</p>
-                  
-                  <div className="grid md:grid-cols-2 gap-6">
-                     <div className="p-8 rounded-[40px] bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex flex-col justify-between h-56 transition-colors">
-                        <div className="flex justify-between items-start">
-                           <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-600 dark:text-blue-400">
-                              <CreditCard className="w-6 h-6" />
-                           </div>
-                           <span className="text-[10px] font-black text-slate-400 dark:text-gray-600 uppercase tracking-widest">Paystack Ready</span>
-                        </div>
-                        <div>
-                           <h4 className="font-bold text-lg text-slate-900 dark:text-white">Fiat Payments</h4>
-                           <p className="text-xs text-slate-500 dark:text-gray-500">Fast card and bank transfers</p>
-                        </div>
-                     </div>
-
-                     <div className="p-8 rounded-[40px] bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex flex-col justify-between h-56 transition-colors">
-                        <div className="flex justify-between items-start">
-                           <div className="w-12 h-12 bg-orange-500/10 rounded-2xl flex items-center justify-center text-orange-600 dark:text-orange-500">
-                              <Wallet className="w-6 h-6" />
-                           </div>
-                           <span className="text-[10px] font-black text-slate-400 dark:text-gray-600 uppercase tracking-widest">USDT / BSC</span>
-                        </div>
-                        <div>
-                           <h4 className="font-bold text-lg text-slate-900 dark:text-white">Blockchain Channel</h4>
-                           <p className="text-xs text-slate-500 dark:text-gray-500">Direct on-chain settlements</p>
-                        </div>
-                     </div>
-                  </div>
-               </div>
-            </div>
-          )}
-          
+        {/* Main panel */}
+        <main style={{
+          flex: 1, minWidth: 280,
+          background: 'var(--color-bg-card)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 20, padding: '32px',
+        }}>
+          {/* ── Profile tab ── */}
           {activeTab === 'Profile' && (
-             <div className="space-y-8">
-                <div className="flex flex-col items-center">
-                   <div className="relative group mb-6">
-                      <img src={`https://i.pravatar.cc/150?u=${userId}`} className="w-32 h-32 rounded-[40px] object-cover border-4 border-slate-100 dark:border-white/10 shadow-xl" />
-                      <button className="absolute inset-0 bg-black/40 rounded-[40px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                         <Camera className="w-8 h-8 text-white" />
-                      </button>
-                   </div>
-                   <h4 className="text-xl font-black text-slate-900 dark:text-white">{displayName || authEmail?.split('@')[0] || 'My Profile'}</h4>
-                   <p className="text-sm text-slate-500 dark:text-gray-500">{authEmail || 'Web3 Builder'}</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ position: 'relative', display: 'inline-block', marginBottom: 16 }}>
+                  <img
+                    src={`https://i.pravatar.cc/150?u=${userId}`}
+                    style={{ width: 88, height: 88, borderRadius: 20, objectFit: 'cover', border: '2px solid var(--color-border)', display: 'block' }}
+                    alt="Avatar"
+                  />
+                  <button style={{
+                    position: 'absolute', bottom: -6, right: -6,
+                    width: 28, height: 28, borderRadius: 8,
+                    background: 'var(--color-accent)', color: '#fff',
+                    border: '2px solid var(--color-bg-card)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                  }}>
+                    <Camera style={{ width: 12, height: 12 }} />
+                  </button>
                 </div>
-                <div className="grid md:grid-cols-2 gap-8">
-                   <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 px-2">Display Name</label>
-                      <input
-                        type="text"
-                        value={displayName}
-                        onChange={e => setDisplayName(e.target.value)}
-                        placeholder="Your name"
-                        className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl py-4 px-6 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors text-slate-900 dark:text-white"
-                      />
-                   </div>
-                   <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 px-2">Professional Title</label>
-                      <input
-                        type="text"
-                        value={professionalTitle}
-                        onChange={e => setProfessionalTitle(e.target.value)}
-                        placeholder="e.g. Smart Contract Developer"
-                        className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl py-4 px-6 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors text-slate-900 dark:text-white"
-                      />
-                   </div>
+                <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                  {displayName || authEmail?.split('@')[0] || 'My Profile'}
+                </p>
+                <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2 }}>{authEmail}</p>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+                <div>
+                  <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-text-muted)', display: 'block', marginBottom: 8 }}>
+                    Display Name
+                  </label>
+                  <input type="text" value={displayName} onChange={e => setDisplayName(e.target.value)}
+                    placeholder="Your name" style={inputStyle}
+                    onFocus={e => (e.currentTarget.style.borderColor = 'rgba(47,109,242,0.5)')}
+                    onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
+                  />
                 </div>
+                <div>
+                  <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-text-muted)', display: 'block', marginBottom: 8 }}>
+                    Professional Title
+                  </label>
+                  <input type="text" value={professionalTitle} onChange={e => setProfessionalTitle(e.target.value)}
+                    placeholder="e.g. Smart Contract Developer" style={inputStyle}
+                    onFocus={e => (e.currentTarget.style.borderColor = 'rgba(47,109,242,0.5)')}
+                    onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
+                  />
+                </div>
+              </div>
+
+              <div>
                 <button
                   onClick={handleSaveProfile}
                   disabled={savingProfile}
-                  className="px-10 py-4 rounded-2xl bg-blue-600 text-white font-black hover:bg-blue-500 transition-all shadow-xl shadow-blue-500/20 flex items-center gap-3 disabled:opacity-70"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '11px 24px', borderRadius: 10,
+                    background: 'var(--color-accent)', color: '#fff',
+                    fontWeight: 600, fontSize: 14, border: 'none', cursor: 'pointer',
+                    opacity: savingProfile ? 0.7 : 1,
+                  }}
                 >
-                  {savingProfile ? <Loader2 className="w-5 h-5 animate-spin" /> : profileSaved ? <CheckCircle className="w-5 h-5 text-emerald-300" /> : null}
+                  {savingProfile ? <Loader2 style={{ width: 15, height: 15, animation: 'spin 1s linear infinite' }} />
+                    : profileSaved ? <CheckCircle style={{ width: 15, height: 15, color: '#86efac' }} /> : null}
                   {profileSaved ? 'Saved!' : 'Update Profile'}
                 </button>
-             </div>
+              </div>
+            </div>
           )}
-          {activeTab === 'Security' && <p className="text-slate-500 italic">Security controls content goes here...</p>}
-          {activeTab === 'Integrations' && <p className="text-slate-500 italic">External API integrations go here...</p>}
+
+          {/* ── Security tab ── */}
+          {activeTab === 'Security' && (
+            <div>
+              <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 8 }}>Security Controls</h3>
+              <p style={{ fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
+                Password change, 2FA, and session management will appear here.
+              </p>
+            </div>
+          )}
+
+          {/* ── Identity tab ── */}
+          {activeTab === 'Identity' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+              <div>
+                <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 6 }}>Connected Identities</h3>
+                <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 20, lineHeight: 1.6 }}>
+                  Bind your wallet to your email for multi-factor auth and verified proof-of-work.
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {/* Email identity */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', borderRadius: 14, background: 'var(--color-bg-deep)', border: '1px solid var(--color-border)', flexWrap: 'wrap', gap: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(47,109,242,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Mail style={{ width: 16, height: 16, color: 'var(--color-accent)' }} />
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)' }}>Google Account</p>
+                        <p style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{authEmail || 'Not Connected'}</p>
+                      </div>
+                    </div>
+                    {authEmail && (
+                      <span style={{ padding: '3px 10px', borderRadius: 6, background: 'rgba(5,150,105,0.12)', color: '#34d399', border: '1px solid rgba(5,150,105,0.2)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                        Primary
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Web3 identity */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', borderRadius: 14, background: 'var(--color-bg-deep)', border: '1px solid var(--color-border)', flexWrap: 'wrap', gap: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(249,115,22,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Wallet style={{ width: 16, height: 16, color: '#f97316' }} />
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)' }}>Web3 Identity (BSC)</p>
+                        <p style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
+                          {binding ? `${binding.address.slice(0,6)}…${binding.address.slice(-4)}` : (walletAddress ? 'Pending Binding' : 'Not Connected')}
+                        </p>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {binding ? (
+                        <>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 6, background: 'rgba(47,109,242,0.12)', color: 'var(--color-accent)', border: '1px solid rgba(47,109,242,0.2)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase' }}>
+                            <Check style={{ width: 10, height: 10 }} /> Bound
+                          </div>
+                          <button style={{ fontSize: 11, color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Unbind</button>
+                        </>
+                      ) : walletAddress ? (
+                        <button
+                          onClick={handleBindClick}
+                          disabled={isBinding}
+                          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, background: 'var(--color-accent)', color: '#fff', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', opacity: isBinding ? 0.7 : 1 }}
+                        >
+                          {isBinding ? <Loader2 style={{ width: 13, height: 13, animation: 'spin 1s linear infinite' }} /> : null}
+                          Sign to Bind
+                        </button>
+                      ) : (
+                        <button onClick={onBindWallet} style={{ padding: '8px 16px', borderRadius: 8, background: 'var(--color-bg-card)', color: 'var(--color-text-primary)', fontSize: 12, fontWeight: 600, border: '1px solid var(--color-border)', cursor: 'pointer' }}>
+                          Connect Wallet
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ padding: 20, borderRadius: 14, background: 'rgba(47,109,242,0.06)', border: '1px solid rgba(47,109,242,0.15)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                  <Link2 style={{ width: 16, height: 16, color: 'var(--color-accent)' }} />
+                  <h4 style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>Identity Sync</h4>
+                </div>
+                <p style={{ fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
+                  By syncing your identities, NFT certificates will be automatically associated with your professional profile regardless of how you sign in.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* ── Payments tab ── */}
+          {activeTab === 'Payments' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <div>
+                <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 6 }}>Payment Channels</h3>
+                <p style={{ fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
+                  Choose between Fiat via Paystack or USDT on the Binance Smart Chain.
+                </p>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
+                {[
+                  { icon: CreditCard, label: 'Fiat Payments', sub: 'Card & bank transfers', color: '#2F6DF2', bg: 'rgba(47,109,242,0.1)', badge: 'Paystack Ready' },
+                  { icon: Wallet,     label: 'Blockchain',    sub: 'USDT on BSC',           color: '#f97316', bg: 'rgba(249,115,22,0.1)', badge: 'USDT / BSC' },
+                ].map(({ icon: Icon, label, sub, color, bg, badge }) => (
+                  <div key={label} style={{ padding: '20px', borderRadius: 14, background: 'var(--color-bg-deep)', border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 10, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Icon style={{ width: 18, height: 18, color }} />
+                      </div>
+                      <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--color-text-muted)' }}>{badge}</span>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>{label}</p>
+                      <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2 }}>{sub}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Integrations tab ── */}
+          {activeTab === 'Integrations' && (
+            <div>
+              <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 8 }}>External Integrations</h3>
+              <p style={{ fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
+                API keys and third-party platform connections will appear here.
+              </p>
+            </div>
+          )}
         </main>
       </div>
     </div>

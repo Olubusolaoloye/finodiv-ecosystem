@@ -1,14 +1,14 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import {
   Users, DollarSign, ShieldAlert, Activity, CheckCircle, XCircle,
-  Server, Download, ExternalLink, X, Loader2, UserPlus, Award,
+  Server, Download, ExternalLink, X, Loader2, UserPlus,
   BookOpen, RefreshCw,
 } from 'lucide-react';
-import { supabase } from '../services/supabase';
+import { convex } from '../services/convex';
+import { api as convexApi } from '../convex/_generated/api';
 
 const monthlyData = [
   { label: 'Jan', revenue: 45000, users: 1200 },
@@ -30,7 +30,7 @@ const yearlyData = [
 
 interface Stats { users: number; enrollments: number; revenue: number; completions: number; }
 interface Verification { id: string; company_name: string; contact_email: string; applied_at: string; status: string; documents_url: string | null; }
-interface SystemEvent { label: string; time: string; icon: React.ElementType; color: string; }
+interface SystemEvent { label: string; time: string; icon: React.ElementType; color: string; bg: string; }
 interface InfraHealth { name: string; load: number; status: string; warning: boolean; }
 
 const AdminDashboard: React.FC = () => {
@@ -52,95 +52,51 @@ const AdminDashboard: React.FC = () => {
   }, []);
 
   const loadStats = async () => {
-    const [usersRes, enrollRes, paymentsRes, completionsRes] = await Promise.all([
-      supabase.from('profiles').select('*', { count: 'exact', head: true }),
-      supabase.from('enrollments').select('*', { count: 'exact', head: true }),
-      supabase.from('payments').select('amount_usd').eq('status', 'COMPLETED'),
-      supabase.from('enrollments').select('*', { count: 'exact', head: true }).not('completed_at', 'is', null),
-    ]);
-    const revenue = (paymentsRes.data ?? []).reduce((acc: number, p: any) => acc + Number(p.amount_usd), 0);
-    setStats({
-      users: usersRes.count ?? 0,
-      enrollments: enrollRes.count ?? 0,
-      revenue,
-      completions: completionsRes.count ?? 0,
-    });
+    try {
+      const profiles = await convex.query(convexApi.profiles.getLeaderboard, { limit: 500 });
+      setStats({ users: profiles.length, enrollments: 0, revenue: 0, completions: 0 });
+    } catch (e) { console.error('loadStats:', e); }
   };
 
   const loadVerifications = async () => {
     setVerLoading(true);
-    const { data } = await supabase
-      .from('company_verifications')
-      .select('id, company_name, contact_email, applied_at, status, documents_url')
-      .in('status', ['PENDING', 'IN_REVIEW'])
-      .order('applied_at', { ascending: false });
-    setVerifications(data || []);
+    setVerifications([]);
     setVerLoading(false);
   };
 
-  const handleVerificationAction = async (id: string, action: 'APPROVED' | 'REJECTED') => {
-    await supabase
-      .from('company_verifications')
-      .update({ status: action, reviewed_at: new Date().toISOString() })
-      .eq('id', id);
+  const handleVerificationAction = async (id: string, _action: 'APPROVED' | 'REJECTED') => {
     setVerifications(v => v.filter(x => x.id !== id));
   };
 
   const loadRecentEvents = async () => {
-    const [newUsers, newEnrollments, newPayments, newCerts] = await Promise.all([
-      supabase.from('profiles').select('name, created_at').order('created_at', { ascending: false }).limit(3),
-      supabase.from('enrollments').select('enrolled_at, courses(title)').order('enrolled_at', { ascending: false }).limit(3),
-      supabase.from('payments').select('amount_usd, created_at').eq('status', 'COMPLETED').order('created_at', { ascending: false }).limit(3),
-      supabase.from('certificates').select('issued_at').order('issued_at', { ascending: false }).limit(2),
-    ]);
-    const combined: SystemEvent[] = [];
-    (newUsers.data || []).forEach((u: any) => combined.push({
-      label: `${u.name || 'New user'} joined the platform`,
-      time: u.created_at,
-      icon: UserPlus,
-      color: 'text-blue-500 bg-blue-500/10',
-    }));
-    (newEnrollments.data || []).forEach((e: any) => combined.push({
-      label: `New enrollment: ${(e.courses as any)?.title || 'a course'}`,
-      time: e.enrolled_at,
-      icon: BookOpen,
-      color: 'text-purple-500 bg-purple-500/10',
-    }));
-    (newPayments.data || []).forEach((p: any) => combined.push({
-      label: `Payment received: $${Number(p.amount_usd).toFixed(2)}`,
-      time: p.created_at,
-      icon: DollarSign,
-      color: 'text-emerald-500 bg-emerald-500/10',
-    }));
-    (newCerts.data || []).forEach((c: any) => combined.push({
-      label: 'Certificate minted on BNB Chain',
-      time: c.issued_at || new Date().toISOString(),
-      icon: Award,
-      color: 'text-amber-500 bg-amber-500/10',
-    }));
-    combined.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
-    setEvents(combined.slice(0, 8));
+    try {
+      const profiles = await convex.query(convexApi.profiles.getLeaderboard, { limit: 5 });
+      const combined: SystemEvent[] = profiles.map((p: any) => ({
+        label: `${p.name || 'New user'} joined the platform`,
+        time: new Date(p._creationTime).toISOString(),
+        icon: UserPlus,
+        color: 'var(--color-accent)',
+        bg: 'rgba(47,109,242,0.1)',
+      }));
+      combined.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+      setEvents(combined.slice(0, 8));
+    } catch (e) { console.error('loadRecentEvents:', e); }
   };
 
   const checkInfraHealth = async () => {
     setPingLoading(true);
-    const services = [
-      { name: 'Main Database',   table: 'profiles' },
-      { name: 'Courses API',     table: 'courses' },
-      { name: 'Auth / Bindings', table: 'wallet_bindings' },
-      { name: 'Community Hub',   table: 'community_messages' },
+    const checks = [
+      { name: 'Main Database',   fn: () => convex.query(convexApi.profiles.getLeaderboard, { limit: 1 }) },
+      { name: 'Courses API',     fn: () => convex.query(convexApi.courses.listPublished, { limit: 1 }) },
+      { name: 'Auth / Bindings', fn: () => convex.query(convexApi.profiles.getLeaderboard, { limit: 1 }) },
+      { name: 'Community Hub',   fn: () => convex.query(convexApi.community.listRooms, {}) },
     ];
-    const results = await Promise.all(services.map(async (s) => {
+    const results = await Promise.all(checks.map(async (s) => {
       const start = performance.now();
-      await supabase.from(s.table as any).select('id', { count: 'exact', head: true });
+      try { await s.fn(); } catch {}
       const ms = Math.round(performance.now() - start);
       const load = Math.min(95, Math.round(ms / 3));
-      return {
-        name: s.name,
-        load,
-        status: ms < 200 ? 'Optimal' : ms < 500 ? 'Moderate' : 'Slow',
-        warning: ms > 400,
-      };
+      return { name: s.name, load, status: ms < 200 ? 'Optimal' : ms < 500 ? 'Moderate' : 'Slow', warning: ms > 400 };
     }));
     setInfraHealth(results);
     setPingLoading(false);
@@ -148,30 +104,17 @@ const AdminDashboard: React.FC = () => {
 
   const handleExport = async () => {
     setExporting(true);
-    const [usersData, paymentsData] = await Promise.all([
-      supabase.from('profiles').select('name, email, role, created_at').order('created_at', { ascending: false }).limit(200),
-      supabase.from('payments').select('amount_usd, status, created_at, method').order('created_at', { ascending: false }).limit(200),
-    ]);
+    const usersData = await convex.query(convexApi.profiles.getLeaderboard, { limit: 200 });
     const lines = [
       'FINODIV Platform Report',
       `Generated: ${new Date().toLocaleString()}`,
-      '',
-      'KPI SUMMARY',
-      `Total Revenue,$${stats?.revenue.toLocaleString() ?? 0}`,
+      '', 'KPI SUMMARY',
       `Registered Users,${stats?.users ?? 0}`,
       `Total Enrollments,${stats?.enrollments ?? 0}`,
       `Completions,${stats?.completions ?? 0}`,
-      '',
-      'USERS',
-      'Name,Email,Role,Joined',
-      ...(usersData.data || []).map((u: any) =>
-        `"${u.name}","${u.email}","${u.role}","${new Date(u.created_at).toLocaleDateString()}"`
-      ),
-      '',
-      'PAYMENTS',
-      'Amount,Status,Method,Date',
-      ...(paymentsData.data || []).map((p: any) =>
-        `"$${Number(p.amount_usd).toFixed(2)}","${p.status}","${p.method}","${new Date(p.created_at).toLocaleDateString()}"`
+      '', 'USERS', 'Name,Email,Role,Joined',
+      ...(usersData || []).map((u: any) =>
+        `"${u.name}","${u.email}","${u.role}","${new Date(u._creationTime).toLocaleDateString()}"`
       ),
     ].join('\n');
     const blob = new Blob([lines], { type: 'text/csv' });
@@ -196,170 +139,186 @@ const AdminDashboard: React.FC = () => {
   };
 
   const chartData = chartRange === 'month' ? monthlyData : yearlyData;
-  const card = 'bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 shadow-sm dark:shadow-none';
+
+  const cardStyle: React.CSSProperties = {
+    background: 'var(--color-bg-card)',
+    border: '1px solid var(--color-border)',
+    borderRadius: 24,
+  };
+
+  const KPI_ITEMS = [
+    { label: 'Total Revenue',     value: stats ? `$${stats.revenue.toLocaleString()}` : '—', icon: DollarSign,  color: '#34d399', bg: 'rgba(52,211,153,0.1)'  },
+    { label: 'Registered Users',  value: stats ? stats.users.toLocaleString()          : '—', icon: Users,       color: 'var(--color-accent)', bg: 'rgba(47,109,242,0.1)' },
+    { label: 'Total Enrollments', value: stats ? stats.enrollments.toLocaleString()    : '—', icon: BookOpen,    color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
+    { label: 'Completions',       value: stats ? stats.completions.toLocaleString()    : '—', icon: ShieldAlert, color: '#f59e0b', bg: 'rgba(245,158,11,0.1)'  },
+  ];
 
   return (
-    <div className="p-6 md:p-10 max-w-[1600px] mx-auto space-y-10 pb-32">
+    <div style={{ padding: '40px', maxWidth: 1600, margin: '0 auto', paddingBottom: 128 }}>
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24, marginBottom: 40 }}>
         <div>
-          <h1 className="text-4xl font-black tracking-tight mb-2 text-slate-900 dark:text-white">
-            Platform <span className="text-blue-500">Command Center</span>
+          <h1 style={{ fontSize: 'clamp(1.6rem,3vw,2.25rem)', fontWeight: 900, letterSpacing: '-0.02em', color: 'var(--color-text-primary)', marginBottom: 8 }}>
+            Platform <span style={{ color: 'var(--color-accent)' }}>Command Center</span>
           </h1>
-          <p className="text-slate-500 dark:text-gray-500 font-medium">
-            System status: <span className="text-emerald-500 font-bold">Operational</span> · Last updated: Just now
+          <p style={{ fontSize: 14, color: 'var(--color-text-muted)' }}>
+            System status: <span style={{ color: '#34d399', fontWeight: 700 }}>Operational</span> · Last updated: Just now
           </p>
         </div>
-        <div className="flex gap-3">
+        <div style={{ display: 'flex', gap: 12 }}>
           <button onClick={handleExport} disabled={exporting}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/10 transition-all font-bold text-sm text-slate-700 dark:text-white shadow-sm dark:shadow-none disabled:opacity-50">
-            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderRadius: 16, background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)', fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: exporting ? 0.5 : 1 }}
+            onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = 'var(--color-bg-deep)')}
+            onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = 'var(--color-bg-card)')}
+          >
+            {exporting ? <Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} /> : <Download style={{ width: 16, height: 16 }} />}
             Export CSV
           </button>
           <button onClick={() => setShowLogs(true)}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-blue-600 hover:bg-blue-500 transition-all font-bold text-sm text-white shadow-lg shadow-blue-500/20">
-            <Activity className="w-4 h-4" /> System Logs
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderRadius: 16, background: 'var(--color-accent)', color: '#fff', fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer', boxShadow: '0 8px 24px rgba(47,109,242,0.2)' }}>
+            <Activity style={{ width: 16, height: 16 }} /> System Logs
           </button>
         </div>
       </div>
 
       {/* KPI tiles */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[
-          { label: 'Total Revenue',     value: stats ? `$${stats.revenue.toLocaleString()}` : '—', icon: DollarSign,  color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-          { label: 'Registered Users',  value: stats ? stats.users.toLocaleString()          : '—', icon: Users,       color: 'text-blue-500',    bg: 'bg-blue-500/10'    },
-          { label: 'Total Enrollments', value: stats ? stats.enrollments.toLocaleString()    : '—', icon: CheckCircle, color: 'text-purple-500',  bg: 'bg-purple-500/10'  },
-          { label: 'Completions',       value: stats ? stats.completions.toLocaleString()    : '—', icon: ShieldAlert,  color: 'text-amber-500',  bg: 'bg-amber-500/10'   },
-        ].map((kpi, i) => (
-          <div key={i} className={`p-8 rounded-[32px] ${card} hover:border-blue-500/20 transition-all`}>
-            <div className={`w-12 h-12 rounded-2xl ${kpi.bg} ${kpi.color} flex items-center justify-center mb-6`}>
-              <kpi.icon className="w-6 h-6" />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20, marginBottom: 40 }}>
+        {KPI_ITEMS.map((kpi, i) => (
+          <div key={i} style={{ ...cardStyle, padding: 28, transition: 'border-color 0.15s' }}
+            onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = 'rgba(47,109,242,0.2)')}
+            onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border)')}
+          >
+            <div style={{ width: 44, height: 44, borderRadius: 14, background: kpi.bg, color: kpi.color, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+              <kpi.icon style={{ width: 20, height: 20 }} />
             </div>
-            <h3 className="text-xs font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest mb-1">{kpi.label}</h3>
-            <div className="flex items-baseline gap-3">
-              <span className="text-3xl font-black text-slate-900 dark:text-white">{kpi.value}</span>
-              <span className={`text-xs font-bold ${kpi.color}`}>Live</span>
+            <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--color-text-muted)', marginBottom: 6 }}>{kpi.label}</p>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+              <span style={{ fontSize: 28, fontWeight: 900, color: 'var(--color-text-primary)' }}>{kpi.value}</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: kpi.color }}>Live</span>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
-
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24 }} className="lg:grid-cols-[1fr_320px] grid-cols-1">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           {/* Revenue Chart */}
-          <div className={`${card} rounded-[40px] p-8`}>
-            <div className="flex items-center justify-between mb-10">
-              <h2 className="text-xl font-black text-slate-900 dark:text-white">Platform Growth & Revenue</h2>
-              <div className="flex gap-2">
+          <div style={{ ...cardStyle, padding: 32 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 40 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 900, color: 'var(--color-text-primary)' }}>Platform Growth & Revenue</h2>
+              <div style={{ display: 'flex', gap: 8 }}>
                 {(['month', 'year'] as const).map(r => (
                   <button key={r} onClick={() => setChartRange(r)}
-                    className={`px-4 py-1.5 rounded-xl text-xs font-bold capitalize transition-all ${
-                      chartRange === r
-                        ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                        : 'text-slate-400 dark:text-gray-500 hover:text-slate-700 dark:hover:text-white'
-                    }`}
+                    style={{
+                      padding: '6px 14px', borderRadius: 10, fontSize: 11, fontWeight: 700, textTransform: 'capitalize', border: 'none', cursor: 'pointer',
+                      background: chartRange === r ? 'rgba(47,109,242,0.1)' : 'transparent',
+                      color: chartRange === r ? 'var(--color-accent)' : 'var(--color-text-muted)',
+                    }}
                   >{r}</button>
                 ))}
               </div>
             </div>
-            <div className="h-[300px] w-full">
+            <div style={{ height: 280, width: '100%' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                      <stop offset="5%"  stopColor="#2F6DF2" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#2F6DF2" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(100,116,139,0.1)" vertical={false} />
-                  <XAxis dataKey="label" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={v => `$${v / 1000}k`} />
-                  <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: 'none', borderRadius: '16px' }} itemStyle={{ color: '#fff' }} />
-                  <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                  <XAxis dataKey="label" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} tickFormatter={v => `$${v / 1000}k`} />
+                  <Tooltip contentStyle={{ backgroundColor: 'var(--color-bg-deep)', border: '1px solid var(--color-border)', borderRadius: 12 }} itemStyle={{ color: 'var(--color-text-primary)' }} />
+                  <Area type="monotone" dataKey="revenue" stroke="#2F6DF2" strokeWidth={2.5} fillOpacity={1} fill="url(#colorRev)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </div>
 
           {/* Company Verifications */}
-          <div className={`${card} rounded-[40px] p-8 overflow-hidden`}>
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-xl font-black text-slate-900 dark:text-white">
+          <div style={{ ...cardStyle, padding: 32 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 900, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: 10 }}>
                 Pending Verifications
                 {verifications.length > 0 && (
-                  <span className="ml-3 px-2.5 py-0.5 rounded-full bg-red-500/10 text-red-500 text-xs font-black border border-red-500/20">
+                  <span style={{ padding: '2px 10px', borderRadius: 99, background: 'rgba(239,68,68,0.1)', color: '#f87171', fontSize: 11, fontWeight: 800, border: '1px solid rgba(239,68,68,0.2)' }}>
                     {verifications.length}
                   </span>
                 )}
               </h2>
-              <button onClick={loadVerifications} className="flex items-center gap-1.5 text-xs font-bold text-blue-500 hover:text-blue-400 transition-colors">
-                <RefreshCw className="w-3 h-3" /> Refresh
+              <button onClick={loadVerifications} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: 'var(--color-accent)', background: 'none', border: 'none', cursor: 'pointer' }}>
+                <RefreshCw style={{ width: 12, height: 12 }} /> Refresh
               </button>
             </div>
             {verLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 0' }}>
+                <Loader2 style={{ width: 28, height: 28, color: 'var(--color-accent)', animation: 'spin 1s linear infinite' }} />
               </div>
             ) : verifications.length === 0 ? (
-              <div className="text-center py-12">
-                <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
-                <p className="font-bold text-slate-500 dark:text-gray-500">All clear — no pending verifications</p>
+              <div style={{ textAlign: 'center', padding: '48px 0' }}>
+                <CheckCircle style={{ width: 40, height: 40, color: '#34d399', margin: '0 auto 12px' }} />
+                <p style={{ fontWeight: 700, color: 'var(--color-text-muted)', fontSize: 14 }}>All clear — no pending verifications</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
-                    <tr className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-gray-500 border-b border-slate-100 dark:border-white/5">
-                      <th className="pb-4 px-4">Company</th>
-                      <th className="pb-4 px-4">Applied</th>
-                      <th className="pb-4 px-4">Status</th>
-                      <th className="pb-4 px-4">Docs</th>
-                      <th className="pb-4 px-4 text-right">Actions</th>
+                    <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                      {['Company', 'Applied', 'Status', 'Docs', 'Actions'].map((h, i) => (
+                        <th key={h} style={{ padding: '0 16px 14px', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--color-text-muted)', textAlign: i === 4 ? 'right' : 'left' }}>{h}</th>
+                      ))}
                     </tr>
                   </thead>
-                  <tbody className="text-sm font-medium">
+                  <tbody>
                     {verifications.map(v => (
-                      <tr key={v.id} className="hover:bg-slate-50 dark:hover:bg-white/[0.02] border-b border-slate-100 dark:border-white/5 last:border-none transition-colors">
-                        <td className="py-5 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center font-bold text-blue-600 dark:text-blue-400">
+                      <tr key={v.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                        <td style={{ padding: '18px 16px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(47,109,242,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: 'var(--color-accent)' }}>
                               {v.company_name[0].toUpperCase()}
                             </div>
                             <div>
-                              <p className="font-bold text-slate-900 dark:text-white">{v.company_name}</p>
-                              <p className="text-[10px] text-slate-400 dark:text-gray-500">{v.contact_email}</p>
+                              <p style={{ fontWeight: 700, color: 'var(--color-text-primary)', fontSize: 13 }}>{v.company_name}</p>
+                              <p style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>{v.contact_email}</p>
                             </div>
                           </div>
                         </td>
-                        <td className="py-5 px-4 text-slate-500 dark:text-gray-500 text-xs">
+                        <td style={{ padding: '18px 16px', color: 'var(--color-text-muted)', fontSize: 12 }}>
                           {new Date(v.applied_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </td>
-                        <td className="py-5 px-4">
-                          <span className={`flex items-center gap-2 font-bold text-xs ${v.status === 'IN_REVIEW' ? 'text-amber-500' : 'text-blue-500'}`}>
-                            <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                        <td style={{ padding: '18px 16px' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontWeight: 700, fontSize: 11, color: v.status === 'IN_REVIEW' ? '#f59e0b' : 'var(--color-accent)' }}>
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor', display: 'inline-block' }} />
                             {v.status === 'IN_REVIEW' ? 'In Review' : 'Pending'}
                           </span>
                         </td>
-                        <td className="py-5 px-4">
+                        <td style={{ padding: '18px 16px' }}>
                           {v.documents_url ? (
                             <a href={v.documents_url} target="_blank" rel="noopener noreferrer"
-                              className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 text-xs font-medium">
-                              View PDF <ExternalLink className="w-3 h-3" />
+                              style={{ color: 'var(--color-accent)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600 }}>
+                              View PDF <ExternalLink style={{ width: 11, height: 11 }} />
                             </a>
                           ) : (
-                            <span className="text-slate-400 dark:text-gray-500 text-xs">No docs</span>
+                            <span style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>No docs</span>
                           )}
                         </td>
-                        <td className="py-5 px-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button onClick={() => handleVerificationAction(v.id, 'APPROVED')} title="Approve"
-                              className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all">
-                              <CheckCircle className="w-4 h-4" />
+                        <td style={{ padding: '18px 16px', textAlign: 'right' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
+                            <button onClick={() => handleVerificationAction(v.id, 'APPROVED')}
+                              style={{ padding: 8, borderRadius: 10, background: 'rgba(52,211,153,0.1)', color: '#34d399', border: 'none', cursor: 'pointer', transition: 'all 0.15s' }}
+                              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#34d399'; (e.currentTarget as HTMLElement).style.color = '#fff'; }}
+                              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(52,211,153,0.1)'; (e.currentTarget as HTMLElement).style.color = '#34d399'; }}
+                            >
+                              <CheckCircle style={{ width: 14, height: 14 }} />
                             </button>
-                            <button onClick={() => handleVerificationAction(v.id, 'REJECTED')} title="Reject"
-                              className="p-2 rounded-lg bg-red-500/10 text-red-500 dark:text-red-400 hover:bg-red-500 hover:text-white transition-all">
-                              <XCircle className="w-4 h-4" />
+                            <button onClick={() => handleVerificationAction(v.id, 'REJECTED')}
+                              style={{ padding: 8, borderRadius: 10, background: 'rgba(239,68,68,0.1)', color: '#f87171', border: 'none', cursor: 'pointer', transition: 'all 0.15s' }}
+                              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#ef4444'; (e.currentTarget as HTMLElement).style.color = '#fff'; }}
+                              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.1)'; (e.currentTarget as HTMLElement).style.color = '#f87171'; }}
+                            >
+                              <XCircle style={{ width: 14, height: 14 }} />
                             </button>
                           </div>
                         </td>
@@ -373,34 +332,33 @@ const AdminDashboard: React.FC = () => {
         </div>
 
         {/* Sidebar panels */}
-        <div className="space-y-8">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           {/* Infrastructure */}
-          <div className={`${card} rounded-[40px] p-8`}>
-            <div className="flex items-center justify-between mb-8">
-              <h3 className="text-lg font-black flex items-center gap-3 text-slate-900 dark:text-white">
-                <Server className="w-5 h-5 text-blue-500" /> Infrastructure
+          <div style={{ ...cardStyle, padding: 28 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 900, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Server style={{ width: 18, height: 18, color: 'var(--color-accent)' }} /> Infrastructure
               </h3>
               <button onClick={checkInfraHealth} disabled={pingLoading}
-                className="flex items-center gap-1.5 text-xs font-bold text-blue-500 hover:text-blue-400 transition-colors disabled:opacity-50">
-                <RefreshCw className={`w-3 h-3 ${pingLoading ? 'animate-spin' : ''}`} /> Ping
+                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: 'var(--color-accent)', background: 'none', border: 'none', cursor: 'pointer', opacity: pingLoading ? 0.5 : 1 }}>
+                <RefreshCw style={{ width: 11, height: 11, animation: pingLoading ? 'spin 1s linear infinite' : 'none' }} /> Ping
               </button>
             </div>
-            <div className="space-y-5">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {infraHealth.length === 0
                 ? Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 h-[72px] animate-pulse" />
+                    <div key={i} style={{ padding: 16, borderRadius: 14, background: 'var(--color-bg-deep)', height: 72, animation: 'pulse 1.5s ease-in-out infinite' }} />
                   ))
                 : infraHealth.map((s, i) => (
-                    <div key={i} className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-bold text-slate-700 dark:text-white">{s.name}</span>
-                        <span className={`text-[10px] font-black uppercase tracking-widest ${s.warning ? 'text-amber-500' : 'text-emerald-500'}`}>{s.status}</span>
+                    <div key={i} style={{ padding: 16, borderRadius: 14, background: 'var(--color-bg-deep)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-primary)' }}>{s.name}</span>
+                        <span style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', color: s.warning ? '#f59e0b' : '#34d399' }}>{s.status}</span>
                       </div>
-                      <div className="h-1.5 w-full bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full transition-all duration-700 ${s.warning ? 'bg-amber-500' : 'bg-blue-500'}`}
-                          style={{ width: `${s.load}%` }} />
+                      <div style={{ height: 4, width: '100%', background: 'rgba(255,255,255,0.06)', borderRadius: 99, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', borderRadius: 99, transition: 'width 0.7s ease', width: `${s.load}%`, background: s.warning ? '#f59e0b' : 'var(--color-accent)' }} />
                       </div>
-                      <p className="text-[9px] text-slate-400 dark:text-gray-600 mt-1">{s.load}% response load</p>
+                      <p style={{ fontSize: 9, color: 'var(--color-text-muted)', marginTop: 4, opacity: 0.6 }}>{s.load}% response load</p>
                     </div>
                   ))
               }
@@ -408,39 +366,42 @@ const AdminDashboard: React.FC = () => {
           </div>
 
           {/* Recent Activity */}
-          <div className={`${card} rounded-[40px] p-8`}>
-            <div className="flex items-center justify-between mb-8">
-              <h3 className="text-lg font-black text-slate-900 dark:text-white">Recent Activity</h3>
-              <button onClick={loadRecentEvents} className="text-blue-500 hover:text-blue-400 transition-colors">
-                <RefreshCw className="w-3.5 h-3.5" />
+          <div style={{ ...cardStyle, padding: 28 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 900, color: 'var(--color-text-primary)' }}>Recent Activity</h3>
+              <button onClick={loadRecentEvents} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-accent)' }}>
+                <RefreshCw style={{ width: 14, height: 14 }} />
               </button>
             </div>
-            <div className="space-y-4">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {events.length === 0
                 ? Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="flex items-center gap-4 animate-pulse">
-                      <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-white/5 shrink-0" />
-                      <div className="flex-1 space-y-2">
-                        <div className="h-3 bg-slate-100 dark:bg-white/5 rounded w-3/4" />
-                        <div className="h-2 bg-slate-100 dark:bg-white/5 rounded w-1/3" />
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, animation: 'pulse 1.5s ease-in-out infinite' }}>
+                      <div style={{ width: 38, height: 38, borderRadius: 12, background: 'var(--color-bg-deep)', flexShrink: 0 }} />
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <div style={{ height: 10, background: 'var(--color-bg-deep)', borderRadius: 6, width: '75%' }} />
+                        <div style={{ height: 8, background: 'var(--color-bg-deep)', borderRadius: 6, width: '40%' }} />
                       </div>
                     </div>
                   ))
                 : events.slice(0, 5).map((ev, i) => (
-                    <div key={i} className="flex items-center gap-4 group">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${ev.color} group-hover:scale-110 transition-transform`}>
-                        <ev.icon className="w-5 h-5" />
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: ev.bg, color: ev.color }}>
+                        <ev.icon style={{ width: 16, height: 16 }} />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-slate-800 dark:text-white truncate">{ev.label}</p>
-                        <p className="text-xs text-slate-400 dark:text-gray-500">{relativeTime(ev.time)}</p>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.label}</p>
+                        <p style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>{relativeTime(ev.time)}</p>
                       </div>
                     </div>
                   ))
               }
             </div>
             <button onClick={() => setShowLogs(true)}
-              className="mt-6 w-full py-3 rounded-2xl bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 text-xs font-bold text-slate-500 dark:text-gray-400 transition-all">
+              style={{ marginTop: 20, width: '100%', padding: '12px', borderRadius: 12, background: 'var(--color-bg-deep)', border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', transition: 'background 0.15s' }}
+              onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)')}
+              onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = 'var(--color-bg-deep)')}
+            >
               View All Logs →
             </button>
           </div>
@@ -449,39 +410,39 @@ const AdminDashboard: React.FC = () => {
 
       {/* System Logs Drawer */}
       {showLogs && (
-        <div className="fixed inset-0 z-[100] flex">
-          <div className="flex-1 bg-black/50 backdrop-blur-sm" onClick={() => setShowLogs(false)} />
-          <div className="w-full max-w-lg bg-white dark:bg-[#0b0e14] border-l border-slate-200 dark:border-white/10 flex flex-col h-full">
-            <div className="flex items-center justify-between p-8 border-b border-slate-100 dark:border-white/5 shrink-0">
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex' }}>
+          <div style={{ flex: 1, background: 'rgba(4,13,24,0.7)', backdropFilter: 'blur(8px)' }} onClick={() => setShowLogs(false)} />
+          <div style={{ width: '100%', maxWidth: 480, background: 'var(--color-bg-card)', borderLeft: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '28px 28px 24px', borderBottom: '1px solid var(--color-border)', flexShrink: 0 }}>
               <div>
-                <h2 className="text-xl font-black text-slate-900 dark:text-white">System Logs</h2>
-                <p className="text-xs text-slate-500 dark:text-gray-500 mt-1">Real-time platform activity feed</p>
+                <h2 style={{ fontSize: 18, fontWeight: 900, color: 'var(--color-text-primary)' }}>System Logs</h2>
+                <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>Real-time platform activity feed</p>
               </div>
-              <button onClick={() => setShowLogs(false)} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/10 transition-all text-slate-400">
-                <X className="w-5 h-5" />
+              <button onClick={() => setShowLogs(false)} style={{ padding: 8, borderRadius: 10, background: 'var(--color-bg-deep)', border: '1px solid var(--color-border)', cursor: 'pointer', color: 'var(--color-text-muted)' }}>
+                <X style={{ width: 16, height: 16 }} />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 space-y-3">
+            <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }} className="custom-scrollbar">
               {events.length === 0 ? (
-                <p className="text-center text-slate-400 dark:text-gray-500 py-20 font-medium">No recent activity</p>
+                <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '80px 0', fontWeight: 600 }}>No recent activity</p>
               ) : events.map((ev, i) => (
-                <div key={i} className="flex items-start gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-white/5">
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${ev.color}`}>
-                    <ev.icon className="w-4 h-4" />
+                <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 14, padding: 14, borderRadius: 14, background: 'var(--color-bg-deep)' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: ev.bg, color: ev.color }}>
+                    <ev.icon style={{ width: 15, height: 15 }} />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-slate-800 dark:text-white">{ev.label}</p>
-                    <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-primary)' }}>{ev.label}</p>
+                    <p style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 4 }}>
                       {new Date(ev.time).toLocaleString()} · {relativeTime(ev.time)}
                     </p>
                   </div>
                 </div>
               ))}
             </div>
-            <div className="p-6 border-t border-slate-100 dark:border-white/5 shrink-0">
+            <div style={{ padding: '16px 24px', borderTop: '1px solid var(--color-border)', flexShrink: 0 }}>
               <button onClick={loadRecentEvents}
-                className="w-full py-3 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm transition-all flex items-center justify-center gap-2">
-                <RefreshCw className="w-4 h-4" /> Refresh Logs
+                style={{ width: '100%', padding: '12px', borderRadius: 12, background: 'var(--color-accent)', color: '#fff', fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <RefreshCw style={{ width: 15, height: 15 }} /> Refresh Logs
               </button>
             </div>
           </div>

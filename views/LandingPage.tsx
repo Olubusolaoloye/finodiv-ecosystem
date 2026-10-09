@@ -1,10 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import HeroSection      from '../components/ui/HeroSection';
-import FeaturedCourses  from '../components/ui/FeaturedCourses';
-import StatsSection     from '../components/ui/StatsSection';
-import WhyFinodiv       from '../components/ui/WhyFinodiv';
-import LandingFooter    from '../components/ui/LandingFooter';
+import HeroSection     from '../components/ui/HeroSection';
+import FeaturedCourses from '../components/ui/FeaturedCourses';
+import ServicesSection     from '../components/ui/ServicesSection';
+import Web3AcademySection  from '../components/ui/Web3AcademySection';
+import StatsSection        from '../components/ui/StatsSection';
+import WhyFinodiv      from '../components/ui/WhyFinodiv';
+import LandingFooter   from '../components/ui/LandingFooter';
 
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
@@ -19,6 +21,8 @@ const LandingPage: React.FC = () => {
         onCourseClick={id => navigate(`/courses/${id}`)}
         onViewAll={() => navigate('/courses')}
       />
+      <ServicesSection />
+      <Web3AcademySection />
       <StatsSection />
       <WhyFinodiv />
       <LandingFooter />

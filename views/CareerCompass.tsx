@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CAREER_QUESTIONS, CAREER_PATHS } from '../constants';
@@ -7,12 +6,6 @@ import {
   Compass, ArrowRight, ArrowLeft, CheckCircle2,
   TrendingUp, Clock, RefreshCw, Zap, DollarSign, ExternalLink,
 } from 'lucide-react';
-
-const DEMAND_COLOR: Record<string, string> = {
-  'Very High': 'text-emerald-600 dark:text-emerald-400',
-  'High':      'text-blue-600 dark:text-blue-400',
-  'Growing':   'text-purple-600 dark:text-purple-400',
-};
 
 const CareerCompass: React.FC = () => {
   const [step, setStep]       = useState(0);
@@ -26,11 +19,8 @@ const CareerCompass: React.FC = () => {
   const handleOptionSelect = (optionIdx: number) => {
     const newAnswers = [...answers, optionIdx];
     setAnswers(newAnswers);
-    if (step < totalSteps) {
-      setStep(step + 1);
-    } else {
-      calculateResults(newAnswers);
-    }
+    if (step < totalSteps) { setStep(step + 1); }
+    else { calculateResults(newAnswers); }
   };
 
   const calculateResults = (finalAnswers: number[]) => {
@@ -53,97 +43,203 @@ const CareerCompass: React.FC = () => {
     else setStep(0);
   };
 
-  // ── Hero ─────────────────────────────────────────────────────────────────────
+  const DEMAND_STYLE: Record<string, React.CSSProperties> = {
+    'Very High': { color: '#34d399' },
+    'High':      { color: '#60a5fa' },
+    'Growing':   { color: '#a78bfa' },
+  };
+
+  // ── INTRO ──────────────────────────────────────────────────────────────────────
   if (step === 0) {
+    const TAGS = ['ZK / L2', 'RWA Tokenization', 'MEV / Searcher', 'AI + Web3', 'DePIN', 'Security Auditing', 'DevRel', 'DeFi Research', 'Crypto Compliance'];
     return (
-      <div className="min-h-full flex flex-col items-center justify-center p-8 text-center bg-slate-50 dark:bg-[#0b0e14] transition-colors">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl aspect-square bg-blue-600/10 blur-[150px] pointer-events-none rounded-full" />
-        <div className="relative z-10 flex flex-col items-center max-w-3xl">
-          <div className="w-20 h-20 rounded-3xl bg-blue-600/10 dark:bg-blue-600/10 flex items-center justify-center mb-8 border border-blue-500/20 shadow-2xl shadow-blue-500/10">
-            <Compass className="w-10 h-10 text-blue-500 dark:text-blue-400 animate-pulse" />
+      <div style={{
+        minHeight: '100%', display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        padding: '48px 24px', textAlign: 'center',
+        background: 'var(--color-bg-primary)', position: 'relative', overflow: 'hidden',
+      }}>
+        {/* Background orb */}
+        <div style={{
+          position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
+          width: 700, height: 700,
+          background: 'radial-gradient(circle, rgba(47,109,242,0.08) 0%, transparent 65%)',
+          borderRadius: '50%', pointerEvents: 'none',
+        }} aria-hidden="true" />
+
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', maxWidth: 760 }}>
+          {/* Icon */}
+          <div style={{
+            width: 80, height: 80, borderRadius: 28,
+            background: 'rgba(47,109,242,0.1)',
+            border: '1px solid rgba(47,109,242,0.25)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            marginBottom: 32, boxShadow: '0 8px 32px rgba(47,109,242,0.12)',
+          }}>
+            <Compass style={{ width: 38, height: 38, color: 'var(--color-accent)' }} strokeWidth={1.5} />
           </div>
-          <h1 className="text-5xl md:text-7xl font-black mb-6 tracking-tight leading-tight text-slate-900 dark:text-white">
-            Discover Your <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-indigo-500">
+
+          <h1 style={{
+            fontSize: 'clamp(2.4rem, 6vw, 4.5rem)',
+            fontWeight: 900, letterSpacing: '-0.035em', lineHeight: 1.05,
+            color: 'var(--color-text-primary)', marginBottom: 20,
+          }}>
+            Discover Your<br />
+            <span style={{
+              background: 'linear-gradient(135deg, #2F6DF2, #7C3AED)',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+            }}>
               Web3 Career Path
             </span>
           </h1>
-          <p className="text-slate-600 dark:text-gray-400 text-lg md:text-xl mb-4 leading-relaxed max-w-2xl">
-            The Web3 freelance market is worth <span className="font-bold text-slate-900 dark:text-white">$12B+</span> and growing.
+
+          <p style={{ fontSize: 17, color: 'var(--color-text-muted)', marginBottom: 16, lineHeight: 1.65, maxWidth: 600 }}>
+            The demand for digital and Web3 skills has never been higher.
             Answer {totalSteps} strategic questions and let the FINODIV Compass match you to
-            your perfect career — with real freelance rates and platforms.
+            your perfect 2026 career — with real freelance rates and top platforms.
           </p>
-          <div className="flex flex-wrap justify-center gap-3 mb-12 text-xs font-black uppercase tracking-widest">
-            {['ZK / L2', 'RWA Tokenization', 'MEV / Searcher', 'AI + Web3', 'Security Auditing', 'DevRel', 'DeFi Research'].map(tag => (
-              <span key={tag} className="px-3 py-1.5 rounded-full bg-blue-500/10 dark:bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400">
+
+          {/* Tag chips */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginBottom: 44 }}>
+            {TAGS.map(tag => (
+              <span key={tag} style={{
+                padding: '6px 14px', borderRadius: 999,
+                background: 'rgba(47,109,242,0.08)',
+                border: '1px solid rgba(47,109,242,0.2)',
+                fontSize: 11, fontWeight: 800, textTransform: 'uppercase',
+                letterSpacing: '0.1em', color: 'var(--color-accent)',
+              }}>
                 {tag}
               </span>
             ))}
           </div>
+
           <button
             onClick={handleStart}
-            className="px-10 py-5 rounded-3xl bg-[#2F6DF2] hover:bg-blue-600 transition-all font-black text-xl text-white shadow-2xl shadow-blue-500/20 flex items-center gap-3 group"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '16px 40px', borderRadius: 16,
+              background: 'var(--color-accent)', color: '#fff',
+              fontWeight: 900, fontSize: 17, border: 'none', cursor: 'pointer',
+              boxShadow: '0 8px 32px rgba(47,109,242,0.3)',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = 'var(--color-accent-hover)'; el.style.transform = 'translateY(-2px)'; }}
+            onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = 'var(--color-accent)'; el.style.transform = 'translateY(0)'; }}
           >
             Start Career Assessment
-            <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+            <ArrowRight style={{ width: 20, height: 20 }} />
           </button>
-          <p className="mt-6 text-xs text-slate-400 dark:text-gray-600 font-bold uppercase tracking-widest">
-            {totalSteps} questions · ~3 minutes · 15 career paths
+
+          <p style={{ marginTop: 20, fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em' }}>
+            {totalSteps} questions · ~3 minutes · 17 career paths
           </p>
         </div>
       </div>
     );
   }
 
-  // ── Question Flow ─────────────────────────────────────────────────────────────
+  // ── QUESTION FLOW ──────────────────────────────────────────────────────────────
   if (step > 0 && step <= totalSteps) {
-    const currentQ = CAREER_QUESTIONS[step - 1];
+    const q        = CAREER_QUESTIONS[step - 1];
     const progress = (step / totalSteps) * 100;
 
     return (
-      <div className="min-h-full bg-slate-50 dark:bg-[#0b0e14] p-8 lg:p-12 flex flex-col items-center transition-colors">
-        <div className="w-full max-w-3xl">
+      <div style={{
+        minHeight: '100%', background: 'var(--color-bg-primary)',
+        padding: 'clamp(24px, 5vw, 48px) 24px',
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+      }}>
+        <div style={{ width: '100%', maxWidth: 720 }}>
           {/* Top bar */}
-          <div className="flex items-center justify-between mb-8">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
             <button
               onClick={goBack}
-              className="flex items-center gap-2 text-slate-500 dark:text-gray-500 hover:text-slate-900 dark:hover:text-white transition-colors text-sm font-bold uppercase tracking-widest"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                color: 'var(--color-text-muted)', background: 'none', border: 'none', cursor: 'pointer',
+                fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em',
+                transition: 'color 0.15s',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--color-text-primary)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--color-text-muted)'; }}
             >
-              <ArrowLeft className="w-4 h-4" /> Back
+              <ArrowLeft style={{ width: 16, height: 16 }} /> Back
             </button>
-            <div className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500 dark:text-blue-400">
+            <span style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.18em', color: 'var(--color-accent)' }}>
               Step {step} of {totalSteps}
-            </div>
+            </span>
           </div>
 
           {/* Progress bar */}
-          <div className="h-2 w-full bg-slate-200 dark:bg-white/5 rounded-full mb-16 overflow-hidden">
-            <div
-              className="h-full bg-blue-500 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(59,130,246,0.5)]"
-              style={{ width: `${progress}%` }}
-            />
+          <div style={{ height: 4, width: '100%', background: 'var(--color-border)', borderRadius: 99, marginBottom: 48, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%', background: 'var(--color-accent)',
+              borderRadius: 99, width: `${progress}%`,
+              transition: 'width 0.4s ease',
+              boxShadow: '0 0 12px rgba(47,109,242,0.5)',
+            }} />
           </div>
 
           {/* Question card */}
-          <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-[48px] p-10 lg:p-16 backdrop-blur-xl relative overflow-hidden shadow-sm dark:shadow-none">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 blur-[80px] rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+          <div style={{
+            background: 'var(--color-bg-card)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 32, padding: 'clamp(28px, 5vw, 52px)',
+            position: 'relative', overflow: 'hidden',
+          }}>
+            {/* Top glow */}
+            <div style={{
+              position: 'absolute', top: 0, right: 0,
+              width: 300, height: 300,
+              background: 'radial-gradient(circle, rgba(47,109,242,0.06) 0%, transparent 70%)',
+              transform: 'translate(30%, -30%)', pointerEvents: 'none',
+            }} aria-hidden="true" />
 
-            <h2 className="text-2xl md:text-3xl font-black mb-10 leading-tight tracking-tight text-slate-900 dark:text-white">
-              {currentQ.question}
+            <h2 style={{
+              fontSize: 'clamp(1.2rem, 3vw, 1.65rem)',
+              fontWeight: 900, lineHeight: 1.3, letterSpacing: '-0.02em',
+              color: 'var(--color-text-primary)', marginBottom: 32,
+              position: 'relative', zIndex: 1,
+            }}>
+              {q.question}
             </h2>
 
-            <div className="space-y-4">
-              {currentQ.options.map((opt, idx) => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, position: 'relative', zIndex: 1 }}>
+              {q.options.map((opt, idx) => (
                 <button
                   key={idx}
                   onClick={() => handleOptionSelect(idx)}
-                  className="w-full p-5 rounded-3xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5 hover:border-blue-500/50 hover:bg-blue-50 dark:hover:bg-white/[0.05] transition-all text-left group flex items-center justify-between"
+                  style={{
+                    width: '100%', padding: '16px 20px',
+                    borderRadius: 16,
+                    background: 'var(--color-bg-deep)',
+                    border: '1px solid var(--color-border)',
+                    textAlign: 'left', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={e => {
+                    const el = e.currentTarget as HTMLElement;
+                    el.style.borderColor = 'rgba(47,109,242,0.5)';
+                    el.style.background = 'rgba(47,109,242,0.07)';
+                  }}
+                  onMouseLeave={e => {
+                    const el = e.currentTarget as HTMLElement;
+                    el.style.borderColor = 'var(--color-border)';
+                    el.style.background = 'var(--color-bg-deep)';
+                  }}
                 >
-                  <span className="text-base font-semibold text-slate-700 dark:text-gray-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors pr-4">
+                  <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)', lineHeight: 1.45 }}>
                     {opt.label}
                   </span>
-                  <div className="w-9 h-9 rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shrink-0">
-                    <ArrowRight className="w-4 h-4 text-blue-500 dark:text-blue-400" />
+                  <div style={{
+                    width: 32, height: 32, borderRadius: 10, flexShrink: 0,
+                    background: 'rgba(47,109,242,0.1)',
+                    border: '1px solid rgba(47,109,242,0.2)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <ArrowRight style={{ width: 14, height: 14, color: 'var(--color-accent)' }} />
                   </div>
                 </button>
               ))}
@@ -154,108 +250,116 @@ const CareerCompass: React.FC = () => {
     );
   }
 
-  // ── Results ───────────────────────────────────────────────────────────────────
+  // ── RESULTS ───────────────────────────────────────────────────────────────────
   if (results) {
-    const primary      = results[0];
-    const alternatives = results.slice(1);
+    const primary = results[0];
+    const alts    = results.slice(1);
 
     return (
-      <div className="min-h-full bg-slate-50 dark:bg-[#0b0e14] p-8 lg:p-12 pb-32 transition-colors">
-        <div className="max-w-6xl mx-auto">
+      <div style={{ minHeight: '100%', background: 'var(--color-bg-primary)', padding: 'clamp(24px, 4vw, 48px) 24px', paddingBottom: 120 }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
 
           {/* Header */}
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-600/10 border border-blue-500/20 text-blue-500 dark:text-blue-400 text-sm font-black uppercase tracking-widest mb-6">
-              <CheckCircle2 className="w-4 h-4" /> Assessment Complete
+          <div style={{ textAlign: 'center', marginBottom: 56 }}>
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '7px 18px', borderRadius: 999, marginBottom: 20,
+              background: 'rgba(52,211,153,0.08)',
+              border: '1px solid rgba(52,211,153,0.25)',
+              color: '#34d399', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em',
+            }}>
+              <CheckCircle2 style={{ width: 14, height: 14 }} /> Assessment Complete
             </div>
-            <h2 className="text-4xl md:text-5xl font-black tracking-tight text-slate-900 dark:text-white mb-3">
+            <h2 style={{
+              fontSize: 'clamp(1.8rem, 4vw, 3rem)',
+              fontWeight: 900, letterSpacing: '-0.03em',
+              color: 'var(--color-text-primary)', marginBottom: 10,
+            }}>
               Your Career DNA Result
             </h2>
-            <p className="text-slate-500 dark:text-gray-500">
-              Based on your answers, here are the paths you're built for.
+            <p style={{ color: 'var(--color-text-muted)', fontSize: 15 }}>
+              Based on your answers, here are the paths you're built for in 2026.
             </p>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-10 items-start">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 28, alignItems: 'start' }}>
 
-            {/* Primary Recommendation */}
-            <div className="lg:col-span-2">
-              <div className="bg-gradient-to-br from-blue-600 to-indigo-800 rounded-[56px] p-10 lg:p-14 relative overflow-hidden shadow-2xl shadow-blue-500/20">
-                <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 blur-[100px] rounded-full translate-x-1/3 -translate-y-1/3 pointer-events-none" />
-                <div className="relative z-10">
-                  <div className="flex flex-wrap items-center gap-3 mb-8">
-                    <span className="px-4 py-1.5 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-black uppercase tracking-widest text-white border border-white/30">
+            {/* ── Primary ── */}
+            <div style={{ gridColumn: 'span 2' }} className="lg-col-span-2">
+              <div style={{
+                background: 'linear-gradient(135deg, #1e3a9a 0%, #2d1872 100%)',
+                borderRadius: 40, padding: 'clamp(28px, 5vw, 52px)',
+                position: 'relative', overflow: 'hidden',
+                boxShadow: '0 24px 80px rgba(47,109,242,0.2)',
+              }}>
+                <div style={{ position: 'absolute', top: 0, right: 0, width: 400, height: 400, background: 'radial-gradient(circle, rgba(255,255,255,0.07) 0%, transparent 65%)', transform: 'translate(30%, -30%)', pointerEvents: 'none' }} aria-hidden="true" />
+                <div style={{ position: 'relative', zIndex: 1 }}>
+                  {/* Badges */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 24 }}>
+                    <span style={{ padding: '5px 14px', borderRadius: 999, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#fff' }}>
                       Recommended for you
                     </span>
-                    <span className="px-4 py-1.5 rounded-full bg-emerald-500/20 backdrop-blur-md text-[10px] font-black uppercase tracking-widest text-emerald-300 border border-emerald-500/30">
+                    <span style={{ padding: '5px 14px', borderRadius: 999, background: 'rgba(52,211,153,0.2)', border: '1px solid rgba(52,211,153,0.35)', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#34d399' }}>
                       Top Choice
                     </span>
                   </div>
 
-                  <h3 className="text-3xl md:text-5xl font-black mb-5 leading-tight text-white">{primary.title}</h3>
-                  <p className="text-blue-100 text-base md:text-lg mb-10 leading-relaxed">{primary.description}</p>
+                  <h3 style={{ fontSize: 'clamp(1.5rem, 3.5vw, 2.75rem)', fontWeight: 900, marginBottom: 16, lineHeight: 1.1, color: '#fff' }}>
+                    {primary.title}
+                  </h3>
+                  <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.72)', marginBottom: 36, lineHeight: 1.65 }}>
+                    {primary.description}
+                  </p>
 
-                  {/* Skills + Traits */}
-                  <div className="grid md:grid-cols-2 gap-8 mb-10">
-                    <div className="space-y-3">
-                      <h4 className="text-[10px] font-black uppercase tracking-widest text-blue-200/60">Core Traits</h4>
-                      <div className="flex flex-wrap gap-2">
+                  {/* Traits + Skills */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 24, marginBottom: 36 }}>
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.18em', color: 'rgba(255,255,255,0.4)', marginBottom: 12 }}>Core Traits</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                         {primary.traits.map(t => (
-                          <span key={t} className="px-3 py-1.5 rounded-xl bg-white/10 border border-white/20 text-xs font-bold text-white">{t}</span>
+                          <span key={t} style={{ padding: '5px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.18)', fontSize: 12, fontWeight: 700, color: '#fff' }}>{t}</span>
                         ))}
                       </div>
                     </div>
-                    <div className="space-y-3">
-                      <h4 className="text-[10px] font-black uppercase tracking-widest text-blue-200/60">Key Skills</h4>
-                      <div className="flex flex-wrap gap-2">
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.18em', color: 'rgba(255,255,255,0.4)', marginBottom: 12 }}>Key Skills</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                         {primary.skills.map(s => (
-                          <span key={s} className="px-3 py-1.5 rounded-xl bg-blue-400/20 border border-blue-400/30 text-xs font-bold text-blue-100">{s}</span>
+                          <span key={s} style={{ padding: '5px 12px', borderRadius: 8, background: 'rgba(96,165,250,0.18)', border: '1px solid rgba(96,165,250,0.3)', fontSize: 12, fontWeight: 700, color: '#93c5fd' }}>{s}</span>
                         ))}
                       </div>
                     </div>
                   </div>
 
-                  {/* Stats row */}
-                  <div className="flex flex-wrap gap-8 py-8 border-y border-white/10 mb-10">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-                        <TrendingUp className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-blue-200/60 font-black uppercase tracking-widest">Market Demand</p>
-                        <p className="font-black text-white">{primary.demand}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-                        <Clock className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-blue-200/60 font-black uppercase tracking-widest">Learning Path</p>
-                        <p className="font-black text-white">{primary.duration}</p>
-                      </div>
-                    </div>
-                    {primary.freelanceRate && (
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-                          <DollarSign className="w-5 h-5 text-white" />
+                  {/* Stats */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 28, padding: '24px 0', borderTop: '1px solid rgba(255,255,255,0.1)', borderBottom: '1px solid rgba(255,255,255,0.1)', marginBottom: 28 }}>
+                    {[
+                      { icon: TrendingUp, label: 'Market Demand',   val: primary.demand,        style: DEMAND_STYLE[primary.demand] || { color: '#fff' } },
+                      { icon: Clock,      label: 'Learning Path',   val: primary.duration,      style: { color: '#fff' } },
+                      ...(primary.freelanceRate ? [{ icon: DollarSign, label: 'Freelance Rate', val: primary.freelanceRate, style: { color: '#34d399' } }] : []),
+                    ].map(({ icon: Icon, label, val, style }) => (
+                      <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Icon style={{ width: 18, height: 18, color: '#fff' }} />
                         </div>
                         <div>
-                          <p className="text-[10px] text-blue-200/60 font-black uppercase tracking-widest">Freelance Rate</p>
-                          <p className="font-black text-white">{primary.freelanceRate}</p>
+                          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.14em' }}>{label}</div>
+                          <div style={{ fontWeight: 900, fontSize: 15, ...style }}>{val}</div>
                         </div>
                       </div>
-                    )}
+                    ))}
                   </div>
 
                   {/* Platforms */}
                   {primary.platforms && (
-                    <div className="mb-10">
-                      <p className="text-[10px] text-blue-200/60 font-black uppercase tracking-widest mb-3">Top Platforms to Find Work</p>
-                      <div className="flex flex-wrap gap-2">
+                    <div style={{ marginBottom: 32 }}>
+                      <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 12 }}>
+                        Top Platforms to Find Work
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                         {primary.platforms.map(p => (
-                          <span key={p} className="px-3 py-1.5 rounded-xl bg-white/10 border border-white/20 text-xs font-bold text-white flex items-center gap-1.5">
-                            <ExternalLink className="w-3 h-3" /> {p}
+                          <span key={p} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', fontSize: 12, fontWeight: 700, color: '#fff' }}>
+                            <ExternalLink style={{ width: 11, height: 11 }} /> {p}
                           </span>
                         ))}
                       </div>
@@ -264,41 +368,68 @@ const CareerCompass: React.FC = () => {
 
                   <Link
                     to="/courses"
-                    className="w-full py-5 rounded-3xl bg-white text-blue-600 hover:bg-blue-50 transition-all font-black text-lg flex items-center justify-center gap-3 shadow-2xl"
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                      width: '100%', padding: '16px', borderRadius: 16,
+                      background: '#fff', color: '#1e0b5e',
+                      fontWeight: 900, fontSize: 16, textDecoration: 'none',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
                   >
-                    <Zap className="w-5 h-5 fill-current" /> Start This Career Path
+                    <Zap style={{ width: 18, height: 18 }} /> Start This Career Path
                   </Link>
                 </div>
               </div>
             </div>
 
-            {/* Alternatives + Retake */}
-            <div className="space-y-6">
-              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-gray-500 pl-2">
+            {/* ── Alternatives ── */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.18em', color: 'var(--color-text-muted)', paddingLeft: 4 }}>
                 Strong Alternatives
-              </h3>
+              </div>
 
-              {alternatives.map((alt) => (
+              {alts.map(alt => (
                 <div
                   key={alt.id}
-                  className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-[40px] p-8 hover:border-blue-500/40 transition-all group shadow-sm dark:shadow-none"
+                  style={{
+                    background: 'var(--color-bg-card)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 24, padding: '24px',
+                    transition: 'border-color 0.15s',
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(47,109,242,0.4)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border)'; }}
                 >
-                  <div className="flex items-center justify-between mb-5">
-                    <div className="px-3 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20 text-[9px] font-black uppercase tracking-widest text-blue-500 dark:text-blue-400">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <span style={{ padding: '3px 10px', borderRadius: 6, background: 'rgba(47,109,242,0.1)', border: '1px solid rgba(47,109,242,0.2)', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-accent)' }}>
                       Strong Fit
-                    </div>
-                    <span className="text-xs font-bold text-slate-400 dark:text-gray-500">{alt.overlap}% match</span>
+                    </span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-muted)' }}>{alt.overlap}% match</span>
                   </div>
-                  <h4 className="text-xl font-black mb-2 text-slate-900 dark:text-white">{alt.title}</h4>
-                  <p className="text-sm text-slate-500 dark:text-gray-500 mb-3 line-clamp-2 leading-relaxed">{alt.description}</p>
+                  <h4 style={{ fontSize: 17, fontWeight: 900, marginBottom: 8, color: 'var(--color-text-primary)' }}>{alt.title}</h4>
+                  <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 10, lineHeight: 1.55, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                    {alt.description}
+                  </p>
                   {alt.freelanceRate && (
-                    <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-6 flex items-center gap-1">
-                      <DollarSign className="w-3.5 h-3.5" /> {alt.freelanceRate}
+                    <p style={{ fontSize: 12, fontWeight: 800, color: '#34d399', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <DollarSign style={{ width: 13, height: 13 }} /> {alt.freelanceRate}
                     </p>
                   )}
                   <Link
                     to="/courses"
-                    className="w-full py-3 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 group-hover:bg-blue-600 group-hover:text-white group-hover:border-transparent transition-all font-bold text-xs text-slate-600 dark:text-gray-400 block text-center"
+                    style={{
+                      display: 'block', textAlign: 'center', width: '100%',
+                      padding: '10px', borderRadius: 12,
+                      background: 'var(--color-bg-deep)',
+                      border: '1px solid var(--color-border)',
+                      fontSize: 12, fontWeight: 700, color: 'var(--color-text-muted)',
+                      textDecoration: 'none', transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = 'var(--color-accent)'; el.style.color = '#fff'; el.style.borderColor = 'transparent'; }}
+                    onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = 'var(--color-bg-deep)'; el.style.color = 'var(--color-text-muted)'; el.style.borderColor = 'var(--color-border)'; }}
                   >
                     Explore Path
                   </Link>
@@ -307,9 +438,19 @@ const CareerCompass: React.FC = () => {
 
               <button
                 onClick={handleStart}
-                className="w-full py-5 rounded-3xl border-2 border-dashed border-slate-300 dark:border-white/10 hover:border-blue-500/40 hover:bg-blue-50 dark:hover:bg-white/5 transition-all text-slate-500 dark:text-gray-500 hover:text-slate-900 dark:hover:text-white flex items-center justify-center gap-3 text-sm font-bold uppercase tracking-widest"
+                style={{
+                  width: '100%', padding: '16px', borderRadius: 16,
+                  border: '2px dashed var(--color-border)',
+                  background: 'transparent', cursor: 'pointer',
+                  color: 'var(--color-text-muted)', fontSize: 13, fontWeight: 700,
+                  textTransform: 'uppercase', letterSpacing: '0.1em',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'rgba(47,109,242,0.5)'; el.style.color = 'var(--color-text-primary)'; }}
+                onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--color-border)'; el.style.color = 'var(--color-text-muted)'; }}
               >
-                <RefreshCw className="w-4 h-4" /> Retake Assessment
+                <RefreshCw style={{ width: 15, height: 15 }} /> Retake Assessment
               </button>
             </div>
           </div>
