@@ -26,6 +26,17 @@ export default defineSchema({
       v.literal("MOD"),
     ),
     avatarUrl: v.optional(v.string()),
+    avatarStorageId: v.optional(v.id("_storage")),
+    title: v.optional(v.string()),
+    socials: v.optional(
+      v.object({
+        twitter: v.optional(v.string()),
+        linkedin: v.optional(v.string()),
+        github: v.optional(v.string()),
+        telegram: v.optional(v.string()),
+        website: v.optional(v.string()),
+      }),
+    ),
     walletAddress: v.optional(v.string()),
     bio: v.optional(v.string()),
     xp: v.number(),
@@ -166,6 +177,31 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_roomId_pinned", ["roomId", "isPinned"]),
 
+  // ── Direct conversations (1:1) ─────────────────────────────────────────────
+  // userA < userB lexicographically, so each pair maps to exactly one row.
+  conversations: defineTable({
+    userA: v.string(),
+    userB: v.string(),
+    jobId: v.optional(v.id("jobs")),
+    lastMessageAt: v.number(),
+    lastMessagePreview: v.string(),
+    lastSenderId: v.optional(v.string()),
+    unreadA: v.number(),
+    unreadB: v.number(),
+  })
+    .index("by_pair", ["userA", "userB"])
+    .index("by_userA_lastMessageAt", ["userA", "lastMessageAt"])
+    .index("by_userB_lastMessageAt", ["userB", "lastMessageAt"]),
+
+  directMessages: defineTable({
+    conversationId: v.id("conversations"),
+    senderId: v.string(),
+    content: v.string(),
+    imageStorageId: v.optional(v.id("_storage")),
+    audioStorageId: v.optional(v.id("_storage")),
+    audioDuration: v.optional(v.number()),
+  }).index("by_conversationId", ["conversationId"]),
+
   // ── Jobs ───────────────────────────────────────────────────────────────────
   jobs: defineTable({
     title: v.string(),
@@ -235,6 +271,7 @@ export default defineSchema({
     .index("by_courseId", ["courseId"])
     .index("by_userId", ["userId"])
     .index("by_assignmentId", ["assignmentId"])
+    .index("by_assignmentId_userId", ["assignmentId", "userId"])
     .index("by_courseId_status", ["courseId", "status"]),
 
   // ── XP events ─────────────────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from 'convex/react';
 import { UserRole } from '../types';
 import { getSession } from '../services/session';
@@ -10,8 +11,9 @@ import {
   Plus, Hash, LogIn, LogOut as LeaveIcon, Check,
   MessageSquare, AlertCircle, ImagePlus,
   Mic, Play, Square, Volume2, ChevronLeft,
-  Search, Settings, Users, Lock,
+  Search, Settings, Users, Lock, Briefcase,
 } from 'lucide-react';
+import { errorMessage } from '../services/errors';
 
 interface CommunityProps { role: UserRole; }
 interface ChatRoom {
@@ -19,13 +21,67 @@ interface ChatRoom {
   description: string; iconColor: string; isActive: boolean;
 }
 interface Message {
-  _id: Id<'communityMessages'>; _creationTime: number;
-  roomId: Id<'chatRooms'>; userId: string; content: string;
+  _id: string; _creationTime: number;
+  userId: string; content: string;
   imageStorageId?: Id<'_storage'>; audioStorageId?: Id<'_storage'>;
   audioDuration?: number; imageUrl?: string; audioUrl?: string;
   isPinned: boolean; userName: string; userRole: string; userAvatar?: string;
 }
 interface CurrentUser { id: string; name: string; avatarUrl: string; }
+interface Conversation {
+  _id: Id<'conversations'>; otherUserId: string; otherName: string; otherRole: string;
+  otherAvatar?: string; jobTitle?: string; lastMessageAt: number;
+  lastMessagePreview: string; lastSenderId?: string; unread: number;
+}
+
+const fmtShort = (ts: number) => {
+  const d = new Date(ts);
+  return d.toDateString() === new Date().toDateString()
+    ? fmt(ts)
+    : d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+};
+
+const ROLE_LABEL: Record<string, string> = {
+  EMPLOYER: 'Employer', EDUCATOR: 'Educator', LEARNER: 'Learner', ADMIN: 'Admin', MOD: 'Moderator',
+};
+
+/* ─── Conversation item in sidebar ───────────────────────────────── */
+const ConversationItem: React.FC<{ convo: Conversation; active: boolean; onClick: () => void }> = ({ convo, active, onClick }) => (
+  <div
+    onClick={onClick}
+    style={{
+      display: 'flex', alignItems: 'center', gap: 11,
+      padding: '9px 12px', borderRadius: 12, cursor: 'pointer', marginBottom: 2,
+      background: active ? 'rgba(99,102,241,0.1)' : 'transparent',
+      border: active ? '1px solid rgba(99,102,241,0.25)' : '1px solid transparent',
+      transition: 'all 0.15s',
+    }}
+    className={active ? '' : 'hover:bg-black/5 dark:hover:bg-white/5'}
+  >
+    <img
+      src={convo.otherAvatar || `https://i.pravatar.cc/100?u=${convo.otherUserId}`}
+      alt="" style={{ width: 38, height: 38, borderRadius: 11, objectFit: 'cover', flexShrink: 0, border: '1px solid var(--color-border)' }}
+    />
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ flex: 1, fontSize: 13, fontWeight: convo.unread ? 800 : active ? 700 : 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {convo.otherName}
+        </span>
+        <span style={{ fontSize: 10, color: 'var(--color-text-muted)', flexShrink: 0 }}>{fmtShort(convo.lastMessageAt)}</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+        <p style={{ flex: 1, fontSize: 11, color: convo.unread ? 'var(--color-text-primary)' : 'var(--color-text-muted)', fontWeight: convo.unread ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {convo.lastMessagePreview || (convo.jobTitle ? `Re: ${convo.jobTitle}` : 'Say hello 👋')}
+        </p>
+        {convo.unread > 0 && (
+          <span style={{ minWidth: 18, height: 18, padding: '0 5px', borderRadius: 999, background: '#6366f1', color: '#fff', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            {convo.unread > 99 ? '99+' : convo.unread}
+          </span>
+        )}
+      </div>
+    </div>
+  </div>
+);
 
 const fmt = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 const fmtDate = (ts: number) => {
@@ -174,7 +230,11 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
   const session = getSession();
 
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
-  const [activeRoom, setActiveRoom]     = useState<ChatRoom | null>(null);
+  const [activeRoom, setActiveRoomState] = useState<ChatRoom | null>(null);
+  const [activeDmId, setActiveDmId]     = useState<Id<'conversations'> | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const pendingWith = searchParams.get('with');
+  const pendingDm = searchParams.get('dm');
   const [input, setInput]               = useState('');
   const [sending, setSending]           = useState(false);
   const [showPinned, setShowPinned]     = useState(true);
@@ -208,7 +268,17 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
   const [creating, setCreating]     = useState(false);
 
   const rooms    = useQuery(api.community.listRooms) ?? [];
-  const messages = useQuery(api.community.listMessagesWithProfiles, activeRoom ? { roomId: activeRoom._id } : 'skip') as Message[] | undefined;
+  const conversations = useQuery(api.messages.listConversations, session ? { userId: session.userId } : 'skip') ?? [];
+  const roomMessages = useQuery(api.community.listMessagesWithProfiles, activeRoom ? { roomId: activeRoom._id } : 'skip');
+  const dmMessages = useQuery(api.messages.listMessages, activeDmId && session ? { conversationId: activeDmId, userId: session.userId } : 'skip');
+  const inDm = activeDmId !== null;
+  const activeConvo = inDm ? conversations.find(c => c._id === activeDmId) ?? null : null;
+  const messages: Message[] | undefined = inDm
+    ? dmMessages?.map(m => ({ ...m, isPinned: false }))
+    : roomMessages;
+
+  const setActiveRoom = (room: ChatRoom | null) => { setActiveDmId(null); setActiveRoomState(room); };
+  const openDm = (id: Id<'conversations'>) => { setActiveRoomState(null); setActiveDmId(id); setSidebarOpen(false); };
   const memberIds = useQuery(api.community.getUserMemberships, session ? { userId: session.userId } : 'skip');
   const joinedSet = new Set<string>((memberIds ?? []).map(String));
 
@@ -219,7 +289,35 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
     });
   }, []);
 
+  // Deep links: /community?with=<userId> starts (or reopens) a DM, ?dm=<conversationId> opens one.
   useEffect(() => {
+    if (!session) return;
+    if (pendingDm) {
+      openDm(pendingDm as Id<'conversations'>);
+      setSearchParams({}, { replace: true });
+      return;
+    }
+    if (!pendingWith) return;
+    const jobId = searchParams.get('job') ?? undefined;
+    convex.mutation(api.messages.startConversation, {
+      userId: session.userId, otherUserId: pendingWith, jobId: jobId as Id<'jobs'> | undefined,
+    })
+      .then(id => openDm(id))
+      .catch(e => showToast(errorMessage(e, 'Could not open chat')))
+      .finally(() => setSearchParams({}, { replace: true }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingWith, pendingDm]);
+
+  useEffect(() => {
+    if (!activeDmId || !session || !dmMessages) return;
+    if ((activeConvo?.unread ?? 0) > 0) {
+      convex.mutation(api.messages.markRead, { conversationId: activeDmId, userId: session.userId }).catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeDmId, dmMessages?.length, activeConvo?.unread]);
+
+  useEffect(() => {
+    if (activeDmId || pendingWith || pendingDm) return;
     if (!activeRoom && rooms.length > 0) {
       const first = memberIds && memberIds.length > 0
         ? rooms.find(r => memberIds.map(String).includes(String(r._id))) ?? rooms[0]
@@ -284,7 +382,7 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
   };
 
   const handleSend = async () => {
-    if ((!input.trim() && !imgFile && !audioBlob) || !currentUser || !activeRoom || sending) return;
+    if ((!input.trim() && !imgFile && !audioBlob) || !currentUser || (!activeRoom && !activeDmId) || sending) return;
     const text = input.trim(); setInput(''); setSending(true);
     let imgId: Id<'_storage'> | undefined;
     let audId: Id<'_storage'> | undefined;
@@ -313,11 +411,18 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
     }
 
     try {
-      await convex.mutation(api.community.sendMessage, {
-        roomId: activeRoom._id, userId: currentUser.id, content: text || '',
-        imageStorageId: imgId, audioStorageId: audId, audioDuration: audDur,
-      });
-    } catch (e: any) { if (text) setInput(text); showToast('Message not sent'); }
+      if (activeDmId) {
+        await convex.mutation(api.messages.send, {
+          conversationId: activeDmId, senderId: currentUser.id, content: text || '',
+          imageStorageId: imgId, audioStorageId: audId, audioDuration: audDur,
+        });
+      } else if (activeRoom) {
+        await convex.mutation(api.community.sendMessage, {
+          roomId: activeRoom._id, userId: currentUser.id, content: text || '',
+          imageStorageId: imgId, audioStorageId: audId, audioDuration: audDur,
+        });
+      }
+    } catch (e) { if (text) setInput(text); showToast(errorMessage(e, 'Message not sent')); }
     setSending(false);
   };
 
@@ -333,7 +438,7 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
     setCreating(false); setNewName(''); setNewDesc(''); setNewColor('#6366f1'); setShowCreate(false);
   };
 
-  const isMember = activeRoom ? joinedSet.has(String(activeRoom._id)) : false;
+  const isMember = inDm || (activeRoom ? joinedSet.has(String(activeRoom._id)) : false);
   const pinned = (messages ?? []).filter(m => m.isPinned);
   const grouped = (messages ?? []).reduce<Array<{ date: string; msgs: Message[] }>>((acc, m) => {
     const d = fmtDate(m._creationTime); const last = acc[acc.length - 1];
@@ -342,6 +447,8 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
   }, []);
 
   const filteredRooms = rooms.filter(r => r.name.toLowerCase().includes(roomSearch.toLowerCase()));
+  const filteredConvos = conversations.filter(c => c.otherName.toLowerCase().includes(roomSearch.toLowerCase()));
+  const chatTitle = inDm ? (activeConvo?.otherName ?? 'Direct message') : activeRoom?.name ?? '';
   const canSend = (input.trim().length > 0 || imgFile || audioBlob) && !sending;
 
   /* ── Sidebar content (shared between desktop + mobile drawer) ── */
@@ -377,7 +484,7 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
           <Search style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', width: 13, height: 13, color: 'var(--color-text-muted)' }} />
           <input
             value={roomSearch} onChange={e => setRoomSearch(e.target.value)}
-            placeholder="Search rooms…"
+            placeholder="Search chats…"
             style={{
               width: '100%', padding: '8px 10px 8px 30px', borderRadius: 10,
               background: 'var(--color-bg-deep)', border: '1px solid var(--color-border)',
@@ -388,9 +495,21 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
         </div>
       </div>
 
-      {/* Room list */}
+      {/* Chat list */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '0 10px' }} className="custom-scrollbar">
         <p style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--color-text-muted)', padding: '4px 4px 8px', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Users style={{ width: 10, height: 10 }} /> Direct Messages · {conversations.length}
+        </p>
+        {filteredConvos.length === 0 && (
+          <p style={{ fontSize: 12, color: 'var(--color-text-muted)', padding: '0 4px 12px', lineHeight: 1.5 }}>
+            {roomSearch ? 'No conversations match' : 'No direct messages yet. Message an employer from Jobs or anyone from their profile.'}
+          </p>
+        )}
+        {filteredConvos.map(convo => (
+          <ConversationItem key={convo._id} convo={convo} active={activeDmId === convo._id} onClick={() => openDm(convo._id)} />
+        ))}
+
+        <p style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--color-text-muted)', padding: '14px 4px 8px', display: 'flex', alignItems: 'center', gap: 6 }}>
           <Hash style={{ width: 10, height: 10 }} /> Rooms · {rooms.length}
         </p>
         {filteredRooms.length === 0 && (
@@ -471,7 +590,22 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
             <ChevronLeft style={{ width: 16, height: 16, transform: 'rotate(180deg)' }} />
           </button>
 
-          {activeRoom ? (
+          {inDm ? (
+            <>
+              <Link to={activeConvo ? `/profile/${activeConvo.otherUserId}` : '#'} style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0, textDecoration: 'none' }}>
+                <img
+                  src={activeConvo?.otherAvatar || `https://i.pravatar.cc/100?u=${activeConvo?.otherUserId ?? ''}`}
+                  alt="" style={{ width: 38, height: 38, borderRadius: 11, objectFit: 'cover', flexShrink: 0, border: '1px solid var(--color-border)' }}
+                />
+                <div style={{ minWidth: 0 }}>
+                  <h2 style={{ fontSize: 15, fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>{chatTitle}</h2>
+                  <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {activeConvo?.jobTitle ? <><Briefcase style={{ width: 11, height: 11, flexShrink: 0 }} /> {activeConvo.jobTitle}</> : (ROLE_LABEL[activeConvo?.otherRole ?? ''] ?? 'Direct message')}
+                  </p>
+                </div>
+              </Link>
+            </>
+          ) : activeRoom ? (
             <>
               <div style={{
                 width: 38, height: 38, borderRadius: 11, flexShrink: 0,
@@ -556,7 +690,7 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
         )}
 
         {/* ── Empty state ────────────────────────────────────────── */}
-        {!activeRoom ? (
+        {!activeRoom && !inDm ? (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: 32 }}>
             <div style={{
               width: 80, height: 80, borderRadius: 24,
@@ -567,8 +701,8 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
               <MessageSquare style={{ width: 34, height: 34, color: '#818cf8', opacity: 0.7 }} />
             </div>
             <div style={{ textAlign: 'center' }}>
-              <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--color-text-primary)', marginBottom: 8, letterSpacing: '-0.02em' }}>Pick a room to start chatting</h3>
-              <p style={{ fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.6 }}>Select a room from the sidebar, or create your own.</p>
+              <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--color-text-primary)', marginBottom: 8, letterSpacing: '-0.02em' }}>Pick a chat to start messaging</h3>
+              <p style={{ fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.6 }}>Open a direct message or a room from the sidebar, or create your own room.</p>
             </div>
             {currentUser && (
               <button onClick={() => setShowCreate(true)} style={{
@@ -592,7 +726,7 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
               ) : messages.length === 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12, opacity: 0.35, color: 'var(--color-text-muted)' }}>
                   <Hash style={{ width: 40, height: 40 }} />
-                  <p style={{ fontSize: 14, fontWeight: 600 }}>No messages yet — say hello!</p>
+                  <p style={{ fontSize: 14, fontWeight: 600 }}>{inDm ? `Start your conversation with ${chatTitle}` : 'No messages yet — say hello!'}</p>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -692,7 +826,7 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
                                   )}
 
                                   {/* Admin actions */}
-                                  {isAdmin && (
+                                  {isAdmin && !inDm && (
                                     <div className="opacity-0 group-hover:opacity-100" style={{
                                       position: 'absolute', top: 6, [own ? 'right' : 'left']: 'calc(100% + 6px)',
                                       display: 'flex', gap: 3, padding: '4px',
@@ -700,7 +834,7 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
                                       borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.25)', zIndex: 10,
                                       transition: 'opacity 0.15s',
                                     }}>
-                                      <button onClick={() => convex.mutation(api.community.pinMessage, { messageId: msg._id, isPinned: !msg.isPinned })} style={{
+                                      <button onClick={() => convex.mutation(api.community.pinMessage, { messageId: msg._id as Id<'communityMessages'>, isPinned: !msg.isPinned })} style={{
                                         padding: '5px', borderRadius: 7,
                                         background: msg.isPinned ? 'rgba(99,102,241,0.15)' : 'none',
                                         border: 'none', cursor: 'pointer',
@@ -708,7 +842,7 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
                                       }}>
                                         <Pin style={{ width: 12, height: 12 }} />
                                       </button>
-                                      <button onClick={() => convex.mutation(api.community.deleteMessage, { messageId: msg._id })} style={{
+                                      <button onClick={() => convex.mutation(api.community.deleteMessage, { messageId: msg._id as Id<'communityMessages'> })} style={{
                                         padding: '5px', borderRadius: 7, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)',
                                       }}
                                         onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
@@ -820,7 +954,7 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
                   {/* Text */}
                   <input type="text" value={input} onChange={e => setInput(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                    placeholder={audioBlob ? 'Add a caption… (optional)' : `Message #${activeRoom.name}…`}
+                    placeholder={audioBlob ? 'Add a caption… (optional)' : inDm ? `Message ${chatTitle}…` : `Message #${chatTitle}…`}
                     disabled={sending}
                     style={{
                       flex: 1, background: 'none', border: 'none', outline: 'none',

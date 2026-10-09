@@ -1,63 +1,34 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 import { getSession } from '../../services/session';
-import { api as backendApi } from '../../services/backend';
 import {
   BookOpen, Users, Star, TrendingUp, Plus, ClipboardList,
   ArrowRight, Loader2, Upload, Eye,
 } from 'lucide-react';
 
-interface Stats {
-  totalCourses: number;
-  totalStudents: number;
-  pendingSubmissions: number;
-  avgRating: number;
-}
-
-interface CourseRow {
-  id: string;
-  title: string;
-  enrolled_count: number;
-  rating: number;
-  is_published: boolean;
-  category: string;
-}
-
-const EducatorDashboard: React.FC = () => {
-  const [stats, setStats] = useState<Stats>({ totalCourses: 0, totalStudents: 0, pendingSubmissions: 0, avgRating: 0 });
-  const [courses, setCourses] = useState<CourseRow[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const session = getSession();
-    if (!session) { setLoading(false); return; }
-
-    (async () => {
-      const allCourses = await backendApi.getCourses();
-      const myCourses = allCourses.filter((c: any) => c.instructorId === session.userId || c.instructor_id === session.userId);
-
-      const rows: CourseRow[] = myCourses.map((c: any) => ({
-        id: c.id,
-        title: c.title,
-        enrolled_count: c.enrolledCount ?? c.enrolled_count ?? 0,
-        rating: c.rating ?? null,
-        is_published: c.isPublished ?? c.is_published ?? false,
-        category: c.category,
-      }));
-      setCourses(rows);
-
-      const totalStudents = rows.reduce((s, c) => s + (c.enrolled_count || 0), 0);
-      const avgRating = rows.length ? rows.reduce((s, c) => s + (c.rating || 0), 0) / rows.length : 0;
-
-      setStats({
-        totalCourses: rows.length,
-        totalStudents,
-        pendingSubmissions: 0,
-        avgRating: Math.round(avgRating * 10) / 10,
-      });
-      setLoading(false);
-    })();
-  }, []);
+const EducatorDashboard: React.FC<{ submissionsView?: boolean }> = ({ submissionsView }) => {
+  const session = getSession();
+  const data = useQuery(api.submissions.instructorCourses, session ? { instructorId: session.userId } : 'skip');
+  const loading = data === undefined && !!session;
+  const courses = (data ?? []).map(c => ({
+    id: c._id as string,
+    title: c.title,
+    category: c.category,
+    enrolled_count: c.enrolledCount,
+    rating: c.rating ?? 0,
+    is_published: c.isPublished,
+    assignmentCount: c.assignmentCount,
+    pendingCount: c.pendingCount,
+  }));
+  const rated = courses.filter(c => c.rating);
+  const stats = {
+    totalCourses: courses.length,
+    totalStudents: courses.reduce((s, c) => s + (c.enrolled_count || 0), 0),
+    pendingSubmissions: courses.reduce((s, c) => s + c.pendingCount, 0),
+    avgRating: rated.length ? Math.round((rated.reduce((s, c) => s + c.rating, 0) / rated.length) * 10) / 10 : 0,
+  };
 
   const TILES = [
     { label: 'My Courses',           value: stats.totalCourses,       icon: BookOpen,      color: 'var(--color-accent)', bg: 'rgba(139,92,246,0.1)' },
@@ -75,9 +46,13 @@ const EducatorDashboard: React.FC = () => {
             Educator Portal
           </span>
           <h1 style={{ fontSize: 'clamp(1.6rem,3vw,2.25rem)', fontWeight: 900, letterSpacing: '-0.02em', color: 'var(--color-text-primary)', marginBottom: 8 }}>
-            Your <span style={{ color: 'var(--color-accent)' }}>Teaching Hub</span>
+            {submissionsView
+              ? <>Assignments &amp; <span style={{ color: 'var(--color-accent)' }}>Submissions</span></>
+              : <>Your <span style={{ color: 'var(--color-accent)' }}>Teaching Hub</span></>}
           </h1>
-          <p style={{ fontSize: 14, color: 'var(--color-text-muted)' }}>Manage courses, track students, and grade submissions.</p>
+          <p style={{ fontSize: 14, color: 'var(--color-text-muted)' }}>
+            {submissionsView ? 'Pick a course to manage its assignments and grade each student.' : 'Manage courses, track students, and grade submissions.'}
+          </p>
         </div>
         <Link
           to="/educator/upload"
@@ -160,7 +135,10 @@ const EducatorDashboard: React.FC = () => {
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--color-accent)'; (e.currentTarget as HTMLElement).style.color = '#fff'; (e.currentTarget as HTMLElement).style.borderColor = 'transparent'; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--color-bg-deep)'; (e.currentTarget as HTMLElement).style.color = 'var(--color-text-muted)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border)'; }}
                 >
-                  <Eye style={{ width: 13, height: 13 }} /> Submissions
+                  <Eye style={{ width: 13, height: 13 }} /> {course.assignmentCount} assignment{course.assignmentCount === 1 ? '' : 's'}
+                  {course.pendingCount > 0 && (
+                    <span style={{ padding: '1px 7px', borderRadius: 999, background: '#f59e0b', color: '#fff', fontSize: 10, fontWeight: 800 }}>{course.pendingCount} to grade</span>
+                  )}
                   <ArrowRight style={{ width: 11, height: 11 }} />
                 </Link>
               </div>

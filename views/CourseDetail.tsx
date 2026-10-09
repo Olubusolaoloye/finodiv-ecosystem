@@ -9,6 +9,11 @@ import {
   SendHorizonal, ArrowLeft,
 } from 'lucide-react';
 import { Course } from '../types';
+import { useQuery } from 'convex/react';
+import { convex } from '../services/convex';
+import { api as convexApi } from '../convex/_generated/api';
+import type { Id } from '../convex/_generated/dataModel';
+import { errorMessage } from '../services/errors';
 
 // ── Curriculum data (generated from course) ───────────────────────────────────
 
@@ -314,6 +319,110 @@ const EnrollCard: React.FC<{
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
+interface AssignmentRow { _id: Id<'assignments'>; title: string; description: string; dueDate?: number; maxGrade: number; }
+interface MySubmission { assignmentId: string; status: string; grade?: number; feedback?: string; content: string; }
+
+const AssignmentCard: React.FC<{ assignment: AssignmentRow; submission?: MySubmission; courseId: string; userId: string }> = ({ assignment, submission, courseId, userId }) => {
+  const [text, setText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const graded = submission?.status === 'GRADED';
+
+  const submit = async () => {
+    if (!text.trim()) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      await convex.mutation(convexApi.submissions.submit, {
+        assignmentId: assignment._id,
+        courseId: courseId as Id<'courses'>,
+        userId,
+        content: text,
+      });
+      setText('');
+    } catch (e) {
+      setError(errorMessage(e, 'Could not submit. Try again.'));
+    }
+    setSubmitting(false);
+  };
+
+  return (
+    <section className="p-5 rounded-[16px] mb-4" style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}>
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-9 h-9 rounded-[10px] flex items-center justify-center" style={{ backgroundColor: 'rgba(139,92,246,0.12)' }}>
+          <ClipboardList className="w-4.5 h-4.5" style={{ color: 'var(--color-accent)' }} />
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>{assignment.title}</h3>
+          {assignment.dueDate && (
+            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+              Due {new Date(assignment.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+            </p>
+          )}
+        </div>
+      </div>
+      {assignment.description && (
+        <p className="text-sm mb-4 leading-relaxed" style={{ color: 'var(--color-text-muted)', whiteSpace: 'pre-wrap' }}>{assignment.description}</p>
+      )}
+
+      {submission && (
+        <div className="p-4 rounded-[10px] mb-3" style={{ backgroundColor: 'rgba(22,163,74,0.1)', border: '1px solid rgba(22,163,74,0.2)' }}>
+          <div className="flex items-center gap-2 text-sm font-medium mb-1" style={{ color: '#4ade80' }}>
+            <CheckCircle2 className="w-4 h-4" /> {graded ? 'Graded' : 'Submitted'}
+          </div>
+          {graded ? (
+            <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+              Grade: <span style={{ color: 'var(--color-text-primary)' }}>{submission.grade}/{assignment.maxGrade}</span>
+              {submission.feedback && <span> · {submission.feedback}</span>}
+            </p>
+          ) : (
+            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Awaiting instructor review. You can update your answer until it's graded.</p>
+          )}
+        </div>
+      )}
+
+      {!graded && (
+        <div className="flex flex-col gap-3">
+          <textarea
+            rows={4}
+            value={text}
+            onChange={e => setText(e.target.value)}
+            placeholder={submission ? 'Update your response…' : 'Write your response here — paste a link, explain your approach, or answer the questions.'}
+            className="w-full p-4 rounded-[10px] text-sm outline-none resize-none"
+            style={{ backgroundColor: 'var(--color-bg-deep)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}
+          />
+          {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
+          <button
+            onClick={submit}
+            disabled={submitting || !text.trim()}
+            className="self-start flex items-center gap-2 px-5 py-2.5 rounded-[10px] text-sm font-medium text-white transition-colors duration-150 disabled:opacity-50"
+            style={{ backgroundColor: 'var(--color-accent)' }}
+          >
+            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <SendHorizonal className="w-4 h-4" />}
+            {submission ? 'Resubmit' : 'Submit assignment'}
+          </button>
+        </div>
+      )}
+    </section>
+  );
+};
+
+const CourseAssignments: React.FC<{ courseId: string; userId: string }> = ({ courseId, userId }) => {
+  const isConvexId = /^[a-z0-9]{20,}$/.test(courseId);
+  const assignments = useQuery(convexApi.submissions.listAssignmentsByCourse, isConvexId ? { courseId: courseId as Id<'courses'> } : 'skip');
+  const mine = useQuery(convexApi.submissions.listByUser, { userId });
+  if (!assignments || assignments.length === 0) return null;
+  return (
+    <div className="mb-10">
+      <h2 className="text-base font-semibold mb-4" style={{ color: 'var(--color-text-primary)' }}>Assignments</h2>
+      {assignments.map(a => (
+        <AssignmentCard key={a._id} assignment={a} courseId={courseId} userId={userId}
+          submission={mine?.find(s => s.assignmentId === a._id)} />
+      ))}
+    </div>
+  );
+};
+
 const CourseDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const courseId = id || '1';
@@ -323,12 +432,6 @@ const CourseDetail: React.FC = () => {
   const [enrolling, setEnrolling] = useState(false);
   const [userId,    setUserId]    = useState<string | null>(null);
   const [preview,   setPreview]   = useState<Lesson | null>(null);
-
-  // Assignment
-  const [assignment,      setAssignment]      = useState<any>(null);
-  const [submission,      setSubmission]      = useState<any>(null);
-  const [submissionText,  setSubmissionText]  = useState('');
-  const [submitting,      setSubmitting]      = useState(false);
 
   useEffect(() => {
     const session = getSession();
@@ -342,10 +445,6 @@ const CourseDetail: React.FC = () => {
   useEffect(() => {
     if (!userId || !courseId) return;
     api.isEnrolled(userId, courseId).then(setEnrolled);
-    api.getAssignment(courseId).then((a: any) => {
-      setAssignment(a);
-      if (a) api.getMySubmission(a.id, userId).then(setSubmission);
-    });
   }, [userId, courseId]);
 
   const handleEnroll = async () => {
@@ -355,15 +454,6 @@ const CourseDetail: React.FC = () => {
     setEnrolled(true);
     setEnrolling(false);
     window.location.hash = `#/learning/${courseId}`;
-  };
-
-  const handleSubmitAssignment = async () => {
-    if (!userId || !assignment || !submissionText.trim()) return;
-    setSubmitting(true);
-    await api.submitAssignment(assignment.id, courseId, userId, submissionText);
-    const fresh = await api.getMySubmission(assignment.id, userId);
-    setSubmission(fresh);
-    setSubmitting(false);
   };
 
   if (!course) {
@@ -549,78 +639,8 @@ const CourseDetail: React.FC = () => {
               </ul>
             </section>
 
-            {/* Assignment — enrolled users only */}
-            {enrolled && assignment && (
-              <section
-                className="p-5 rounded-[16px] mb-10"
-                style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}
-              >
-                <div className="flex items-center gap-3 mb-4">
-                  <div
-                    className="w-9 h-9 rounded-[10px] flex items-center justify-center"
-                    style={{ backgroundColor: 'rgba(139,92,246,0.12)' }}
-                  >
-                    <ClipboardList className="w-4.5 h-4.5" style={{ color: 'var(--color-accent)' }} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>{assignment.title}</h3>
-                    {assignment.dueDate && (
-                      <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                        Due {new Date(assignment.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <p className="text-sm mb-4 leading-relaxed" style={{ color: 'var(--color-text-muted)' }}>
-                  {assignment.description}
-                </p>
-
-                {submission ? (
-                  <div
-                    className="p-4 rounded-[10px]"
-                    style={{ backgroundColor: 'rgba(22,163,74,0.1)', border: '1px solid rgba(22,163,74,0.2)' }}
-                  >
-                    <div className="flex items-center gap-2 text-sm font-medium mb-1" style={{ color: '#4ade80' }}>
-                      <CheckCircle2 className="w-4 h-4" /> Submitted
-                    </div>
-                    {submission.grade !== null ? (
-                      <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                        Grade: <span style={{ color: 'var(--color-text-primary)' }}>{submission.grade}/100</span>
-                        {submission.feedback && <span> · {submission.feedback}</span>}
-                      </p>
-                    ) : (
-                      <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Awaiting instructor review.</p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-3">
-                    <textarea
-                      rows={4}
-                      value={submissionText}
-                      onChange={e => setSubmissionText(e.target.value)}
-                      placeholder="Write your response here — paste a link, explain your approach, or answer the questions."
-                      className="w-full p-4 rounded-[10px] text-sm outline-none resize-none"
-                      style={{
-                        backgroundColor: 'var(--color-bg-deep)',
-                        border: '1px solid var(--color-border)',
-                        color: 'var(--color-text-primary)',
-                      }}
-                      onFocus={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.6)')}
-                      onBlur={e  => (e.currentTarget.style.borderColor = 'var(--color-border)')}
-                    />
-                    <button
-                      onClick={handleSubmitAssignment}
-                      disabled={submitting || !submissionText.trim()}
-                      className="self-start flex items-center gap-2 px-5 py-2.5 rounded-[10px] text-sm font-medium text-white transition-colors duration-150 disabled:opacity-50"
-                      style={{ backgroundColor: 'var(--color-accent)' }}
-                    >
-                      {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <SendHorizonal className="w-4 h-4" />}
-                      Submit assignment
-                    </button>
-                  </div>
-                )}
-              </section>
-            )}
+            {/* Assignments — enrolled users only */}
+            {enrolled && userId && <CourseAssignments courseId={courseId} userId={userId} />}
           </div>
 
           {/* Desktop sticky sidebar — hidden on mobile, shown > lg */}

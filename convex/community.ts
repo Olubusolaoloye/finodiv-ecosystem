@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { publicProfileSummary } from "./lib/profileHelpers";
 
 // ── Queries ───────────────────────────────────────────────────────────────────
 
@@ -250,18 +251,10 @@ export const listMessagesWithProfiles = query({
       .take(limit ?? 200);
 
     const userIds = [...new Set(messages.map((m) => m.userId))];
-    const profiles = await Promise.all(
-      userIds.map((uid) =>
-        ctx.db
-          .query("profiles")
-          .withIndex("by_userId", (q) => q.eq("userId", uid))
-          .unique(),
-      ),
+    const summaries = await Promise.all(
+      userIds.map((uid) => publicProfileSummary(ctx, uid)),
     );
-    const profileMap = new Map<string, { name: string; role: string; avatarUrl?: string }>();
-    profiles.forEach((p) => {
-      if (p) profileMap.set(p.userId, { name: p.name, role: p.role, avatarUrl: p.avatarUrl });
-    });
+    const profileMap = new Map(userIds.map((uid, i) => [uid, summaries[i]]));
 
     return await Promise.all(
       messages.map(async (msg) => {

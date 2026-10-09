@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { TALENTS } from '../constants';
 import { UserRole } from '../types';
 import { getSession } from '../services/session';
@@ -7,14 +7,45 @@ import { convex } from '../services/convex';
 import { api as convexApi } from '../convex/_generated/api';
 import {
   Award, Star, Briefcase, Share2, Github, Twitter, Linkedin,
-  ShieldCheck, GraduationCap, Zap, Loader2,
+  ShieldCheck, GraduationCap, Zap, Loader2, Send, Globe, MessageSquare,
 } from 'lucide-react';
+
+type SocialKey = 'twitter' | 'linkedin' | 'github' | 'telegram' | 'website';
+type Socials = Partial<Record<SocialKey, string>>;
+
+const SOCIAL_BASE: Record<SocialKey, string> = {
+  twitter: 'https://x.com/',
+  linkedin: 'https://www.linkedin.com/in/',
+  github: 'https://github.com/',
+  telegram: 'https://t.me/',
+  website: 'https://',
+};
+
+// Only ever produce http(s) links; anything else is treated as a handle.
+function socialHref(key: SocialKey, raw: string): string | null {
+  const value = raw.trim();
+  if (!value) return null;
+  if (/^https?:\/\//i.test(value)) return value;
+  if (key === 'website' || /^(www\.)?[a-z0-9-]+\.[a-z]{2,}\//i.test(value)) {
+    return /^[\w.-]+\.[a-z]{2,}(\/.*)?$/i.test(value) ? `https://${value}` : null;
+  }
+  return SOCIAL_BASE[key] + encodeURIComponent(value.replace(/^@/, ''));
+}
+
+const SOCIAL_ICONS: Array<{ key: SocialKey; icon: typeof Twitter; label: string }> = [
+  { key: 'linkedin', icon: Linkedin, label: 'LinkedIn' },
+  { key: 'twitter', icon: Twitter, label: 'X / Twitter' },
+  { key: 'github', icon: Github, label: 'GitHub' },
+  { key: 'telegram', icon: Send, label: 'Telegram' },
+  { key: 'website', icon: Globe, label: 'Website' },
+];
 
 interface ProfileProps { currentSessionRole?: UserRole; }
 
 interface LiveProfile {
   name: string; title: string; email: string;
   xp: number; level: number; enrollmentCount: number; certCount: number; avatarUrl: string;
+  bio?: string; socials: Socials; role?: string;
 }
 
 const ROLE_BADGE: Record<string, { label: string; color: string; bg: string; icon: typeof ShieldCheck }> = {
@@ -25,6 +56,8 @@ const ROLE_BADGE: Record<string, { label: string; color: string; bg: string; ico
 
 const Profile: React.FC<ProfileProps> = ({ currentSessionRole }) => {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const sessionUserId = getSession()?.userId;
   const [liveProfile, setLiveProfile] = useState<LiveProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(id === 'current');
 
@@ -43,13 +76,16 @@ const Profile: React.FC<ProfileProps> = ({ currentSessionRole }) => {
       ]);
       setLiveProfile({
         name: prof?.name || session.email?.split('@')[0] || 'Learner',
-        title: (prof as any)?.title || 'Web3 Builder',
+        title: prof?.title || 'Web3 Builder',
+        bio: prof?.bio,
+        socials: prof?.socials ?? {},
+        role: prof?.role,
         email: session.email || '',
         xp: prof?.xp ?? 0,
         level: (prof as any)?.level ?? 1,
         enrollmentCount: enrollList.length ?? 0,
         certCount: certList.length ?? 0,
-        avatarUrl: `https://i.pravatar.cc/300?u=${session.userId}`,
+        avatarUrl: prof?.avatarUrl || `https://i.pravatar.cc/300?u=${session.userId}`,
       });
       setProfileLoading(false);
     };
@@ -68,7 +104,10 @@ const Profile: React.FC<ProfileProps> = ({ currentSessionRole }) => {
       if (prof) {
         setLiveProfile({
           name: prof.name || 'Anonymous',
-          title: (prof as any).title || 'Web3 Builder',
+          title: prof.title || 'Web3 Builder',
+          bio: prof.bio,
+          socials: prof.socials ?? {},
+          role: prof.role,
           email: '',
           xp: prof.xp ?? 0,
           level: (prof as any).level ?? 1,
@@ -83,14 +122,20 @@ const Profile: React.FC<ProfileProps> = ({ currentSessionRole }) => {
   }, [id]);
 
   const talent = TALENTS.find(t => t.id === id) || TALENTS[0];
-  const displayRole = id === 'current' ? (currentSessionRole || UserRole.LEARNER) : UserRole.LEARNER;
+  const displayRole = id === 'current'
+    ? (currentSessionRole || UserRole.LEARNER)
+    : ((liveProfile?.role as UserRole) || UserRole.LEARNER);
+  const profileUserId = id === 'current' ? sessionUserId : (isRealUser ? id : undefined);
+  const canMessage = !!sessionUserId && !!profileUserId && profileUserId !== sessionUserId;
   const isCurrent = id === 'current' || isRealUser;
 
   const displayName   = isCurrent ? (liveProfile?.name ?? '…') : talent.name;
   const displayTitle  = isCurrent ? (liveProfile?.title ?? 'Web3 Builder') : talent.title;
   const displayAvatar = isCurrent ? (liveProfile?.avatarUrl ?? `https://i.pravatar.cc/300?u=${id}`) : talent.avatar;
   const displayBio    = isCurrent
-    ? (liveProfile?.xp ?? 0) > 0
+    ? liveProfile?.bio
+      ? liveProfile.bio
+      : (liveProfile?.xp ?? 0) > 0
       ? `Level ${liveProfile?.level ?? 1} learner with ${liveProfile?.xp ?? 0} XP across ${liveProfile?.enrollmentCount ?? 0} course${liveProfile?.enrollmentCount !== 1 ? 's' : ''} and ${liveProfile?.certCount ?? 0} certificate${liveProfile?.certCount !== 1 ? 's' : ''}.`
       : 'A passionate Web3 professional on the FINODIV ecosystem.'
     : talent.bio;
@@ -149,9 +194,14 @@ const Profile: React.FC<ProfileProps> = ({ currentSessionRole }) => {
           <button style={{ padding: '9px 18px', borderRadius: 10, background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
             Follow
           </button>
-          <button style={{ padding: '9px 18px', borderRadius: 10, background: 'var(--color-accent)', color: '#fff', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}>
-            Contact
-          </button>
+          {canMessage && (
+            <button
+              onClick={() => navigate(`/community?with=${encodeURIComponent(profileUserId!)}`)}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 10, background: 'var(--color-accent)', color: '#fff', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}
+            >
+              <MessageSquare style={{ width: 14, height: 14 }} /> Message
+            </button>
+          )}
         </div>
       </div>
 
@@ -171,16 +221,23 @@ const Profile: React.FC<ProfileProps> = ({ currentSessionRole }) => {
           )}
         </div>
         <p style={{ fontSize: 14, color: 'var(--color-text-muted)', marginBottom: 12 }}>{displayTitle}</p>
-        <div style={{ display: 'flex', gap: 12 }}>
-          {[Linkedin, Twitter, Github].map((Icon, i) => (
-            <button key={i} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: 0, transition: 'color 0.15s' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-accent)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-muted)')}
-            >
-              <Icon style={{ width: 17, height: 17 }} />
-            </button>
-          ))}
-        </div>
+        {isCurrent && (
+          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+            {SOCIAL_ICONS.map(({ key, icon: Icon, label }) => {
+              const href = socialHref(key, liveProfile?.socials?.[key] ?? '');
+              if (!href) return null;
+              return (
+                <a key={key} href={href} target="_blank" rel="noopener noreferrer" title={label}
+                  style={{ color: 'var(--color-text-muted)', transition: 'color 0.15s', display: 'flex' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-accent)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-muted)')}
+                >
+                  <Icon style={{ width: 17, height: 17 }} />
+                </a>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Content grid */}

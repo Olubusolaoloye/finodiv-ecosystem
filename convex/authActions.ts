@@ -2,6 +2,7 @@
 import { v } from "convex/values";
 import { action } from "./_generated/server";
 import { api, internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 function hashPassword(password: string, salt: string): string {
@@ -90,5 +91,45 @@ export const signIn = action({
     }
 
     return { userId: account.userId, email: emailLower };
+  },
+});
+
+export const changePassword = action({
+  args: {
+    userId: v.string(),
+    currentPassword: v.string(),
+    newPassword: v.string(),
+  },
+  returns: v.object({ ok: v.boolean(), error: v.optional(v.string()) }),
+  handler: async (
+    ctx,
+    { userId, currentPassword, newPassword },
+  ): Promise<{ ok: boolean; error?: string }> => {
+    if (newPassword.length < 8) {
+      return { ok: false, error: "New password must be at least 8 characters." };
+    }
+    if (newPassword === currentPassword) {
+      return { ok: false, error: "New password must be different from the current one." };
+    }
+
+    const account: {
+      _id: Id<"authAccounts">;
+      passwordHash: string;
+    } | null = await ctx.runQuery(internal.authAccounts.getByUserId, { userId });
+    if (!account) {
+      return { ok: false, error: "This account has no password set." };
+    }
+
+    const [salt, storedHash] = account.passwordHash.split(":");
+    if (hashPassword(currentPassword, salt) !== storedHash) {
+      return { ok: false, error: "Current password is incorrect." };
+    }
+
+    const newSalt = randomBytes(16).toString("hex");
+    await ctx.runMutation(internal.authAccounts.updatePasswordHash, {
+      accountId: account._id,
+      passwordHash: newSalt + ":" + hashPassword(newPassword, newSalt),
+    });
+    return { ok: true };
   },
 });
