@@ -34,7 +34,8 @@ import ViewSubmissions from './views/educator/ViewSubmissions';
 // Components
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
-import { Construction } from 'lucide-react';
+import Logo from './components/Logo';
+import { Construction, Menu, Sun, Moon } from 'lucide-react';
 
 // Wallet address is not part of the Supabase session — store in localStorage
 const WALLET_KEY = 'finodiv_session_wallet';
@@ -222,47 +223,91 @@ const App: React.FC = () => {
     );
   }
 
+  const isGuest = role === UserRole.GUEST;
+
   return (
     <HashRouter>
-      <div className="min-h-screen bg-slate-50 dark:bg-brand-dark text-slate-900 dark:text-white flex flex-col transition-colors duration-300">
-        <Navbar
-          role={role}
-          onLogout={logout}
-          walletAddress={walletAddress}
-          onConnectWallet={handleConnectWallet}
-          isDarkMode={isDarkMode}
-          onToggleTheme={toggleTheme}
-          onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
-          userId={effectiveUserId}
-          authEmail={authEmail}
-          displayName={displayName}
-        />
-
-        <div className="flex flex-1 overflow-hidden relative">
-          {role !== UserRole.GUEST && (
-            <>
-              {isSidebarOpen && (
-                <div
-                  className="fixed inset-0 bg-black/50 z-30 lg:hidden backdrop-blur-sm"
-                  onClick={() => setIsSidebarOpen(false)}
-                />
-              )}
-              <Sidebar
-                role={role}
-                isOpen={isSidebarOpen}
-                setIsOpen={setIsSidebarOpen}
-                onLogout={logout}
-                displayName={displayName}
-                authEmail={authEmail}
-                userId={userId}
-              />
-            </>
-          )}
-
-          <main className="flex-1 overflow-y-auto custom-scrollbar relative transition-all duration-300 w-full">
+      {isGuest ? (
+        /* ── Guest layout: Navbar + full-page content ─────────────── */
+        <div className="min-h-screen flex flex-col" style={{ backgroundColor: 'var(--color-bg-primary)', color: 'var(--color-text-primary)' }}>
+          <Navbar
+            role={role}
+            onLogout={logout}
+            walletAddress={walletAddress}
+            onConnectWallet={handleConnectWallet}
+            isDarkMode={isDarkMode}
+            onToggleTheme={toggleTheme}
+            onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
+            userId={effectiveUserId}
+            authEmail={authEmail}
+            displayName={displayName}
+          />
+          <main className="flex-1">
             <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<Login onWalletLogin={handleWalletLogin} />} />
+              <Route path="/join" element={<Navigate to="/login" />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/courses" element={<CourseList />} />
+              <Route path="/courses/:id" element={<CourseDetail />} />
+              <Route path="*" element={<Navigate to="/" />} />
+            </Routes>
+          </main>
+        </div>
+      ) : (
+        /* ── Auth layout: Sidebar + content ───────────────────────── */
+        <div className="flex overflow-hidden" style={{ height: '100vh', color: 'var(--color-text-primary)' }}>
+          <Sidebar
+            role={role}
+            isOpen={isSidebarOpen}
+            setIsOpen={setIsSidebarOpen}
+            onLogout={logout}
+            displayName={displayName}
+            authEmail={authEmail}
+            userId={userId}
+            isDarkMode={isDarkMode}
+          />
+
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Mobile top bar */}
+            <header
+              className="lg:hidden flex items-center gap-3 shrink-0 px-4"
+              style={{
+                height: 56,
+                backgroundColor: 'var(--color-bg-card)',
+                borderBottom: '1px solid var(--color-border)',
+              }}
+            >
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                style={{ color: 'var(--color-text-primary)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+              <Logo className="w-7 h-7" />
+              <span style={{ fontWeight: 700, fontSize: 15 }}>FINODIV</span>
+              <button
+                onClick={toggleTheme}
+                style={{ marginLeft: 'auto', color: 'var(--color-text-muted)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+              >
+                {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </button>
+              {userId && (
+                <img
+                  src={`https://i.pravatar.cc/100?u=${userId}`}
+                  alt="avatar"
+                  style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover' }}
+                />
+              )}
+            </header>
+
+            <main
+              className="flex-1 overflow-y-auto custom-scrollbar"
+              style={{ backgroundColor: 'var(--color-app-bg)' }}
+            >
+              <Routes>
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/login" element={<Login onWalletLogin={handleWalletLogin} />} />
               <Route path="/join" element={<Navigate to="/login" />} />
 
               <Route
@@ -346,6 +391,7 @@ const App: React.FC = () => {
           </main>
         </div>
       </div>
+      )}
     </HashRouter>
   );
 

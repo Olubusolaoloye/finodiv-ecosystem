@@ -2,23 +2,11 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { UserRole } from '../types';
+import Logo from './Logo';
 import {
-  LayoutDashboard,
-  BookOpen,
-  Users,
-  Briefcase,
-  Settings,
-  LogOut,
-  Award,
-  ChevronLeft,
-  ChevronRight,
-  ShieldCheck,
-  MessageSquare,
-  Compass,
-  Zap,
-  Upload,
-  ClipboardList,
-  GraduationCap,
+  LayoutDashboard, BookOpen, Users, Briefcase, Settings, LogOut,
+  Award, ShieldCheck, MessageSquare, Compass, Zap, Upload,
+  ClipboardList, GraduationCap, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -29,15 +17,18 @@ interface SidebarProps {
   displayName?: string | null;
   authEmail?: string | null;
   userId?: string | null;
+  isDarkMode?: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, setIsOpen, onLogout, displayName, authEmail, userId }) => {
+const Sidebar: React.FC<SidebarProps> = ({
+  role, isOpen, setIsOpen, onLogout, displayName, authEmail, userId, isDarkMode,
+}) => {
   const learnerLinks = [
-    { icon: LayoutDashboard, label: 'Dashboard',     path: '/dashboard' },
-    { icon: Compass,         label: 'Career Compass', path: '/career-compass' },
-    { icon: BookOpen,        label: 'Courses',        path: '/courses' },
-    { icon: Award,           label: 'Certificates',   path: '/certificates' },
-    { icon: MessageSquare,   label: 'Community',      path: '/community' },
+    { icon: LayoutDashboard, label: 'Dashboard',      path: '/dashboard' },
+    { icon: Compass,          label: 'Career Compass', path: '/career-compass' },
+    { icon: BookOpen,         label: 'Courses',        path: '/courses' },
+    { icon: Award,            label: 'Certificates',   path: '/certificates' },
+    { icon: MessageSquare,    label: 'Community',      path: '/community' },
   ];
 
   const employerLinks = [
@@ -49,18 +40,18 @@ const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, setIsOpen, onLogout, di
   ];
 
   const educatorLinks = [
-    { icon: GraduationCap,  label: 'Teaching Hub',    path: '/educator' },
-    { icon: Upload,         label: 'Upload Course',   path: '/educator/upload' },
-    { icon: ClipboardList,  label: 'Submissions',     path: '/educator/submissions' },
-    { icon: BookOpen,       label: 'Browse Courses',  path: '/courses' },
-    { icon: MessageSquare,  label: 'Community',       path: '/community' },
+    { icon: GraduationCap, label: 'Teaching Hub',   path: '/educator' },
+    { icon: Upload,        label: 'Upload Course',  path: '/educator/upload' },
+    { icon: ClipboardList, label: 'Submissions',    path: '/educator/submissions' },
+    { icon: BookOpen,      label: 'Browse Courses', path: '/courses' },
+    { icon: MessageSquare, label: 'Community',      path: '/community' },
   ];
 
   const adminLinks = [
-    { icon: LayoutDashboard, label: 'Admin Hub',       path: '/dashboard' },
-    { icon: BookOpen,        label: 'Manage Courses',  path: '/admin/courses' },
-    { icon: Users,           label: 'Platform Users',  path: '/admin/users' },
-    { icon: Zap,             label: 'System Control',  path: '/admin/settings' },
+    { icon: LayoutDashboard, label: 'Admin Hub',      path: '/dashboard' },
+    { icon: BookOpen,        label: 'Manage Courses', path: '/admin/courses' },
+    { icon: Users,           label: 'Platform Users', path: '/admin/users' },
+    { icon: Zap,             label: 'System Control', path: '/admin/settings' },
   ];
 
   const links =
@@ -69,85 +60,212 @@ const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, setIsOpen, onLogout, di
     role === UserRole.EDUCATOR ? educatorLinks :
     learnerLinks;
 
-  // On Mobile: Fixed, full height, z-index high, width 72 (or full screen minus some gap)
-  // On Desktop: Sticky/Static, variable width
+  const initials = (displayName || authEmail || 'U').charAt(0).toUpperCase();
+
   return (
-    <aside 
-      className={`
-        bg-white dark:bg-[#0b0e14] border-r border-slate-200 dark:border-white/5 flex flex-col transition-all duration-300
-        fixed top-0 bottom-0 left-0 z-40 lg:static lg:h-[calc(100vh-80px)]
-        ${isOpen ? 'w-72 translate-x-0' : '-translate-x-full lg:translate-x-0 lg:w-20'}
-      `}
-    >
-      <div className="h-16 md:h-20 lg:hidden flex items-center px-6 border-b border-slate-200 dark:border-white/5 mb-2">
-         <span className="text-lg font-bold text-slate-900 dark:text-white">Menu</span>
-      </div>
+    <>
+      {/* Mobile overlay */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-30 lg:hidden"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setIsOpen(false)}
+        />
+      )}
 
-      <button 
-        onClick={() => setIsOpen(!isOpen)}
-        className="absolute -right-3 top-24 w-6 h-6 bg-[#2F6DF2] rounded-full hidden lg:flex items-center justify-center shadow-lg transition-transform hover:scale-110 z-10 text-white"
+      <aside
+        style={{
+          background: isDarkMode
+            ? 'linear-gradient(160deg, #2D1B69 0%, #1E3A8A 100%)'
+            : 'linear-gradient(160deg, #4C1D95 0%, #1D4ED8 100%)',
+          width: isOpen ? 260 : 72,
+          minHeight: '100vh',
+          flexShrink: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          transition: 'width 0.3s cubic-bezier(0.4,0,0.2,1)',
+          position: 'relative',
+          zIndex: 40,
+        }}
+        className="overflow-hidden"
       >
-        {isOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-      </button>
+        {/* ── Logo area ─────────────────────────────────────────────── */}
+        <div
+          className="flex items-center shrink-0"
+          style={{
+            height: 72,
+            padding: isOpen ? '0 20px' : '0',
+            justifyContent: isOpen ? 'flex-start' : 'center',
+            gap: 10,
+            borderBottom: '1px solid rgba(255,255,255,0.08)',
+          }}
+        >
+          <Logo className="w-9 h-9 shrink-0" />
+          {isOpen && (
+            <span style={{ color: '#fff', fontWeight: 700, fontSize: 17, letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
+              FINODIV
+            </span>
+          )}
+        </div>
 
-      <div className="flex-1 py-6 flex flex-col gap-1 px-4 overflow-y-auto custom-scrollbar">
-        {links.map((link) => (
-          <NavLink
-            key={link.path}
-            to={link.path}
-            onClick={() => window.innerWidth < 1024 && setIsOpen(false)}
-            className={({ isActive }) => `
-              flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-200 group/link
-              ${isActive ? 'bg-[#2F6DF2] text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'}
-            `}
-          >
-            <link.icon className={`w-5 h-5 transition-transform ${isOpen ? '' : 'mx-auto'}`} />
-            {isOpen && <span className="font-medium text-sm">{link.label}</span>}
-          </NavLink>
-        ))}
-      </div>
+        {/* ── Collapse toggle ───────────────────────────────────────── */}
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          style={{
+            position: 'absolute',
+            right: -12,
+            top: 84,
+            width: 24,
+            height: 24,
+            borderRadius: '50%',
+            background: '#fff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+            cursor: 'pointer',
+            border: 'none',
+            zIndex: 10,
+            color: '#4C1D95',
+          }}
+          className="hidden lg:flex transition-transform hover:scale-110"
+        >
+          {isOpen ? <ChevronLeft className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+        </button>
 
-      <div className="p-4 border-t border-slate-200 dark:border-white/5 flex flex-col gap-4 bg-white dark:bg-[#0b0e14]">
+        {/* ── Section label ─────────────────────────────────────────── */}
         {isOpen && (
-          <div className="bg-slate-50 dark:bg-white/5 rounded-2xl p-4 flex items-center gap-3 relative overflow-hidden border border-slate-200 dark:border-transparent">
-             {role === UserRole.ADMIN && <div className="absolute top-0 right-0 w-2 h-full bg-blue-500/30 blur-sm"></div>}
-            {userId ? (
-              <img src={`https://i.pravatar.cc/100?u=${userId}`} alt="Avatar" className="w-10 h-10 rounded-xl object-cover shrink-0" />
-            ) : (
-              <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
-                {(displayName || authEmail || 'U').charAt(0).toUpperCase()}
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold truncate text-slate-900 dark:text-white">
-                {displayName || authEmail?.split('@')[0] || 'User'}
-              </p>
-              <div className="flex items-center gap-2">
-                 <p className="text-[10px] text-slate-500 dark:text-gray-500 truncate">{authEmail || ''}</p>
-                 {role === UserRole.ADMIN && <ShieldCheck className="w-3 h-3 text-blue-400 shrink-0" />}
-              </div>
-            </div>
+          <div style={{ padding: '20px 20px 8px' }}>
+            <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase' }}>
+              Navigation
+            </span>
           </div>
         )}
-        
-        <NavLink 
-          to="/settings" 
-          onClick={() => window.innerWidth < 1024 && setIsOpen(false)}
-          className="flex items-center gap-4 px-4 py-3 rounded-2xl text-slate-500 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all"
-        >
-          <Settings className={`w-5 h-5 ${isOpen ? '' : 'mx-auto'}`} />
-          {isOpen && <span className="text-sm font-medium">Settings</span>}
-        </NavLink>
 
-        <button 
-          onClick={onLogout}
-          className="flex items-center gap-4 px-4 py-3 rounded-2xl text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all w-full text-left"
+        {/* ── Nav links ─────────────────────────────────────────────── */}
+        <nav
+          className="flex-1 overflow-y-auto custom-scrollbar"
+          style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}
         >
-          <LogOut className={`w-5 h-5 ${isOpen ? '' : 'mx-auto'}`} />
-          {isOpen && <span className="text-sm font-medium">Log Out</span>}
-        </button>
-      </div>
-    </aside>
+          {links.map((link) => (
+            <NavLink
+              key={link.path}
+              to={link.path}
+              onClick={() => window.innerWidth < 1024 && setIsOpen(false)}
+              style={({ isActive }) => ({
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: '11px 12px',
+                borderRadius: 12,
+                textDecoration: 'none',
+                transition: 'all 0.15s',
+                whiteSpace: 'nowrap',
+                fontWeight: isActive ? 600 : 500,
+                fontSize: 14,
+                justifyContent: isOpen ? 'flex-start' : 'center',
+                backgroundColor: isActive ? 'rgba(255,255,255,0.95)' : 'transparent',
+                color: isActive ? '#4C1D95' : 'rgba(255,255,255,0.75)',
+                boxShadow: isActive ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
+              })}
+              className={({ isActive }) => isActive ? '' : 'hover:bg-white/10 hover:!text-white'}
+            >
+              <link.icon className="w-5 h-5 shrink-0" />
+              {isOpen && <span>{link.label}</span>}
+            </NavLink>
+          ))}
+        </nav>
+
+        {/* ── Decorative circles ────────────────────────────────────── */}
+        <div style={{ position: 'relative', height: 80, overflow: 'hidden', flexShrink: 0 }}>
+          <div style={{ position: 'absolute', right: -20, bottom: -20, width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
+          <div style={{ position: 'absolute', right: 20, bottom: -30, width: 70, height: 70, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
+          <div style={{ position: 'absolute', right: -10, bottom: 20, width: 50, height: 50, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
+        </div>
+
+        {/* ── Bottom section ────────────────────────────────────────── */}
+        <div style={{ padding: '0 10px 12px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: 2 }}>
+
+          {/* Settings */}
+          <NavLink
+            to="/settings"
+            onClick={() => window.innerWidth < 1024 && setIsOpen(false)}
+            style={({ isActive }) => ({
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '10px 12px', borderRadius: 12, textDecoration: 'none',
+              fontSize: 14, fontWeight: 500,
+              justifyContent: isOpen ? 'flex-start' : 'center',
+              backgroundColor: isActive ? 'rgba(255,255,255,0.95)' : 'transparent',
+              color: isActive ? '#4C1D95' : 'rgba(255,255,255,0.65)',
+              marginTop: 8,
+            })}
+            className={({ isActive }) => isActive ? '' : 'hover:bg-white/10 hover:!text-white'}
+          >
+            <Settings className="w-5 h-5 shrink-0" />
+            {isOpen && <span>Settings</span>}
+          </NavLink>
+
+          {/* Logout */}
+          <button
+            onClick={onLogout}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '10px 12px', borderRadius: 12, border: 'none',
+              fontSize: 14, fontWeight: 500, cursor: 'pointer',
+              justifyContent: isOpen ? 'flex-start' : 'center',
+              backgroundColor: 'transparent',
+              color: 'rgba(255,120,120,0.85)',
+              width: '100%',
+              transition: 'all 0.15s',
+            }}
+            className="hover:bg-red-500/15 hover:!text-red-300"
+          >
+            <LogOut className="w-5 h-5 shrink-0" />
+            {isOpen && <span>Log Out</span>}
+          </button>
+
+          {/* User card */}
+          <div
+            style={{
+              marginTop: 8,
+              padding: '10px 12px',
+              borderRadius: 12,
+              background: 'rgba(255,255,255,0.08)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              justifyContent: isOpen ? 'flex-start' : 'center',
+            }}
+          >
+            {userId ? (
+              <img
+                src={`https://i.pravatar.cc/100?u=${userId}`}
+                alt="avatar"
+                style={{ width: 34, height: 34, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }}
+              />
+            ) : (
+              <div style={{
+                width: 34, height: 34, borderRadius: 10, background: 'rgba(255,255,255,0.2)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#fff', fontWeight: 700, fontSize: 14, flexShrink: 0,
+              }}>
+                {initials}
+              </div>
+            )}
+            {isOpen && (
+              <div style={{ minWidth: 0 }}>
+                <p style={{ color: '#fff', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {displayName || authEmail?.split('@')[0] || 'User'}
+                </p>
+                <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {authEmail || ''}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </aside>
+    </>
   );
 };
 

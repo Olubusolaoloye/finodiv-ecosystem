@@ -6,7 +6,7 @@ import { api } from '../services/backend';
 import { supabase } from '../services/supabase';
 import {
   BookOpen, Flame, Trophy, ArrowRight, Loader2, Plus,
-  Download, Award,
+  Download, Award, Bell, GraduationCap,
 } from 'lucide-react';
 
 // ── Progress ring ──────────────────────────────────────────────────────────────
@@ -243,16 +243,16 @@ const Dashboard: React.FC<{ role: UserRole }> = () => {
   ] as const;
 
   return (
-    <div className="min-h-screen pb-20" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
+    <div className="min-h-screen pb-20">
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div
-        className="px-6 py-8 border-b"
-        style={{ backgroundColor: 'var(--color-bg-deep)', borderColor: 'var(--color-border)' }}
+        className="px-6 py-6 border-b flex items-center justify-between gap-4"
+        style={{ backgroundColor: 'var(--color-bg-card)', borderColor: 'var(--color-border)' }}
       >
-        <div className="max-w-[1100px] mx-auto">
-          <p className="text-xs mb-1" style={{ color: 'var(--color-text-muted)' }}>{today}</p>
-          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight" style={{ color: 'var(--color-text-primary)' }}>
-            Welcome back,{' '}
+        <div>
+          <p className="text-xs mb-0.5" style={{ color: 'var(--color-text-muted)' }}>{today}</p>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight" style={{ color: 'var(--color-text-primary)' }}>
+            Good morning,{' '}
             <span
               style={{
                 background: 'linear-gradient(135deg,#7C3AED,#3B82F6)',
@@ -263,6 +263,20 @@ const Dashboard: React.FC<{ role: UserRole }> = () => {
               {displayName}
             </span>
           </h1>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            style={{
+              width: 38, height: 38, borderRadius: 10,
+              backgroundColor: 'var(--color-bg-deep)',
+              border: '1px solid var(--color-border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+            aria-label="Notifications"
+          >
+            <Bell className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />
+          </button>
         </div>
       </div>
 
@@ -300,25 +314,30 @@ const Dashboard: React.FC<{ role: UserRole }> = () => {
             {tab === 'overview' && (
               <div className="flex flex-col gap-8">
                 {/* Stat row */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   {[
-                    { icon: BookOpen, label: 'Courses enrolled', value: activeCount },
-                    { icon: Flame,    label: 'Learning streak',  value: `${Math.min(activeCount * 3 + 1, 14)} days` },
-                    { icon: Trophy,   label: 'Completed',        value: completedCount },
-                  ].map(({ icon: Icon, label, value }) => (
+                    { icon: GraduationCap, label: 'Total Courses',    value: 48,            accent: '#7C3AED', bg: 'rgba(124,58,237,0.1)' },
+                    { icon: BookOpen,      label: 'Enrolled',          value: activeCount,   accent: '#2F6DF2', bg: 'rgba(47,109,242,0.1)' },
+                    { icon: Trophy,        label: 'Completed',         value: completedCount, accent: '#16a34a', bg: 'rgba(22,163,74,0.1)' },
+                    { icon: Flame,         label: 'Learning streak',   value: `${Math.min(activeCount * 3 + 1, 14)}d`, accent: '#EA580C', bg: 'rgba(234,88,12,0.1)' },
+                  ].map(({ icon: Icon, label, value, accent, bg }) => (
                     <div
                       key={label}
-                      className="flex flex-col gap-3 p-5 rounded-[16px]"
-                      style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}
+                      className="flex items-center gap-4 p-5 rounded-[16px]"
+                      style={{
+                        backgroundColor: 'var(--color-bg-card)',
+                        border: '1px solid var(--color-border)',
+                        borderLeft: `4px solid ${accent}`,
+                      }}
                     >
                       <div
-                        className="w-9 h-9 rounded-[10px] flex items-center justify-center"
-                        style={{ backgroundColor: 'rgba(47,109,242,0.12)' }}
+                        className="w-10 h-10 rounded-[10px] flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: bg }}
                       >
-                        <Icon className="w-4.5 h-4.5" style={{ color: 'var(--color-accent)' }} strokeWidth={1.75} />
+                        <Icon className="w-5 h-5" style={{ color: accent }} strokeWidth={1.75} />
                       </div>
                       <div>
-                        <div className="text-xl font-semibold" style={{ color: 'var(--color-text-primary)' }}>{value}</div>
+                        <div className="text-xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{value}</div>
                         <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{label}</div>
                       </div>
                     </div>

@@ -29,6 +29,9 @@
   /* Modal overlay */
   --color-overlay:      rgba(15,23,42,0.6);
 
+  /* Authenticated app content background */
+  --color-app-bg:       #EEF0FF;
+
   /* Scrollbar */
   --scrollbar-track:  #f1f5f9;
   --scrollbar-thumb:  #cbd5e1;
@@ -49,6 +52,7 @@
   --color-text-muted:   #94a3b8;
   --color-border:       #1e2530;
   --color-overlay:      rgba(4,13,24,0.88);
+  --color-app-bg:       #0b0e14;
   --scrollbar-track:    #1a1d23;
   --scrollbar-thumb:    #3a3f4b;
 }
