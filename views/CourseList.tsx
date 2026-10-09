@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+﻿import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../services/backend';
@@ -42,7 +42,7 @@ function toCardData(c: Course): CourseCardData {
 const Chip: React.FC<{ label: string; onRemove: () => void }> = ({ label, onRemove }) => (
   <span
     className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium"
-    style={{ backgroundColor: 'rgba(47,109,242,0.15)', color: 'var(--color-accent-hover)', border: '1px solid rgba(47,109,242,0.3)' }}
+    style={{ backgroundColor: 'rgba(139,92,246,0.15)', color: 'var(--color-accent-hover)', border: '1px solid rgba(139,92,246,0.3)' }}
   >
     {label}
     <button
@@ -96,7 +96,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
           border: '1px solid var(--color-border)',
           color: 'var(--color-text-primary)',
         }}
-        onFocus={e => (e.currentTarget.style.borderColor = 'rgba(47,109,242,0.6)')}
+        onFocus={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.6)')}
         onBlur={e  => (e.currentTarget.style.borderColor = 'var(--color-border)')}
       />
     </div>
@@ -118,7 +118,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
               onClick={() => onCategory(cat)}
               className="w-full text-left px-3 py-2 rounded-[8px] text-sm transition-colors duration-150"
               style={{
-                backgroundColor: category === cat ? 'rgba(47,109,242,0.12)' : 'transparent',
+                backgroundColor: category === cat ? 'rgba(139,92,246,0.12)' : 'transparent',
                 color: category === cat ? 'var(--color-accent-hover)' : 'var(--color-text-muted)',
                 fontWeight: category === cat ? 600 : 400,
               }}
@@ -142,7 +142,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
               onClick={() => onLevel(lv)}
               className="w-full text-left px-3 py-2 rounded-[8px] text-sm transition-colors duration-150"
               style={{
-                backgroundColor: level === lv ? 'rgba(47,109,242,0.12)' : 'transparent',
+                backgroundColor: level === lv ? 'rgba(139,92,246,0.12)' : 'transparent',
                 color: level === lv ? 'var(--color-accent-hover)' : 'var(--color-text-muted)',
                 fontWeight: level === lv ? 600 : 400,
               }}
@@ -166,7 +166,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
               onClick={() => onPrice(i)}
               className="w-full text-left px-3 py-2 rounded-[8px] text-sm transition-colors duration-150"
               style={{
-                backgroundColor: priceIdx === i ? 'rgba(47,109,242,0.12)' : 'transparent',
+                backgroundColor: priceIdx === i ? 'rgba(139,92,246,0.12)' : 'transparent',
                 color: priceIdx === i ? 'var(--color-accent-hover)' : 'var(--color-text-muted)',
                 fontWeight: priceIdx === i ? 600 : 400,
               }}
@@ -312,7 +312,7 @@ const CourseList: React.FC = () => {
               <div className="py-24 flex flex-col items-center gap-4 text-center">
                 <div
                   className="w-14 h-14 rounded-[14px] flex items-center justify-center"
-                  style={{ backgroundColor: 'rgba(47,109,242,0.1)' }}
+                  style={{ backgroundColor: 'rgba(139,92,246,0.1)' }}
                 >
                   <BookOpen className="w-7 h-7" style={{ color: 'var(--color-accent)' }} />
                 </div>

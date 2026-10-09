@@ -1,12 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { UserRole } from '../types';
 import { api } from '../services/backend';
-import { supabase } from '../services/supabase';
+import { getSession } from '../services/session';
+import { convex } from '../services/convex';
+import { api as convexApi } from '../convex/_generated/api';
 import {
   BookOpen, Flame, Trophy, ArrowRight, Loader2, Plus,
-  Download, Award,
+  Download, Award, Bell, GraduationCap,
 } from 'lucide-react';
 
 // ── Progress ring ──────────────────────────────────────────────────────────────
@@ -117,12 +119,12 @@ const CertificateCard: React.FC<{
     <div
       ref={ref}
       className="relative rounded-[20px] overflow-hidden p-8 sm:p-12"
-      style={{ backgroundColor: 'var(--color-bg-deep)', border: '1px solid rgba(47,109,242,0.3)' }}
+      style={{ backgroundColor: 'var(--color-bg-deep)', border: '1px solid rgba(139,92,246,0.3)' }}
     >
       {/* Glow */}
       <div
         className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(47,109,242,0.08) 0%, transparent 70%)' }}
+        style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(139,92,246,0.08) 0%, transparent 70%)' }}
         aria-hidden="true"
       />
 
@@ -169,7 +171,7 @@ const CertificateCard: React.FC<{
 
         <div
           className="flex items-center justify-between pt-8"
-          style={{ borderTop: '1px solid rgba(47,109,242,0.2)' }}
+          style={{ borderTop: '1px solid rgba(139,92,246,0.2)' }}
         >
           <div>
             <p className="text-xs mb-1" style={{ color: 'var(--color-text-muted)' }}>Date issued</p>
@@ -178,7 +180,7 @@ const CertificateCard: React.FC<{
           <button
             onClick={handleDownload}
             className="flex items-center gap-2 px-4 py-2 rounded-[10px] text-sm font-medium transition-opacity hover:opacity-80"
-            style={{ backgroundColor: 'rgba(47,109,242,0.15)', color: 'var(--color-accent-hover)', border: '1px solid rgba(47,109,242,0.3)' }}
+            style={{ backgroundColor: 'rgba(139,92,246,0.15)', color: 'var(--color-accent-hover)', border: '1px solid rgba(139,92,246,0.3)' }}
           >
             <Download className="w-4 h-4" />
             Download
@@ -209,18 +211,18 @@ const Dashboard: React.FC<{ role: UserRole }> = () => {
 
   useEffect(() => {
     const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setLoading(false); return; }
+      const session = getSession();
+      if (!session) { setLoading(false); return; }
 
-      const [{ data: prof }, enrolData] = await Promise.all([
-        supabase.from('profiles').select('name, xp, level').eq('id', user.id).maybeSingle(),
-        api.getEnrollments(user.id),
+      const [prof, enrolData] = await Promise.all([
+        convex.query(convexApi.profiles.getByUserId, { userId: session.userId }),
+        api.getEnrollments(session.userId),
       ]);
 
       if (prof) {
-        setProfile({ name: prof.name || user.email?.split('@')[0] || 'Learner', xp: prof.xp || 0, level: prof.level || 1 });
-      } else if (user.email) {
-        setProfile({ name: user.email.split('@')[0], xp: 0, level: 1 });
+        setProfile({ name: prof.name || session.email?.split('@')[0] || 'Learner', xp: prof.xp || 0, level: (prof as any).level || 1 });
+      } else {
+        setProfile({ name: session.email?.split('@')[0] || 'Learner', xp: 0, level: 1 });
       }
       setEnrollments(enrolData);
       setLoading(false);
@@ -243,16 +245,16 @@ const Dashboard: React.FC<{ role: UserRole }> = () => {
   ] as const;
 
   return (
-    <div className="min-h-screen pb-20" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
+    <div className="min-h-screen pb-20">
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div
-        className="px-6 py-8 border-b"
-        style={{ backgroundColor: 'var(--color-bg-deep)', borderColor: 'var(--color-border)' }}
+        className="px-6 py-6 border-b flex items-center justify-between gap-4"
+        style={{ backgroundColor: 'var(--color-bg-card)', borderColor: 'var(--color-border)' }}
       >
-        <div className="max-w-[1100px] mx-auto">
-          <p className="text-xs mb-1" style={{ color: 'var(--color-text-muted)' }}>{today}</p>
-          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight" style={{ color: 'var(--color-text-primary)' }}>
-            Welcome back,{' '}
+        <div>
+          <p className="text-xs mb-0.5" style={{ color: 'var(--color-text-muted)' }}>{today}</p>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight" style={{ color: 'var(--color-text-primary)' }}>
+            Good morning,{' '}
             <span
               style={{
                 background: 'linear-gradient(135deg,#7C3AED,#3B82F6)',
@@ -263,6 +265,20 @@ const Dashboard: React.FC<{ role: UserRole }> = () => {
               {displayName}
             </span>
           </h1>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            style={{
+              width: 38, height: 38, borderRadius: 10,
+              backgroundColor: 'var(--color-bg-deep)',
+              border: '1px solid var(--color-border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+            aria-label="Notifications"
+          >
+            <Bell className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />
+          </button>
         </div>
       </div>
 
@@ -300,25 +316,30 @@ const Dashboard: React.FC<{ role: UserRole }> = () => {
             {tab === 'overview' && (
               <div className="flex flex-col gap-8">
                 {/* Stat row */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   {[
-                    { icon: BookOpen, label: 'Courses enrolled', value: activeCount },
-                    { icon: Flame,    label: 'Learning streak',  value: `${Math.min(activeCount * 3 + 1, 14)} days` },
-                    { icon: Trophy,   label: 'Completed',        value: completedCount },
-                  ].map(({ icon: Icon, label, value }) => (
+                    { icon: GraduationCap, label: 'Total Courses',    value: 48,            accent: '#7C3AED', bg: 'rgba(124,58,237,0.1)' },
+                    { icon: BookOpen,      label: 'Enrolled',          value: activeCount,   accent: 'var(--color-accent)', bg: 'rgba(139,92,246,0.1)' },
+                    { icon: Trophy,        label: 'Completed',         value: completedCount, accent: '#16a34a', bg: 'rgba(22,163,74,0.1)' },
+                    { icon: Flame,         label: 'Learning streak',   value: `${Math.min(activeCount * 3 + 1, 14)}d`, accent: '#EA580C', bg: 'rgba(234,88,12,0.1)' },
+                  ].map(({ icon: Icon, label, value, accent, bg }) => (
                     <div
                       key={label}
-                      className="flex flex-col gap-3 p-5 rounded-[16px]"
-                      style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}
+                      className="flex items-center gap-4 p-5 rounded-[16px]"
+                      style={{
+                        backgroundColor: 'var(--color-bg-card)',
+                        border: '1px solid var(--color-border)',
+                        borderLeft: `4px solid ${accent}`,
+                      }}
                     >
                       <div
-                        className="w-9 h-9 rounded-[10px] flex items-center justify-center"
-                        style={{ backgroundColor: 'rgba(47,109,242,0.12)' }}
+                        className="w-10 h-10 rounded-[10px] flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: bg }}
                       >
-                        <Icon className="w-4.5 h-4.5" style={{ color: 'var(--color-accent)' }} strokeWidth={1.75} />
+                        <Icon className="w-5 h-5" style={{ color: accent }} strokeWidth={1.75} />
                       </div>
                       <div>
-                        <div className="text-xl font-semibold" style={{ color: 'var(--color-text-primary)' }}>{value}</div>
+                        <div className="text-xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{value}</div>
                         <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{label}</div>
                       </div>
                     </div>
@@ -359,7 +380,7 @@ const Dashboard: React.FC<{ role: UserRole }> = () => {
                     >
                       <div
                         className="w-12 h-12 rounded-[14px] flex items-center justify-center mb-4"
-                        style={{ backgroundColor: 'rgba(47,109,242,0.1)' }}
+                        style={{ backgroundColor: 'rgba(139,92,246,0.1)' }}
                       >
                         <BookOpen className="w-6 h-6" style={{ color: 'var(--color-accent)' }} />
                       </div>
@@ -480,7 +501,7 @@ const Dashboard: React.FC<{ role: UserRole }> = () => {
                         <div>
                           <span
                             className="text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-md"
-                            style={{ backgroundColor: 'rgba(47,109,242,0.12)', color: 'var(--color-accent-hover)' }}
+                            style={{ backgroundColor: 'rgba(139,92,246,0.12)', color: 'var(--color-accent-hover)' }}
                           >
                             {e.course?.category || 'Course'}
                           </span>

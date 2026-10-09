@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { UserRole, SystemSettings } from './types';
-import { supabase } from './services/supabase';
+import { convex } from './services/convex';
+import { api as convexApi } from './convex/_generated/api';
 
 // Views
 import LandingPage from './views/LandingPage';
@@ -27,6 +28,7 @@ import ManageUsers from './views/admin/ManageUsers';
 import SystemControl from './views/admin/SystemControl';
 import Jobs from './views/Jobs';
 import ResetPassword from './views/ResetPassword';
+import Web3AcademyPrivacy from './views/Web3AcademyPrivacy';
 import EducatorDashboard from './views/educator/EducatorDashboard';
 import CourseUpload from './views/educator/CourseUpload';
 import ViewSubmissions from './views/educator/ViewSubmissions';
@@ -34,10 +36,11 @@ import ViewSubmissions from './views/educator/ViewSubmissions';
 // Components
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
-import { Construction } from 'lucide-react';
+import Logo from './components/Logo';
+import { Construction, Sun, Moon } from 'lucide-react';
 
-// Wallet address is not part of the Supabase session — store in localStorage
-const WALLET_KEY = 'finodiv_session_wallet';
+const SESSION_KEY  = 'finodiv_session';
+const WALLET_KEY   = 'finodiv_session_wallet';
 
 const ComingSoon: React.FC<{ title: string }> = ({ title }) => (
   <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center">
@@ -61,7 +64,7 @@ const App: React.FC = () => {
   );
   const [authReady, setAuthReady] = useState(false);
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 768);
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') !== 'light');
 
   const [systemSettings, setSystemSettings] = useState<SystemSettings>({
@@ -81,94 +84,71 @@ const App: React.FC = () => {
 
   // ── Window resize → sidebar ─────────────────────────────────────────────────
   useEffect(() => {
-    const handle = () => setIsSidebarOpen(window.innerWidth >= 1024);
+    const handle = () => setIsSidebarOpen(window.innerWidth >= 768);
     window.addEventListener('resize', handle);
     return () => window.removeEventListener('resize', handle);
   }, []);
 
-  // ── Supabase auth listener ──────────────────────────────────────────────────
-  useEffect(() => {
-    const loadProfile = async (uid: string, email: string | null) => {
-      // Set userId + email immediately so route guards don't redirect before role loads
-      setUserId(uid);
-      setAuthEmail(email);
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role, wallet_address, name')
-        .eq('id', uid)
-        .maybeSingle();
-
+  // ── Load profile from Convex ────────────────────────────────────────────────
+  const loadProfile = async (uid: string, email: string | null) => {
+    setUserId(uid);
+    setAuthEmail(email);
+    try {
+      await convex.mutation(convexApi.profiles.upsert, {
+        userId: uid,
+        name: email?.split('@')[0] || 'User',
+        email: email ?? '',
+      });
+      const profile = await convex.query(convexApi.profiles.getByUserId, { userId: uid });
       setRole((profile?.role as UserRole) || UserRole.LEARNER);
       setDisplayName(profile?.name || email?.split('@')[0] || null);
-      if (profile?.wallet_address) {
-        setWalletAddress(profile.wallet_address);
-        localStorage.setItem(WALLET_KEY, profile.wallet_address);
+      if (profile?.walletAddress) {
+        setWalletAddress(profile.walletAddress);
+        localStorage.setItem(WALLET_KEY, profile.walletAddress);
       }
-    };
+    } catch (e) {
+      console.error('loadProfile:', e);
+      setRole(UserRole.LEARNER);
+      setDisplayName(email?.split('@')[0] || null);
+    }
+  };
 
-    // INITIAL_SESSION fires once on startup with the cached/URL session (or null).
-    // SIGNED_IN fires when a magic link is clicked.
-    // Using onAuthStateChange exclusively avoids the race between getSession() and the listener.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'INITIAL_SESSION') {
-        // Fires once on startup — resolves the loading screen regardless of session state
-        if (session?.user) {
-          try {
-            await loadProfile(session.user.id, session.user.email ?? null);
-          } catch (e) {
-            console.error('loadProfile (INITIAL_SESSION):', e);
-            setUserId(session.user.id);
-            setAuthEmail(session.user.email ?? null);
-            setRole(UserRole.LEARNER);
-          }
+  // ── Session restore on startup ──────────────────────────────────────────────
+  useEffect(() => {
+    const sessionStr = localStorage.getItem(SESSION_KEY);
+    if (sessionStr) {
+      try {
+        const { userId: uid, email } = JSON.parse(sessionStr) as { userId: string; email: string };
+        if (uid) {
+          loadProfile(uid, email ?? null).finally(() => setAuthReady(true));
+          return;
         }
-        setAuthReady(true);
-      } else if (event === 'SIGNED_IN' && session?.user) {
-        try {
-          await loadProfile(session.user.id, session.user.email ?? null);
-        } catch (e) {
-          console.error('loadProfile (SIGNED_IN):', e);
-          setUserId(session.user.id);
-          setAuthEmail(session.user.email ?? null);
-          setRole(UserRole.LEARNER);
-        }
-        // Redirect to appropriate dashboard after sign-in
-        const hash = window.location.hash;
-        if (!hash || hash === '#/' || hash === '#/login' || hash === '#/reset-password') {
-          window.location.hash = '#/dashboard';
-        }
-      } else if (event === 'PASSWORD_RECOVERY') {
-        // Fired when user clicks the password-reset link in their email
-        window.location.hash = '#/reset-password';
-      } else if (event === 'SIGNED_OUT') {
-        setRole(UserRole.GUEST);
-        setUserId(null);
-        setAuthEmail(null);
-        setDisplayName(null);
-        setAuthReady(true);
+      } catch {
+        // corrupted — fall through
       }
-    });
-
-    // Safety fallback: if INITIAL_SESSION never fires (network/SDK issue), unblock UI after 5 s
-    const fallback = setTimeout(() => setAuthReady(true), 5000);
-
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(fallback);
-    };
+    }
+    setAuthReady(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const toggleTheme = () => setIsDarkMode(prev => !prev);
 
+  // ── Login success callback (called by Login.tsx after signIn/signUp) ────────
+  const handleLoginSuccess = async (uid: string, email: string) => {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ userId: uid, email }));
+    await loadProfile(uid, email);
+    window.location.hash = '#/dashboard';
+  };
+
   // ── Logout ─────────────────────────────────────────────────────────────────
-  const logout = async () => {
-    await supabase.auth.signOut();
+  const logout = () => {
+    localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(WALLET_KEY);
     setRole(UserRole.GUEST);
     setUserId(null);
     setAuthEmail(null);
     setWalletAddress(null);
-    localStorage.removeItem(WALLET_KEY);
+    setDisplayName(null);
     window.location.hash = '#/';
   };
 
@@ -185,15 +165,25 @@ const App: React.FC = () => {
     }
     setWalletAddress(address);
     localStorage.setItem(WALLET_KEY, address);
-    // If logged in, persist wallet to profile
+    // If logged in, persist wallet to Convex profile
     if (userId) {
-      await supabase.from('profiles').update({ wallet_address: address }).eq('id', userId);
+      try {
+        const profile = await convex.query(convexApi.profiles.getByUserId, { userId });
+        await convex.mutation(convexApi.profiles.upsert, {
+          userId,
+          name: profile?.name || displayName || '',
+          email: profile?.email || authEmail || '',
+          walletAddress: address,
+        });
+      } catch (e) {
+        console.error('handleConnectWallet:', e);
+      }
     }
   };
 
   const effectiveUserId = userId || 'u_demo';
 
-  // Show nothing until Supabase has resolved the session (avoids flash of GUEST state)
+  // Show nothing until session has been resolved (avoids flash of GUEST state)
   if (!authReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white dark:bg-[#0b0e14]">
@@ -222,47 +212,86 @@ const App: React.FC = () => {
     );
   }
 
+  const isGuest = role === UserRole.GUEST;
+
   return (
     <HashRouter>
-      <div className="min-h-screen bg-slate-50 dark:bg-brand-dark text-slate-900 dark:text-white flex flex-col transition-colors duration-300">
-        <Navbar
-          role={role}
-          onLogout={logout}
-          walletAddress={walletAddress}
-          onConnectWallet={handleConnectWallet}
-          isDarkMode={isDarkMode}
-          onToggleTheme={toggleTheme}
-          onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
-          userId={effectiveUserId}
-          authEmail={authEmail}
-          displayName={displayName}
-        />
-
-        <div className="flex flex-1 overflow-hidden relative">
-          {role !== UserRole.GUEST && (
-            <>
-              {isSidebarOpen && (
-                <div
-                  className="fixed inset-0 bg-black/50 z-30 lg:hidden backdrop-blur-sm"
-                  onClick={() => setIsSidebarOpen(false)}
-                />
-              )}
-              <Sidebar
-                role={role}
-                isOpen={isSidebarOpen}
-                setIsOpen={setIsSidebarOpen}
-                onLogout={logout}
-                displayName={displayName}
-                authEmail={authEmail}
-                userId={userId}
-              />
-            </>
-          )}
-
-          <main className="flex-1 overflow-y-auto custom-scrollbar relative transition-all duration-300 w-full">
+      {isGuest ? (
+        /* ── Guest layout: Navbar + full-page content ─────────────── */
+        <div className="min-h-screen flex flex-col" style={{ backgroundColor: 'var(--color-bg-primary)', color: 'var(--color-text-primary)' }}>
+          <Navbar
+            role={role}
+            onLogout={logout}
+            walletAddress={walletAddress}
+            onConnectWallet={handleConnectWallet}
+            isDarkMode={isDarkMode}
+            onToggleTheme={toggleTheme}
+            onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
+            userId={effectiveUserId}
+            authEmail={authEmail}
+            displayName={displayName}
+          />
+          <main className="flex-1">
             <Routes>
               <Route path="/" element={<LandingPage />} />
-              <Route path="/login" element={<Login onWalletLogin={handleWalletLogin} />} />
+              <Route path="/login" element={<Login onWalletLogin={handleWalletLogin} onLoginSuccess={handleLoginSuccess} />} />
+              <Route path="/join" element={<Navigate to="/login" />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/web3academy/privacy" element={<Web3AcademyPrivacy />} />
+              <Route path="/courses" element={<CourseList />} />
+              <Route path="/courses/:id" element={<CourseDetail />} />
+              <Route path="*" element={<Navigate to="/" />} />
+            </Routes>
+          </main>
+        </div>
+      ) : (
+        /* ── Auth layout: Sidebar + content ───────────────────────── */
+        <div className="flex" style={{ height: '100vh', overflow: 'hidden', color: 'var(--color-text-primary)', minWidth: 0 }}>
+          <Sidebar
+            role={role}
+            isOpen={isSidebarOpen}
+            setIsOpen={setIsSidebarOpen}
+            onLogout={logout}
+            displayName={displayName}
+            authEmail={authEmail}
+            userId={userId}
+            isDarkMode={isDarkMode}
+          />
+
+          <div className="flex-1 flex flex-col overflow-hidden" style={{ minWidth: 0, width: 0 }}>
+            {/* Mobile top bar */}
+            <header
+              className="md:hidden flex items-center gap-3 shrink-0 px-4"
+              style={{
+                height: 56,
+                backgroundColor: 'var(--color-bg-card)',
+                borderBottom: '1px solid var(--color-border)',
+              }}
+            >
+              <Logo className="w-7 h-7" />
+              <span style={{ fontWeight: 700, fontSize: 15 }}>FINODIV</span>
+              <button
+                onClick={toggleTheme}
+                style={{ marginLeft: 'auto', color: 'var(--color-text-muted)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+              >
+                {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </button>
+              {userId && (
+                <img
+                  src={`https://i.pravatar.cc/100?u=${userId}`}
+                  alt="avatar"
+                  style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover' }}
+                />
+              )}
+            </header>
+
+            <main
+              className="flex-1 overflow-y-auto custom-scrollbar auth-main-content"
+              style={{ backgroundColor: 'var(--color-app-bg)' }}
+            >
+              <Routes>
+                <Route path="/" element={<Navigate to="/dashboard" />} />
+                <Route path="/login" element={<Login onWalletLogin={handleWalletLogin} onLoginSuccess={handleLoginSuccess} />} />
               <Route path="/join" element={<Navigate to="/login" />} />
 
               <Route
@@ -346,6 +375,7 @@ const App: React.FC = () => {
           </main>
         </div>
       </div>
+      )}
     </HashRouter>
   );
 

@@ -1,0 +1,12 @@
+[build]
+  command   = "pnpm build"
+  publish   = "dist"
+
+[build.environment]
+  NODE_VERSION      = "20"
+  VITE_CONVEX_URL   = "https://cautious-dalmatian-280.convex.cloud"
+
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200

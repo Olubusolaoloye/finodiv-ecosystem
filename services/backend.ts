@@ -1,68 +1,59 @@
 
+import { api as convexApi } from '../convex/_generated/api';
+import type { Id } from '../convex/_generated/dataModel';
 import {
   User, UserRole, WalletBinding, PaymentRecord, CertificateNFT,
   PaymentMethod, Course, Talent
 } from '../types';
 import { COURSES, TALENTS } from '../constants';
-import { supabase } from './supabase';
+import { convex } from './convex';
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+// ── Convex → UI mappers ───────────────────────────────────────────────────────
 
-function dbCourseToUI(row: any): Course {
+function convexCourseToUI(row: any): Course {
   return {
-    id: row.id,
+    id: row._id as string,
     title: row.title,
     description: row.description,
-    instructor: row.instructor,
-    price: Number(row.price_usd),
+    instructor: row.instructorName,
+    price: row.price,
     category: row.category,
     level: row.level,
     duration: row.duration,
-    image: row.thumbnail_url || `https://picsum.photos/seed/${row.id}/800/450`,
+    image: row.imageUrl || `https://picsum.photos/seed/${row._id}/800/450`,
     rating: row.rating,
-    niche: row.category,
+    niche: row.niche || row.category,
   };
 }
 
-function dbPaymentToUI(row: any): PaymentRecord {
+function convexPaymentToUI(row: any): PaymentRecord {
   return {
-    id: row.id,
-    userId: row.user_id,
-    courseId: row.course_id,
-    method: row.method === 'PAYSTACK' ? 'fiat_paystack' : 'crypto_usdt',
-    amount: Number(row.amount_usd),
-    status: (row.status as string).toLowerCase() as any,
-    txHash: row.tx_hash ?? undefined,
-    reference: row.tx_ref ?? undefined,
-    createdAt: row.created_at,
+    id: row._id as string,
+    userId: row.userId,
+    courseId: row.courseId as string,
+    method: row.method as PaymentMethod,
+    amount: row.amount,
+    status: row.status as any,
+    txHash: row.txHash,
+    reference: row.reference,
+    createdAt: new Date(row._creationTime).toISOString(),
   };
 }
 
-function dbCertToUI(row: any): CertificateNFT {
-  const s = (row.status as string).toUpperCase();
+function convexCertToUI(row: any): CertificateNFT {
   return {
-    id: row.id,
-    userId: row.user_id,
-    walletAddress: row.wallet_address || '',
-    courseId: row.course_id,
-    tokenId: row.token_id ?? undefined,
-    txHash: row.tx_hash ?? undefined,
-    status: s === 'MINTED' ? 'minted' : 'unclaimed',
-    issuedAt: row.issued_at ?? undefined,
+    id: row._id as string,
+    userId: row.userId,
+    walletAddress: row.walletAddress || '',
+    courseId: row.courseId as string,
+    tokenId: row.tokenId,
+    txHash: row.txHash,
+    status: row.status as 'unclaimed' | 'minting' | 'minted',
+    issuedAt: row.issuedAt ? new Date(row.issuedAt).toISOString() : undefined,
   };
 }
 
-function dbBindingToUI(row: any): WalletBinding {
-  return {
-    userId: row.user_id,
-    address: row.address,
-    chainId: 56,
-    boundAt: row.bound_at,
-    isPrimary: true,
-  };
-}
-
-// ── LocalStorage fallback keys (wallet mock users) ───────────────────────────
+// ── LocalStorage fallback (wallet-only / demo users) ────────────────────────
 
 const LS = {
   WALLETS: 'finodiv_wallets',
@@ -75,7 +66,7 @@ function lsLoad<T>(key: string, def: T): T {
 }
 function lsSave(key: string, data: any) { localStorage.setItem(key, JSON.stringify(data)); }
 
-// Is this a real Supabase UUID (not a mock u_xxx id)?
+// Is this a real Supabase UUID (not a mock u_xxx wallet id)?
 const isUUID = (id: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
@@ -86,7 +77,6 @@ class BackendService {
   // --- Auth ---
 
   async loginWithGoogle(email: string, _name: string): Promise<User> {
-    // Legacy shim: returns a minimal user object; real auth is via supabase.auth.signInWithOtp in App.tsx
     return {
       id: `u_${Math.random().toString(36).substr(2, 9)}`,
       email,
@@ -106,69 +96,78 @@ class BackendService {
   // --- Courses ---
 
   async getCourses(): Promise<Course[]> {
-    const { data, error } = await supabase.from('courses').select('*').eq('is_published', true).order('enrolled_count', { ascending: false });
-    if (error || !data?.length) return [...COURSES];
-    return data.map(dbCourseToUI);
+    try {
+      const data = await convex.query(convexApi.courses.listPublished, {});
+      return data.length ? data.map(convexCourseToUI) : [...COURSES];
+    } catch {
+      return [...COURSES];
+    }
   }
 
   async addCourse(course: Course): Promise<Course> {
-    const row = {
-      id: course.id,
-      title: course.title,
-      description: course.description,
-      instructor: course.instructor,
-      category: course.category,
-      level: course.level,
-      duration: course.duration,
-      price_usd: course.price,
-      price_usdt: course.price,
-      thumbnail_url: course.image || null,
-    };
-    const { error } = await supabase.from('courses').upsert(row);
-    if (error) console.error('addCourse:', error);
+    try {
+      await convex.mutation(convexApi.courses.create, {
+        title: course.title,
+        description: course.description,
+        instructorId: 'admin',
+        instructorName: course.instructor,
+        price: course.price,
+        category: course.category,
+        level: (course.level as any) || 'Beginner',
+        duration: course.duration,
+        imageUrl: course.image || undefined,
+        niche: course.niche || undefined,
+      });
+    } catch (e) {
+      console.error('addCourse:', e);
+    }
     return course;
   }
 
   async deleteCourse(id: string): Promise<void> {
-    const { error } = await supabase.from('courses').delete().eq('id', id);
-    if (error) console.error('deleteCourse:', error);
+    try {
+      await convex.mutation(convexApi.courses.deleteById, { id: id as Id<'courses'> });
+    } catch (e) {
+      console.error('deleteCourse:', e);
+    }
   }
 
   async updateCourse(id: string, patch: Partial<Course>): Promise<void> {
-    const row: any = {};
-    if (patch.title       !== undefined) row.title         = patch.title;
-    if (patch.description !== undefined) row.description   = patch.description;
-    if (patch.price       !== undefined) { row.price_usd   = patch.price; row.price_usdt = patch.price; }
-    if (patch.category    !== undefined) row.category      = patch.category;
-    if (patch.level       !== undefined) row.level         = patch.level;
-    if (patch.instructor  !== undefined) row.instructor    = patch.instructor;
-    const { error } = await supabase.from('courses').update(row).eq('id', id);
-    if (error) console.error('updateCourse:', error);
+    try {
+      const args: Record<string, unknown> = { id: id as Id<'courses'> };
+      if (patch.title       !== undefined) args.title    = patch.title;
+      if (patch.description !== undefined) args.description = patch.description;
+      if (patch.price       !== undefined) args.price    = patch.price;
+      if (patch.category    !== undefined) args.category = patch.category;
+      if (patch.level       !== undefined) args.level    = patch.level;
+      if (patch.image       !== undefined) args.imageUrl = patch.image;
+      await convex.mutation(convexApi.courses.update, args as any);
+    } catch (e) {
+      console.error('updateCourse:', e);
+    }
   }
 
   // --- Talents ---
 
   async getTalents(): Promise<Talent[]> {
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, name, title, bio, skills, avatar_url, xp, level, verified, github_url, linkedin_url')
-      .not('name', 'is', null)
-      .neq('name', '')
-      .order('xp', { ascending: false })
-      .limit(30);
-    if (!data?.length) return [...TALENTS];
-    return data.map((row: any): Talent => ({
-      id: row.id,
-      name: row.name,
-      title: row.title || 'Web3 Builder',
-      bio: row.bio || 'A passionate Web3 professional on the FINODIV ecosystem.',
-      skills: row.skills || [],
-      avatar: row.avatar_url || `https://i.pravatar.cc/150?u=${row.id}`,
-      verified: row.verified || row.level > 1,
-      rating: Math.min(5, 3.5 + (row.xp || 0) / 2000),
-      portfolio: [],
-      feedback: [],
-    }));
+    try {
+      const profiles = await convex.query(convexApi.profiles.getLeaderboard, { limit: 30 });
+      if (!profiles.length) return [...TALENTS];
+      return profiles.map((row: any): Talent => ({
+        id: row.userId,
+        name: row.name,
+        title: 'Web3 Builder',
+        bio: row.bio || 'A passionate Web3 professional on the FINODIV ecosystem.',
+        skills: [],
+        avatar: row.avatarUrl || `https://i.pravatar.cc/150?u=${row.userId}`,
+        verified: row.xp > 100,
+        rating: Math.min(5, 3.5 + (row.xp || 0) / 2000),
+        portfolio: [],
+        feedback: [],
+      }));
+    } catch {
+      return [...TALENTS];
+    }
   }
 
   // --- Jobs ---
@@ -177,84 +176,86 @@ class BackendService {
     id: string; title: string; company: string; description: string;
     location: string; salaryRange: string; tags: string[]; createdAt: string;
   }>> {
-    const { data } = await supabase
-      .from('job_posts')
-      .select('id, title, company, description, location, salary_range, tags, created_at')
-      .eq('is_active', true)
-      .order('created_at', { ascending: false });
-    if (!data) return [];
-    return data.map((row: any) => ({
-      id: row.id,
-      title: row.title,
-      company: row.company,
-      description: row.description,
-      location: row.location || 'Remote',
-      salaryRange: row.salary_range || '',
-      tags: row.tags || [],
-      createdAt: row.created_at,
-    }));
+    try {
+      const jobs = await convex.query(convexApi.jobs.listActive, {});
+      return jobs.map((row: any) => ({
+        id: row._id as string,
+        title: row.title,
+        company: row.company,
+        description: row.description,
+        location: row.location,
+        salaryRange: row.salaryRange || '',
+        tags: row.skills || [],
+        createdAt: new Date(row._creationTime).toISOString(),
+      }));
+    } catch {
+      return [];
+    }
   }
 
   async applyToJob(userId: string, jobId: string, coverLetter: string): Promise<void> {
     if (!isUUID(userId)) return;
-    // Check first to avoid duplicate key errors (no unique constraint guaranteed)
-    const { data: existing } = await supabase
-      .from('job_applications')
-      .select('id')
-      .eq('applicant_id', userId)
-      .eq('job_id', jobId)
-      .maybeSingle();
-    if (existing) return;
-    await supabase.from('job_applications').insert({
-      applicant_id: userId,
-      job_id: jobId,
-      cover_letter: coverLetter,
-      status: 'PENDING',
-    });
+    try {
+      await convex.mutation(convexApi.jobs.applyToJob, {
+        jobId: jobId as Id<'jobs'>,
+        userId,
+        coverLetter,
+      });
+    } catch (e) {
+      console.error('applyToJob:', e);
+    }
   }
 
   async getUserApplications(userId: string): Promise<string[]> {
     if (!isUUID(userId)) return [];
-    const { data } = await supabase
-      .from('job_applications')
-      .select('job_id')
-      .eq('applicant_id', userId);
-    return (data || []).map((r: any) => r.job_id);
+    try {
+      const apps = await convex.query(convexApi.jobs.getApplicationsForUser, { userId });
+      return apps.map((a: any) => a.jobId as string);
+    } catch {
+      return [];
+    }
   }
 
-  // --- Wallet Binding ---
+  // --- Wallet Binding (stored on profile in Convex) ---
 
   async generateBindingNonce(userId: string): Promise<string> {
     const nonce = Math.random().toString(36).substr(2, 9);
-    if (isUUID(userId)) {
-      await supabase.from('wallet_bindings').upsert({ user_id: userId, address: 'pending', nonce }, { onConflict: 'user_id' });
-    }
     return `Sign to bind your wallet to FINODIV account ${userId}. Nonce: ${nonce}`;
   }
 
   async bindWallet(userId: string, address: string, _signature: string): Promise<WalletBinding> {
+    const binding: WalletBinding = { userId, address, chainId: 56, boundAt: new Date().toISOString(), isPrimary: true };
     if (isUUID(userId)) {
-      const { error } = await supabase.from('wallet_bindings').upsert(
-        { user_id: userId, address, chain: 'BSC' },
-        { onConflict: 'user_id' }
-      );
-      if (error) console.error('bindWallet:', error);
-      // Also store address on profile
-      await supabase.from('profiles').update({ wallet_address: address }).eq('id', userId);
+      try {
+        // Fetch current profile to keep name/email
+        const profile = await convex.query(convexApi.profiles.getByUserId, { userId });
+        await convex.mutation(convexApi.profiles.upsert, {
+          userId,
+          name: profile?.name || '',
+          email: profile?.email || '',
+          walletAddress: address,
+        });
+      } catch (e) {
+        console.error('bindWallet:', e);
+      }
     } else {
       const wallets = lsLoad<any[]>(LS.WALLETS, []);
-      const existing = wallets.findIndex((w: any) => w.userId === userId);
-      const binding = { userId, address, chainId: 56, boundAt: new Date().toISOString(), isPrimary: true };
-      if (existing >= 0) wallets[existing] = binding; else wallets.push(binding);
+      const idx = wallets.findIndex((w: any) => w.userId === userId);
+      if (idx >= 0) wallets[idx] = binding; else wallets.push(binding);
       lsSave(LS.WALLETS, wallets);
     }
-    return { userId, address, chainId: 56, boundAt: new Date().toISOString(), isPrimary: true };
+    return binding;
   }
 
   async getBinding(userId: string): Promise<WalletBinding | undefined> {
     if (isUUID(userId)) {
-      const { data } = await supabase.from('wallet_bindings').select('*').eq('user_id', userId).maybeSingle();
-      return data ? dbBindingToUI(data) : undefined;
+      try {
+        const profile = await convex.query(convexApi.profiles.getByUserId, { userId });
+        if (!profile?.walletAddress) return undefined;
+        return { userId, address: profile.walletAddress, chainId: 56, boundAt: '', isPrimary: true };
+      } catch {
+        return undefined;
+      }
     }
     const wallets = lsLoad<any[]>(LS.WALLETS, []);
     return wallets.find((w: any) => w.userId === userId);
@@ -264,16 +265,30 @@ class BackendService {
 
   async initiatePayment(userId: string, courseId: string, method: PaymentMethod, amount: number): Promise<PaymentRecord> {
     if (isUUID(userId)) {
-      const row = {
-        user_id: userId,
-        course_id: courseId,
-        method: method === 'fiat_paystack' ? 'PAYSTACK' : 'USDT_BSC',
-        amount_usd: amount,
-        status: 'PENDING',
-      };
-      const { data, error } = await supabase.from('payments').insert(row).select().single();
-      if (error) console.error('initiatePayment:', error);
-      return data ? dbPaymentToUI(data) : this._mockPayment(userId, courseId, method, amount);
+      try {
+        const ref = method === 'fiat_paystack'
+          ? `FINO-${Math.random().toString(36).substr(2, 6).toUpperCase()}`
+          : undefined;
+        const id = await convex.mutation(convexApi.payments.create, {
+          userId,
+          courseId: courseId as Id<'courses'>,
+          amount,
+          method,
+          reference: ref,
+        });
+        return {
+          id: id as string,
+          userId,
+          courseId,
+          method,
+          amount,
+          status: 'pending',
+          reference: ref,
+          createdAt: new Date().toISOString(),
+        };
+      } catch (e) {
+        console.error('initiatePayment:', e);
+      }
     }
     return this._mockPayment(userId, courseId, method, amount);
   }
@@ -294,14 +309,25 @@ class BackendService {
 
   async confirmPayment(paymentId: string, txHashOrRef: string): Promise<PaymentRecord> {
     if (!paymentId.startsWith('pay_')) {
-      const { data, error } = await supabase
-        .from('payments')
-        .update({ status: 'COMPLETED', tx_hash: txHashOrRef, tx_ref: txHashOrRef })
-        .eq('id', paymentId)
-        .select()
-        .single();
-      if (error) console.error('confirmPayment:', error);
-      if (data) return dbPaymentToUI(data);
+      try {
+          await convex.mutation(convexApi.payments.confirm, {
+          paymentId: paymentId as Id<'payments'>,
+          txHash: txHashOrRef,
+          reference: txHashOrRef,
+        });
+        return {
+          id: paymentId,
+          userId: '',
+          courseId: '',
+          method: 'fiat_paystack',
+          amount: 0,
+          status: 'confirmed',
+          txHash: txHashOrRef,
+          createdAt: new Date().toISOString(),
+        };
+      } catch (e) {
+        console.error('confirmPayment:', e);
+      }
     }
     const payments = lsLoad<PaymentRecord[]>(LS.PAYMENTS, []);
     const p = payments.find(p => p.id === paymentId);
@@ -316,14 +342,15 @@ class BackendService {
 
   async getPaymentForCourse(userId: string, courseId: string): Promise<PaymentRecord | undefined> {
     if (isUUID(userId)) {
-      const { data } = await supabase
-        .from('payments')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('course_id', courseId)
-        .eq('status', 'COMPLETED')
-        .maybeSingle();
-      return data ? dbPaymentToUI(data) : undefined;
+      try {
+          const data = await convex.query(convexApi.payments.getByUserCourse, {
+          userId,
+          courseId: courseId as Id<'courses'>,
+        });
+        return data ? convexPaymentToUI(data) : undefined;
+      } catch {
+        return undefined;
+      }
     }
     const payments = lsLoad<PaymentRecord[]>(LS.PAYMENTS, []);
     return payments.find(p => p.userId === userId && p.courseId === courseId && p.status === 'confirmed');
@@ -333,74 +360,63 @@ class BackendService {
 
   async enrollCourse(userId: string, courseId: string): Promise<void> {
     if (!isUUID(userId)) return;
-    await supabase.from('enrollments').upsert(
-      { user_id: userId, course_id: courseId, progress: 0 },
-      { onConflict: 'user_id,course_id' }
-    );
-    // Bump enrolled_count
-    await supabase.rpc('increment_enrolled_count', { course_id_arg: courseId }).then(null, () => {});
+    try {
+      await convex.mutation(convexApi.enrollments.enroll, {
+        userId,
+        courseId: courseId as Id<'courses'>,
+      });
+    } catch (e) {
+      console.error('enrollCourse:', e);
+    }
   }
 
   async isEnrolled(userId: string, courseId: string): Promise<boolean> {
     if (!isUUID(userId)) return false;
-    const { data } = await supabase
-      .from('enrollments')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('course_id', courseId)
-      .maybeSingle();
-    return !!data;
+    try {
+      const enrollment = await convex.query(convexApi.enrollments.getEnrollment, {
+        userId,
+        courseId: courseId as Id<'courses'>,
+      });
+      return !!enrollment;
+    } catch {
+      return false;
+    }
   }
 
   async getEnrollments(userId: string): Promise<Array<{ courseId: string; progress: number; course: Course | null }>> {
     if (!isUUID(userId)) return [];
-    const { data } = await supabase
-      .from('enrollments')
-      .select('course_id, progress, courses(*)')
-      .eq('user_id', userId)
-      .order('enrolled_at', { ascending: false });
-    if (!data) return [];
-    return data.map((row: any) => ({
-      courseId: row.course_id,
-      progress: row.progress,
-      course: row.courses ? dbCourseToUI(row.courses) : null,
-    }));
+    try {
+      const enrollments = await convex.query(convexApi.enrollments.getForUser, { userId });
+      const results = await Promise.all(
+        enrollments.map(async (e: any) => {
+          try {
+            const course = await convex.query(convexApi.courses.getById, { id: e.courseId });
+            return {
+              courseId: e.courseId as string,
+              progress: e.progress,
+              course: course ? convexCourseToUI(course) : null,
+            };
+          } catch {
+            return { courseId: e.courseId as string, progress: e.progress, course: null };
+          }
+        })
+      );
+      return results;
+    } catch {
+      return [];
+    }
   }
 
-  async markLessonComplete(userId: string, courseId: string, lessonId: string, totalLessons: number): Promise<void> {
+  async markLessonComplete(userId: string, courseId: string, lessonId: string, _totalLessons: number): Promise<void> {
     if (!isUUID(userId)) return;
-    // Check if lesson was already completed to avoid double XP
-    const { data: existing } = await supabase
-      .from('lesson_progress')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('course_id', courseId)
-      .eq('lesson_id', lessonId)
-      .maybeSingle();
-    const isNew = !existing;
-
-    await supabase.from('lesson_progress').upsert(
-      { user_id: userId, course_id: courseId, lesson_id: lessonId },
-      { onConflict: 'user_id,course_id,lesson_id' }
-    );
-
-    const { count } = await supabase
-      .from('lesson_progress')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('course_id', courseId);
-
-    if (count !== null && totalLessons > 0) {
-      const pct = Math.round((count / totalLessons) * 100);
-      await supabase.from('enrollments')
-        .update({ progress: pct, completed_at: pct >= 100 ? new Date().toISOString() : null })
-        .eq('user_id', userId)
-        .eq('course_id', courseId);
-    }
-
-    // Award XP only for new completions
-    if (isNew) {
-      await supabase.rpc('award_lesson_xp', { user_id_arg: userId, xp_amount: 100 });
+    try {
+      await convex.mutation(convexApi.enrollments.completeLesson, {
+        userId,
+        courseId: courseId as Id<'courses'>,
+        lessonId: lessonId as Id<'lessons'>,
+      });
+    } catch (e) {
+      console.error('markLessonComplete:', e);
     }
   }
 
@@ -408,8 +424,12 @@ class BackendService {
 
   async getCertificates(userId: string): Promise<CertificateNFT[]> {
     if (isUUID(userId)) {
-      const { data } = await supabase.from('certificates').select('*').eq('user_id', userId);
-      return (data || []).map(dbCertToUI);
+      try {
+        const data = await convex.query(convexApi.certificates.getForUser, { userId });
+        return data.map(convexCertToUI);
+      } catch {
+        return [];
+      }
     }
     const certs = lsLoad<CertificateNFT[]>(LS.CERTS, []);
     return certs.filter(c => c.userId === userId);
@@ -417,25 +437,35 @@ class BackendService {
 
   async requestMint(userId: string, courseId: string, walletAddress: string): Promise<CertificateNFT> {
     if (isUUID(userId)) {
-      const { data, error } = await supabase
-        .from('certificates')
-        .upsert(
-          { user_id: userId, course_id: courseId, wallet_address: walletAddress, status: 'PENDING' },
-          { onConflict: 'user_id,course_id' }
-        )
-        .select()
-        .single();
-      if (error) console.error('requestMint:', error);
-      if (data) {
-        // Simulate minting after 5s
-        setTimeout(async () => {
-          await supabase.from('certificates').update({
-            status: 'MINTED',
-            token_id: Math.floor(Math.random() * 100000).toString(),
-            tx_hash: `0x${Math.random().toString(16).substr(2, 64)}`,
-          }).eq('id', data.id);
-        }, 5000);
-        return dbCertToUI(data);
+      try {
+        // Find the cert for this user + course
+        const existing = await convex.query(convexApi.certificates.getForUserCourse, {
+          userId,
+          courseId: courseId as Id<'courses'>,
+        });
+        const certId = existing?._id;
+        if (certId) {
+          await convex.mutation(convexApi.certificates.startMinting, {
+            certificateId: certId,
+            walletAddress,
+          });
+          // Simulate mint after 5s
+          setTimeout(async () => {
+            try {
+              // No public confirmMinted — that's internal. Simulate locally.
+              const cert = await convex.query(convexApi.certificates.getForUserCourse, {
+                userId,
+                courseId: courseId as Id<'courses'>,
+              });
+              if (cert) {
+                // Use the internal mutation via backend — for now just leave as minting
+              }
+            } catch {}
+          }, 5000);
+          return convexCertToUI({ ...existing, status: 'minting', walletAddress });
+        }
+      } catch (e) {
+        console.error('requestMint:', e);
       }
     }
     // Mock fallback
@@ -462,30 +492,51 @@ class BackendService {
   // --- Assignments & Submissions ---
 
   async getAssignment(courseId: string): Promise<{ id: string; title: string; description: string; dueDate: string | null } | null> {
-    const { data } = await supabase
-      .from('assignments')
-      .select('id, title, description, due_date')
-      .eq('course_id', courseId)
-      .maybeSingle();
-    if (!data) return null;
-    return { id: data.id, title: data.title, description: data.description, dueDate: data.due_date };
+    try {
+      const assignments = await convex.query(convexApi.submissions.listAssignmentsByCourse, {
+        courseId: courseId as Id<'courses'>,
+      });
+      if (!assignments.length) return null;
+      const a = assignments[0];
+      return {
+        id: a._id as string,
+        title: a.title,
+        description: a.description,
+        dueDate: a.dueDate ? new Date(a.dueDate).toISOString() : null,
+      };
+    } catch {
+      return null;
+    }
   }
 
   async getMySubmission(assignmentId: string, userId: string): Promise<{ id: string; content: string; status: string; grade: number | null; feedback: string | null } | null> {
-    const { data } = await supabase
-      .from('submissions')
-      .select('id, content, status, grade, feedback')
-      .eq('assignment_id', assignmentId)
-      .eq('user_id', userId)
-      .maybeSingle();
-    return data ? { id: data.id, content: data.content, status: data.status, grade: data.grade, feedback: data.feedback } : null;
+    try {
+      const all = await convex.query(convexApi.submissions.listByUser, { userId });
+      const sub = all.find((s: any) => s.assignmentId === assignmentId);
+      if (!sub) return null;
+      return {
+        id: sub._id as string,
+        content: sub.content,
+        status: sub.status,
+        grade: sub.grade ?? null,
+        feedback: sub.feedback ?? null,
+      };
+    } catch {
+      return null;
+    }
   }
 
   async submitAssignment(assignmentId: string, courseId: string, userId: string, content: string): Promise<void> {
-    await supabase.from('submissions').upsert(
-      { assignment_id: assignmentId, course_id: courseId, user_id: userId, content, status: 'SUBMITTED', submitted_at: new Date().toISOString() },
-      { onConflict: 'assignment_id,user_id' }
-    );
+    try {
+      await convex.mutation(convexApi.submissions.submit, {
+        assignmentId: assignmentId as Id<'assignments'>,
+        courseId: courseId as Id<'courses'>,
+        userId,
+        content,
+      });
+    } catch (e) {
+      console.error('submitAssignment:', e);
+    }
   }
 }
 

@@ -1,9 +1,8 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../services/backend';
 import { Talent } from '../types';
-import { Search, Filter, ChevronDown, Award, Star, MessageSquare, XCircle, ShieldCheck, Loader2 } from 'lucide-react';
+import { Search, Filter, ChevronDown, Award, ShieldCheck, XCircle, Loader2, MessageSquare } from 'lucide-react';
 
 const TalentSearch: React.FC = () => {
   const [talents, setTalents] = useState<Talent[]>([]);
@@ -11,103 +10,141 @@ const TalentSearch: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    loadTalents();
+    api.getTalents().then(data => { setTalents(data); setLoading(false); });
   }, []);
 
-  const loadTalents = async () => {
-    setLoading(true);
-    const data = await api.getTalents();
-    setTalents(data);
-    setLoading(false);
-  };
-
-  const filteredTalents = useMemo(() => {
-    return talents.filter(talent => {
-      return talent.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-             talent.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-             talent.skills.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
-    });
-  }, [searchQuery, talents]);
+  const filteredTalents = useMemo(() =>
+    talents.filter(t =>
+      t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.skills.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()))
+    ), [searchQuery, talents]);
 
   return (
-    <div className="p-8 max-w-7xl mx-auto pb-32">
-       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+    <div style={{ padding: '40px clamp(16px,4vw,40px) 120px', maxWidth: 1280, margin: '0 auto' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, marginBottom: 48 }}>
         <div>
-          <h1 className="text-4xl font-bold mb-4">Find Your Next <span className="text-blue-500">Hire</span></h1>
-          <p className="text-gray-500 text-lg">Direct access to the top 1% of Web3 professionals.</p>
+          <span style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.25em', color: 'var(--color-accent)', display: 'block', marginBottom: 8 }}>
+            Employer Portal
+          </span>
+          <h1 style={{ fontSize: 'clamp(1.8rem,4vw,2.6rem)', fontWeight: 900, letterSpacing: '-0.02em', color: 'var(--color-text-primary)', marginBottom: 8 }}>
+            Find Your Next{' '}
+            <span style={{ background: 'linear-gradient(135deg,#7C3AED,#3B82F6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+              Hire
+            </span>
+          </h1>
+          <p style={{ fontSize: 15, color: 'var(--color-text-muted)' }}>Direct access to the top 1% of Web3 professionals.</p>
         </div>
-        <button className="px-8 py-3 rounded-2xl bg-[#2F6DF2] hover:bg-blue-600 transition-all font-bold shadow-xl shadow-blue-500/20">
+        <button
+          style={{ padding: '13px 26px', borderRadius: 14, background: 'var(--color-accent)', color: '#fff', fontWeight: 800, fontSize: 14, border: 'none', cursor: 'pointer', boxShadow: '0 8px 24px rgba(139,92,246,0.25)', transition: 'all 0.2s' }}
+          onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = 'var(--color-accent-hover)')}
+          onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = 'var(--color-accent)')}
+        >
           Post a Job
         </button>
       </div>
 
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-12">
-        <div className="relative flex-1 max-w-2xl">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-          <input 
-            type="text" 
+      {/* Search + filter row */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 16, marginBottom: 48 }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 260, maxWidth: 560 }}>
+          <Search style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 16, height: 16, color: 'var(--color-text-muted)' }} />
+          <input
+            type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search talent, skills, jobs..." 
-            className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search talent, skills, titles…"
+            style={{
+              width: '100%', padding: '13px 16px 13px 44px', borderRadius: 14,
+              background: 'var(--color-bg-card)', border: '1px solid var(--color-border)',
+              color: 'var(--color-text-primary)', fontSize: 14, outline: 'none', fontFamily: 'inherit',
+            }}
+            onFocus={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)')}
+            onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
           />
         </div>
-        
-        <div className="flex flex-wrap items-center gap-4">
-           {['Skill', 'Experience'].map(f => (
-             <button key={f} className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/5 border border-white/10 text-sm font-semibold hover:bg-white/10 transition-all">
-               <Filter className="w-4 h-4 opacity-50" /> {f} <ChevronDown className="w-4 h-4 opacity-50" />
-             </button>
-           ))}
+        <div style={{ display: 'flex', gap: 10 }}>
+          {['Skill', 'Experience'].map(f => (
+            <button key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 18px', borderRadius: 12, background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(139,92,246,0.4)'; (e.currentTarget as HTMLElement).style.color = 'var(--color-text-primary)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border)'; (e.currentTarget as HTMLElement).style.color = 'var(--color-text-muted)'; }}
+            >
+              <Filter style={{ width: 14, height: 14 }} /> {f} <ChevronDown style={{ width: 14, height: 14 }} />
+            </button>
+          ))}
         </div>
       </div>
 
+      {/* Results */}
       {loading ? (
-        <div className="py-20 flex flex-col items-center justify-center">
-            <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
-            <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Searching global talent pool...</p>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 0', gap: 16 }}>
+          <Loader2 style={{ width: 36, height: 36, color: 'var(--color-accent)', animation: 'spin 1s linear infinite' }} />
+          <p style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.18em', color: 'var(--color-text-muted)' }}>Searching global talent pool…</p>
         </div>
-      ) : filteredTalents.length > 0 ? (
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
-          {filteredTalents.map(talent => (
-            <div key={talent.id} className="bg-white/5 rounded-[40px] p-8 border border-white/5 hover:border-blue-500/30 transition-all flex flex-col items-center group relative overflow-hidden">
-               <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 blur-[40px] rounded-full translate-x-1/2 -translate-y-1/2"></div>
-               
-               <div className="w-32 h-32 rounded-[40px] border-4 border-white/5 overflow-hidden mb-6 group-hover:scale-105 transition-transform duration-500 shadow-2xl relative">
-                 <img src={talent.avatar} alt={talent.name} className="w-full h-full object-cover" />
-                 {talent.verified && (
-                    <div className="absolute bottom-2 right-2 p-1.5 rounded-xl bg-blue-600 border-2 border-[#0b0e14] shadow-lg">
-                       <ShieldCheck className="w-4 h-4 text-white" />
-                    </div>
-                 )}
-               </div>
-               
-               <h3 className="text-2xl font-bold mb-1 flex items-center gap-2">
-                  {talent.name}
-               </h3>
-               <p className="text-sm text-gray-500 mb-6">{talent.title}</p>
-               
-               {/* Verified Talent Badge */}
-               <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-8 shadow-sm">
-                  <Award className="w-4 h-4" /> Verified Talent
-               </div>
-
-               <div className="flex gap-3 w-full mt-auto">
-                 <button className="flex-1 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-sm font-bold hover:bg-white/10 transition-all">
-                    Message
-                 </button>
-                 <Link to={`/profile/${talent.id}`} className="flex-1 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-sm font-bold text-center hover:bg-white/10 transition-all">
-                    View Profile
-                 </Link>
-               </div>
-            </div>
-          ))}
+      ) : filteredTalents.length === 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 0', textAlign: 'center', gap: 16 }}>
+          <XCircle style={{ width: 48, height: 48, color: 'var(--color-text-muted)' }} />
+          <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-text-primary)' }}>No talent matched</h3>
+          <p style={{ fontSize: 14, color: 'var(--color-text-muted)' }}>Try a different name, skill, or title.</p>
         </div>
       ) : (
-        <div className="py-20 flex flex-col items-center justify-center text-center">
-          <XCircle className="w-16 h-16 text-gray-700 mb-6" />
-          <h3 className="text-2xl font-bold mb-2">No talent matched</h3>
-          <p className="text-gray-500">Try a different name, skill, or title.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 24 }}>
+          {filteredTalents.map(talent => (
+            <div
+              key={talent.id}
+              style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 28, padding: 32, display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', overflow: 'hidden', transition: 'border-color 0.2s, transform 0.2s' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(139,92,246,0.35)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-3px)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
+            >
+              {/* Glow */}
+              <div style={{ position: 'absolute', top: 0, right: 0, width: 150, height: 150, background: 'radial-gradient(circle, rgba(139,92,246,0.07) 0%, transparent 70%)', transform: 'translate(30%, -30%)', pointerEvents: 'none' }} />
+
+              {/* Avatar */}
+              <div style={{ position: 'relative', width: 88, height: 88, borderRadius: 24, overflow: 'hidden', border: '2px solid var(--color-border)', marginBottom: 20, flexShrink: 0 }}>
+                <img src={talent.avatar} alt={talent.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                {talent.verified && (
+                  <div style={{ position: 'absolute', bottom: 4, right: 4, width: 22, height: 22, borderRadius: 8, background: 'var(--color-accent)', border: '2px solid var(--color-bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <ShieldCheck style={{ width: 11, height: 11, color: '#fff' }} />
+                  </div>
+                )}
+              </div>
+
+              <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--color-text-primary)', marginBottom: 4, textAlign: 'center' }}>{talent.name}</h3>
+              <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 16, textAlign: 'center' }}>{talent.title}</p>
+
+              {/* Verified badge */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 14px', borderRadius: 999, background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', color: '#34d399', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 24 }}>
+                <Award style={{ width: 13, height: 13 }} /> Verified Talent
+              </div>
+
+              {/* Skills */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', marginBottom: 24 }}>
+                {talent.skills.slice(0, 4).map(skill => (
+                  <span key={skill} style={{ padding: '4px 10px', borderRadius: 6, background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', color: 'var(--color-accent)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    {skill}
+                  </span>
+                ))}
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: 10, width: '100%', marginTop: 'auto' }}>
+                <button style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px', borderRadius: 12, background: 'var(--color-bg-deep)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)', fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(139,92,246,0.3)'; (e.currentTarget as HTMLElement).style.color = 'var(--color-text-primary)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border)'; (e.currentTarget as HTMLElement).style.color = 'var(--color-text-muted)'; }}
+                >
+                  <MessageSquare style={{ width: 13, height: 13 }} /> Message
+                </button>
+                <Link
+                  to={`/profile/${talent.id}`}
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px', borderRadius: 12, background: 'var(--color-accent)', color: '#fff', fontSize: 12, fontWeight: 700, textDecoration: 'none', transition: 'background 0.15s' }}
+                  onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = 'var(--color-accent-hover)')}
+                  onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = 'var(--color-accent)')}
+                >
+                  View Profile
+                </Link>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

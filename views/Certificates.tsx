@@ -1,22 +1,15 @@
-
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { api } from '../services/backend';
-import { supabase } from '../services/supabase';
 import { CertificateNFT } from '../types';
 import {
   Award, ExternalLink, ShieldCheck, Zap, Loader2, Link2,
   BookOpen, CheckCircle2, Copy, Download,
 } from 'lucide-react';
 
-interface CertificatesProps {
-  userId: string;
-  walletAddress: string | null;
-}
+interface CertificatesProps { userId: string; walletAddress: string | null; }
 
 interface CompletedEnrollment {
-  courseId: string;
-  courseTitle: string;
-  completedAt: string;
+  courseId: string; courseTitle: string; completedAt: string;
 }
 
 const BSC_EXPLORER = 'https://bscscan.com/tx/';
@@ -31,76 +24,104 @@ const CertCard: React.FC<{ cert: CertificateNFT; title: string }> = ({ cert, tit
   };
 
   return (
-    <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-[40px] overflow-hidden group hover:border-blue-500/30 dark:hover:border-blue-500/30 transition-all shadow-sm dark:shadow-none relative">
+    <div style={{
+      background: 'var(--color-bg-card)',
+      border: '1px solid var(--color-border)',
+      borderRadius: 20, overflow: 'hidden',
+      position: 'relative',
+      transition: 'border-color 0.2s',
+    }}
+      onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.35)')}
+      onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
+    >
       {cert.status === 'minting' && (
-        <div className="absolute inset-0 bg-white/70 dark:bg-black/70 backdrop-blur-md z-20 flex flex-col items-center justify-center text-center p-8">
-          <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-5" />
-          <h5 className="text-xl font-black mb-2 text-slate-900 dark:text-white">Minting on BNB Chain…</h5>
-          <p className="text-sm text-slate-500 dark:text-gray-400">Usually takes 5–10 seconds.</p>
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 20,
+          background: 'rgba(4,13,24,0.85)', backdropFilter: 'blur(8px)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 24,
+        }}>
+          <Loader2 style={{ width: 36, height: 36, color: 'var(--color-accent)', animation: 'spin 1s linear infinite', marginBottom: 16 }} />
+          <h5 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 6 }}>Minting on BNB Chain…</h5>
+          <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Usually takes 5–10 seconds.</p>
         </div>
       )}
 
       {/* Certificate visual */}
-      <div className="relative bg-gradient-to-br from-blue-600 via-indigo-700 to-purple-800 p-8 flex flex-col items-center text-center">
-        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 20% 80%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)', backgroundSize: '30px 30px' }} />
-        <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center mb-4 relative z-10">
-          <Award className="w-8 h-8 text-white" />
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(139,92,246,0.35) 0%, rgba(124,58,237,0.25) 100%)',
+        padding: '28px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center',
+        position: 'relative',
+      }}>
+        <div style={{
+          position: 'absolute', inset: 0, opacity: 0.08,
+          backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)',
+          backgroundSize: '28px 28px',
+        }} />
+        <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, position: 'relative', zIndex: 1 }}>
+          <Award style={{ width: 26, height: 26, color: '#fff' }} />
         </div>
-        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-blue-200/70 mb-1 relative z-10">Certificate of Completion</p>
-        <h3 className="text-xl font-black text-white leading-tight relative z-10 mb-3">{title}</h3>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 relative z-10">
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
-          <span className="text-[10px] font-black text-white/80 uppercase tracking-widest">
+        <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3em', color: 'rgba(255,255,255,0.6)', marginBottom: 6, position: 'relative', zIndex: 1 }}>
+          Certificate of Completion
+        </p>
+        <h3 style={{ fontSize: 16, fontWeight: 700, color: '#fff', lineHeight: 1.3, marginBottom: 12, position: 'relative', zIndex: 1 }}>
+          {title}
+        </h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 20, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', position: 'relative', zIndex: 1 }}>
+          <ShieldCheck style={{ width: 12, height: 12, color: '#86efac' }} />
+          <span style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
             {cert.status === 'minted' ? 'Verified On-Chain' : 'Soulbound NFT'}
           </span>
         </div>
       </div>
 
-      <div className="p-6">
+      <div style={{ padding: '16px 18px' }}>
         {cert.status === 'minted' && cert.tokenId && (
-          <div className="flex items-center gap-2 mb-4">
-            <span className="px-3 py-1 rounded-full bg-blue-500/10 text-[9px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 border border-blue-500/20">
+          <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+            <span style={{ padding: '3px 8px', borderRadius: 6, background: 'rgba(139,92,246,0.1)', color: 'var(--color-accent)', border: '1px solid rgba(139,92,246,0.2)', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
               Token #{cert.tokenId}
             </span>
-            <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            <span style={{ padding: '3px 8px', borderRadius: 6, background: 'rgba(52,211,153,0.1)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
               Minted
             </span>
           </div>
         )}
 
         {cert.walletAddress && (
-          <div className="flex items-center gap-2 mb-4 text-xs text-slate-500 dark:text-gray-500">
-            <Link2 className="w-3.5 h-3.5 shrink-0" />
-            <span className="font-mono truncate">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: 11, color: 'var(--color-text-muted)' }}>
+            <Link2 style={{ width: 12, height: 12, flexShrink: 0 }} />
+            <span style={{ fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {cert.walletAddress.slice(0, 10)}…{cert.walletAddress.slice(-6)}
             </span>
-            <button onClick={() => copy(cert.walletAddress)} className="shrink-0 hover:text-blue-500 transition-colors">
-              {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+            <button onClick={() => copy(cert.walletAddress)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', flexShrink: 0 }}>
+              {copied ? <CheckCircle2 style={{ width: 12, height: 12, color: '#34d399' }} /> : <Copy style={{ width: 12, height: 12 }} />}
             </button>
           </div>
         )}
 
         {cert.issuedAt && (
-          <p className="text-[10px] font-bold text-slate-400 dark:text-gray-600 mb-4">
+          <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 12 }}>
             Issued {new Date(cert.issuedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
           </p>
         )}
 
-        <div className="flex items-center gap-3 pt-4 border-t border-slate-100 dark:border-white/5">
-          <div className="flex items-center gap-2 flex-1">
-            <div className="w-6 h-6 rounded-lg bg-yellow-400/10 flex items-center justify-center">
-              <Link2 className="w-3 h-3 text-yellow-600 dark:text-yellow-400" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 12, borderTop: '1px solid var(--color-border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
+            <div style={{ width: 22, height: 22, borderRadius: 6, background: 'rgba(251,191,36,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Link2 style={{ width: 11, height: 11, color: '#fbbf24' }} />
             </div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-gray-500">BNB Chain</span>
+            <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--color-text-muted)' }}>BNB Chain</span>
           </div>
           {cert.txHash && (
             <a href={`${BSC_EXPLORER}${cert.txHash}`} target="_blank" rel="noopener noreferrer"
-              className="p-2.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-blue-600 hover:text-white text-blue-600 dark:text-blue-400 transition-all">
-              <ExternalLink className="w-4 h-4" />
+              style={{ padding: '7px', borderRadius: 8, background: 'var(--color-bg-deep)', color: 'var(--color-accent)', border: '1px solid var(--color-border)', display: 'flex', transition: 'background 0.15s' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-accent)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-bg-deep)')}
+            >
+              <ExternalLink style={{ width: 13, height: 13 }} />
             </a>
           )}
-          <button className="p-2.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-400 dark:text-gray-500 transition-all">
-            <Download className="w-4 h-4" />
+          <button style={{ padding: '7px', borderRadius: 8, background: 'var(--color-bg-deep)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)', cursor: 'pointer', display: 'flex' }}>
+            <Download style={{ width: 13, height: 13 }} />
           </button>
         </div>
       </div>
@@ -110,26 +131,24 @@ const CertCard: React.FC<{ cert: CertificateNFT; title: string }> = ({ cert, tit
 
 const Certificates: React.FC<CertificatesProps> = ({ userId, walletAddress }) => {
   const [completedEnrollments, setCompletedEnrollments] = useState<CompletedEnrollment[]>([]);
-  const [certs, setCerts]   = useState<CertificateNFT[]>([]);
+  const [certs, setCerts]     = useState<CertificateNFT[]>([]);
   const [loading, setLoading] = useState(true);
   const [mintingId, setMintingId] = useState<string | null>(null);
 
   const loadData = async () => {
     if (!userId) { setLoading(false); return; }
-    const [{ data: enrollData }, certData] = await Promise.all([
-      supabase
-        .from('enrollments')
-        .select('course_id, completed_at, courses(id, title)')
-        .eq('user_id', userId)
-        .not('completed_at', 'is', null),
+    const [enrollments, certData] = await Promise.all([
+      api.getEnrollments(userId),
       api.getCertificates(userId),
     ]);
     setCompletedEnrollments(
-      (enrollData ?? []).map((r: any) => ({
-        courseId: r.course_id,
-        courseTitle: r.courses?.title ?? `Course ${r.course_id}`,
-        completedAt: r.completed_at,
-      }))
+      (enrollments ?? [])
+        .filter((r: any) => r.completedAt || r.completed_at)
+        .map((r: any) => ({
+          courseId: r.courseId ?? r.course_id,
+          courseTitle: r.courseTitle ?? r.title ?? `Course ${r.courseId ?? r.course_id}`,
+          completedAt: r.completedAt ? new Date(r.completedAt).toISOString() : r.completed_at ?? new Date().toISOString(),
+        }))
     );
     setCerts(certData);
     setLoading(false);
@@ -137,11 +156,8 @@ const Certificates: React.FC<CertificatesProps> = ({ userId, walletAddress }) =>
 
   useEffect(() => { loadData(); }, [userId]);
 
-  const handleMint = async (courseId: string, courseTitle: string) => {
-    if (!walletAddress) {
-      alert('Please connect and bind your wallet in Settings first to mint on-chain!');
-      return;
-    }
+  const handleMint = async (courseId: string) => {
+    if (!walletAddress) { alert('Please connect and bind your wallet in Settings first.'); return; }
     setMintingId(courseId);
     await api.requestMint(userId, courseId, walletAddress);
     await loadData();
@@ -152,91 +168,113 @@ const Certificates: React.FC<CertificatesProps> = ({ userId, walletAddress }) =>
   const unclaimed = completedEnrollments.filter(e => !mintedCourseIds.has(e.courseId));
   const isEmpty = unclaimed.length === 0 && certs.length === 0;
 
+  const STATS = [
+    { label: 'Completed',  value: completedEnrollments.length,                     icon: BookOpen, color: 'var(--color-accent)', bg: 'rgba(139,92,246,0.1)' },
+    { label: 'Minted',     value: certs.filter(c => c.status === 'minted').length,  icon: Award,   color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
+    { label: 'Unclaimed',  value: unclaimed.length,                                  icon: Zap,     color: '#fbbf24', bg: 'rgba(251,191,36,0.1)' },
+  ];
+
   return (
-    <div className="p-4 md:p-10 max-w-7xl mx-auto pb-32">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 md:mb-12">
+    <div style={{ maxWidth: 1000, margin: '0 auto', padding: '40px 24px 80px' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 36 }}>
         <div>
-          <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
-            On-Chain <span className="text-blue-500">Certificates</span>
+          <p className="eyebrow" style={{ marginBottom: 8 }}>Achievements</p>
+          <h1 style={{ fontSize: 'clamp(1.6rem,4vw,2rem)', fontWeight: 600, letterSpacing: '-0.02em', color: 'var(--color-text-primary)', marginBottom: 6 }}>
+            On-Chain{' '}
+            <span style={{ background: 'linear-gradient(135deg,#7C3AED,#3B82F6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+              Certificates
+            </span>
           </h1>
-          <p className="text-slate-500 dark:text-gray-500 text-sm md:text-lg mt-1 md:mt-2">Soulbound NFT achievements — verifiable proof of your Web3 skills.</p>
+          <p style={{ fontSize: 14, color: 'var(--color-text-muted)' }}>Soulbound NFT achievements — verifiable proof of your Web3 skills.</p>
         </div>
         <a href="https://bscscan.com" target="_blank" rel="noopener noreferrer"
-          className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-sm font-bold text-slate-700 dark:text-gray-200 hover:bg-slate-50 dark:hover:bg-white/10 transition-all shadow-sm dark:shadow-none whitespace-nowrap">
-          Verification Portal <ExternalLink className="w-4 h-4" />
+          style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 10, background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)', fontSize: 12, fontWeight: 600, textDecoration: 'none', transition: 'border-color 0.15s' }}
+          onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.4)')}
+          onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
+        >
+          Verification Portal <ExternalLink style={{ width: 12, height: 12 }} />
         </a>
       </div>
 
-      {/* Stats bar */}
-      <div className="grid grid-cols-3 gap-3 md:gap-5 mb-8 md:mb-12">
-        {[
-          { label: 'Completed',  value: completedEnrollments.length,                    icon: BookOpen, color: 'blue'   },
-          { label: 'Minted',     value: certs.filter(c => c.status === 'minted').length, icon: Award,   color: 'purple' },
-          { label: 'Unclaimed',  value: unclaimed.length,                                icon: Zap,     color: 'amber'  },
-        ].map(t => (
-          <div key={t.label} className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-2xl md:rounded-[24px] p-4 md:p-5 flex flex-col sm:flex-row items-center sm:gap-4 gap-1 shadow-sm dark:shadow-none text-center sm:text-left">
-            <div className={`w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center shrink-0 ${
-              t.color === 'blue'   ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' :
-              t.color === 'purple' ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400' :
-              'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-            }`}>
-              <t.icon className="w-4 h-4 md:w-5 md:h-5" />
+      {/* Stats row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 32 }}>
+        {STATS.map(({ label, value, icon: Icon, color, bg }) => (
+          <div key={label} style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 14, padding: '16px', display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Icon style={{ width: 18, height: 18, color }} />
             </div>
             <div>
-              <p className="text-lg md:text-xl font-black text-slate-900 dark:text-white">{loading ? '…' : t.value}</p>
-              <p className="text-[9px] md:text-[10px] font-bold text-slate-500 dark:text-gray-500 uppercase tracking-widest">{t.label}</p>
+              <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-text-primary)' }}>{loading ? '…' : value}</p>
+              <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-text-muted)', marginTop: 2 }}>{label}</p>
             </div>
           </div>
         ))}
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-32">
-          <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 0' }}>
+          <Loader2 style={{ width: 32, height: 32, color: 'var(--color-accent)', animation: 'spin 1s linear infinite' }} />
         </div>
       ) : isEmpty ? (
-        <div className="flex flex-col items-center justify-center py-32 text-center">
-          <div className="w-24 h-24 rounded-[40px] bg-slate-100 dark:bg-white/5 flex items-center justify-center mb-8">
-            <Award className="w-12 h-12 text-slate-300 dark:text-gray-600" />
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 0', textAlign: 'center' }}>
+          <div style={{ width: 72, height: 72, borderRadius: 20, background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+            <Award style={{ width: 32, height: 32, color: 'var(--color-text-muted)' }} />
           </div>
-          <h3 className="text-2xl font-black mb-3 text-slate-900 dark:text-white">No certificates yet</h3>
-          <p className="text-slate-500 dark:text-gray-500 max-w-sm">Complete a course to earn a soulbound NFT certificate that proves your skills on-chain.</p>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 8 }}>No certificates yet</h3>
+          <p style={{ fontSize: 13, color: 'var(--color-text-muted)', maxWidth: 320, lineHeight: 1.6 }}>
+            Complete a course to earn a soulbound NFT certificate that proves your skills on-chain.
+          </p>
         </div>
       ) : (
-        <div className="space-y-10">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
           {/* Unclaimed */}
           {unclaimed.length > 0 && (
             <div>
-              <h2 className="text-base md:text-lg font-black uppercase tracking-widest text-slate-400 dark:text-gray-600 mb-5 md:mb-6 flex items-center gap-3">
-                <Zap className="w-4 h-4 text-amber-500" /> Ready to Claim ({unclaimed.length})
+              <h2 style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--color-text-muted)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Zap style={{ width: 13, height: 13, color: '#fbbf24' }} /> Ready to Claim ({unclaimed.length})
               </h2>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-8">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: 16 }}>
                 {unclaimed.map(enrol => (
-                  <div key={enrol.courseId}
-                    className="bg-white dark:bg-white/5 rounded-[40px] border-2 border-dashed border-blue-500/30 dark:border-blue-500/20 p-8 flex flex-col items-center justify-center text-center group hover:border-blue-500/60 transition-all">
-                    <div className="w-20 h-20 rounded-[32px] bg-gradient-to-br from-blue-500/20 to-indigo-500/20 flex items-center justify-center mb-5 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
-                      <Award className="w-10 h-10" />
+                  <div key={enrol.courseId} style={{
+                    background: 'var(--color-bg-card)',
+                    border: '2px dashed rgba(139,92,246,0.25)',
+                    borderRadius: 20, padding: '28px 20px',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center',
+                    transition: 'border-color 0.2s',
+                  }}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)')}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.25)')}
+                  >
+                    <div style={{ width: 64, height: 64, borderRadius: 18, background: 'linear-gradient(135deg,rgba(139,92,246,0.2),rgba(124,58,237,0.15))', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16, color: 'var(--color-accent)' }}>
+                      <Award style={{ width: 28, height: 28 }} />
                     </div>
-                    <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 mb-4">
+                    <span style={{ padding: '3px 10px', borderRadius: 6, background: 'rgba(52,211,153,0.1)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>
                       Course Completed ✓
                     </span>
-                    <h4 className="text-lg font-black mb-2 text-slate-900 dark:text-white leading-snug">{enrol.courseTitle}</h4>
+                    <h4 style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)', lineHeight: 1.4, marginBottom: 6 }}>{enrol.courseTitle}</h4>
                     {enrol.completedAt && (
-                      <p className="text-[10px] text-slate-400 dark:text-gray-600 mb-6">
+                      <p style={{ fontSize: 10, color: 'var(--color-text-muted)', marginBottom: 14 }}>
                         Completed {new Date(enrol.completedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </p>
                     )}
-                    <p className="text-xs text-slate-400 dark:text-gray-600 mb-8 leading-relaxed">
-                      Mint your Soulbound NFT to claim this certificate on BNB Chain permanently.
+                    <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 20, lineHeight: 1.6 }}>
+                      Mint your Soulbound NFT on BNB Chain permanently.
                     </p>
                     <button
-                      onClick={() => handleMint(enrol.courseId, enrol.courseTitle)}
+                      onClick={() => handleMint(enrol.courseId)}
                       disabled={mintingId === enrol.courseId}
-                      className="w-full py-4 rounded-2xl bg-blue-600 text-white font-black hover:bg-blue-500 transition-all shadow-xl shadow-blue-500/20 flex items-center justify-center gap-2 disabled:opacity-60"
+                      style={{
+                        width: '100%', padding: '11px', borderRadius: 10,
+                        background: 'var(--color-accent)', color: '#fff',
+                        fontWeight: 600, fontSize: 13, border: 'none', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                        opacity: mintingId === enrol.courseId ? 0.6 : 1,
+                      }}
                     >
                       {mintingId === enrol.courseId
-                        ? <><Loader2 className="w-5 h-5 animate-spin" /> Minting…</>
-                        : <><Zap className="w-5 h-5 fill-current" /> Mint Soulbound NFT</>}
+                        ? <><Loader2 style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} /> Minting…</>
+                        : <><Zap style={{ width: 14, height: 14 }} /> Mint Soulbound NFT</>}
                     </button>
                   </div>
                 ))}
@@ -247,12 +285,12 @@ const Certificates: React.FC<CertificatesProps> = ({ userId, walletAddress }) =>
           {/* Minted */}
           {certs.length > 0 && (
             <div>
-              <h2 className="text-base md:text-lg font-black uppercase tracking-widest text-slate-400 dark:text-gray-600 mb-5 md:mb-6 flex items-center gap-3">
-                <ShieldCheck className="w-4 h-4 text-emerald-500" /> Minted Certificates ({certs.length})
+              <h2 style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--color-text-muted)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <ShieldCheck style={{ width: 13, height: 13, color: '#34d399' }} /> Minted Certificates ({certs.length})
               </h2>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-8">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 16 }}>
                 {certs.map(cert => {
-                  const title = completedEnrollments.find(e => e.courseId === cert.courseId)?.courseTitle ?? `Course Certificate`;
+                  const title = completedEnrollments.find(e => e.courseId === cert.courseId)?.courseTitle ?? 'Course Certificate';
                   return <CertCard key={cert.id} cert={cert} title={title} />;
                 })}
               </div>

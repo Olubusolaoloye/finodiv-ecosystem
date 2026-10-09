@@ -1,626 +1,720 @@
-
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useQuery } from 'convex/react';
 import { UserRole } from '../types';
-import { supabase } from '../services/supabase';
+import { getSession } from '../services/session';
+import { convex } from '../services/convex';
+import { api } from '../convex/_generated/api';
+import { Id } from '../convex/_generated/dataModel';
 import {
   Send, Pin, ShieldCheck, Trash2, X, XCircle, Loader2,
-  Plus, Hash, Users, LogIn, LogOut as LeaveIcon, Check,
-  TrendingUp, DollarSign, Globe, AlertCircle, ImagePlus, ChevronDown,
+  Plus, Hash, LogIn, LogOut as LeaveIcon, Check,
+  MessageSquare, AlertCircle, ImagePlus,
+  Mic, Play, Square, Volume2, ChevronLeft,
+  Search, Settings, Users, Lock,
 } from 'lucide-react';
 
 interface CommunityProps { role: UserRole; }
-
 interface ChatRoom {
-  id: string;
-  name: string;
-  slug: string;
-  description: string;
-  icon_color: string;
-  memberCount?: number;
+  _id: Id<'chatRooms'>; name: string; slug: string;
+  description: string; iconColor: string; isActive: boolean;
 }
-
 interface Message {
-  id: string;
-  content: string;
-  image_url?: string | null;
-  is_pinned: boolean;
-  created_at: string;
-  user_id: string;
-  profiles: { name: string; role: string; avatar_url: string | null } | null;
+  _id: Id<'communityMessages'>; _creationTime: number;
+  roomId: Id<'chatRooms'>; userId: string; content: string;
+  imageStorageId?: Id<'_storage'>; audioStorageId?: Id<'_storage'>;
+  audioDuration?: number; imageUrl?: string; audioUrl?: string;
+  isPinned: boolean; userName: string; userRole: string; userAvatar?: string;
 }
-
 interface CurrentUser { id: string; name: string; avatarUrl: string; }
 
-const formatTime = (iso: string) =>
-  new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-const formatDate = (iso: string) => {
-  const d = new Date(iso);
-  const today = new Date();
-  if (d.toDateString() === today.toDateString()) return 'Today';
-  const yest = new Date(today); yest.setDate(today.getDate() - 1);
-  if (d.toDateString() === yest.toDateString()) return 'Yesterday';
+const fmt = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const fmtDate = (ts: number) => {
+  const d = new Date(ts), t = new Date();
+  if (d.toDateString() === t.toDateString()) return 'Today';
+  const y = new Date(t); y.setDate(t.getDate() - 1);
+  if (d.toDateString() === y.toDateString()) return 'Yesterday';
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 };
+const fmtDur = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
-const ROOM_ICONS: Record<string, React.ReactNode> = {
-  'forex-hub': <DollarSign className="w-5 h-5" />,
-  'web3-live': <TrendingUp className="w-5 h-5" />,
-};
+const COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
-const PRESET_COLORS = ['#2F6DF2', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899'];
-
-/* ── Toast helper ──────────────────────────────────────────────────────────── */
-const Toast: React.FC<{ msg: string; onDismiss: () => void }> = ({ msg, onDismiss }) => (
-  <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 bg-red-600 text-white rounded-2xl shadow-2xl animate-in slide-in-from-bottom-4">
-    <AlertCircle className="w-4 h-4 shrink-0" />
-    <span className="text-sm font-semibold">{msg}</span>
-    <button onClick={onDismiss} className="ml-2 opacity-70 hover:opacity-100"><X className="w-4 h-4" /></button>
+/* ─── Toast ─────────────────────────────────────────────────────── */
+const Toast: React.FC<{ msg: string; onClose: () => void }> = ({ msg, onClose }) => (
+  <div style={{
+    position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)',
+    zIndex: 200, display: 'flex', alignItems: 'center', gap: 10,
+    padding: '12px 20px', borderRadius: 14,
+    background: 'rgba(220,38,38,0.95)', backdropFilter: 'blur(12px)',
+    color: '#fff', boxShadow: '0 8px 32px rgba(220,38,38,0.35)',
+    fontSize: 13, fontWeight: 600,
+  }}>
+    <AlertCircle style={{ width: 15, height: 15, flexShrink: 0 }} />
+    {msg}
+    <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', padding: 0, marginLeft: 4 }}>
+      <X style={{ width: 13, height: 13 }} />
+    </button>
   </div>
 );
 
-/* ═══════════════════════════════════════════════════════════════════════════ */
-const Community: React.FC<CommunityProps> = ({ role }) => {
-  const isAdmin = role === UserRole.ADMIN || role === UserRole.MOD;
-
-  const [currentUser, setCurrentUser]     = useState<CurrentUser | null>(null);
-  const [rooms, setRooms]                 = useState<ChatRoom[]>([]);
-  const [joinedRoomIds, setJoinedRoomIds] = useState<Set<string>>(new Set());
-  const [activeRoom, setActiveRoom]       = useState<ChatRoom | null>(null);
-  const [messages, setMessages]           = useState<Message[]>([]);
-  const [loadingRooms, setLoadingRooms]   = useState(true);
-  const [loadingMsgs, setLoadingMsgs]     = useState(false);
-  const [inputValue, setInputValue]       = useState('');
-  const [sending, setSending]             = useState(false);
-  const [showPinned, setShowPinned]       = useState(true);
-  const [joiningId, setJoiningId]         = useState<string | null>(null);
-  const [toastMsg, setToastMsg]           = useState<string | null>(null);
-
-  /* image upload */
-  const [imageFile,    setImageFile]    = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [uploadingImg, setUploadingImg] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  /* mobile room picker */
-  const [showMobileRooms, setShowMobileRooms] = useState(false);
-
-  /* admin create-room modal */
-  const [showCreate, setShowCreate]   = useState(false);
-  const [newName, setNewName]         = useState('');
-  const [newDesc, setNewDesc]         = useState('');
-  const [newColor, setNewColor]       = useState('#2F6DF2');
-  const [creating, setCreating]       = useState(false);
-
-  const chatEndRef  = useRef<HTMLDivElement>(null);
-  const realtimeRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-
-  const toast = (msg: string) => {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 4000);
+/* ─── Audio player ───────────────────────────────────────────────── */
+const AudioMsg: React.FC<{ url: string; duration?: number; own: boolean }> = ({ url, duration, own }) => {
+  const [playing, setPlaying] = useState(false);
+  const [cur, setCur] = useState(0);
+  const [total, setTotal] = useState(duration ?? 0);
+  const ref = useRef<HTMLAudioElement>(null);
+  const toggle = () => {
+    if (!ref.current) return;
+    if (playing) { ref.current.pause(); setPlaying(false); }
+    else { ref.current.play(); setPlaying(true); }
   };
-
-  /* ── Load current user ─────────────────────────────────────────────────── */
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return;
-      const { data: p } = await supabase
-        .from('profiles').select('name, avatar_url').eq('id', user.id).maybeSingle();
-      setCurrentUser({
-        id: user.id,
-        name: p?.name || user.email?.split('@')[0] || 'User',
-        avatarUrl: p?.avatar_url || `https://i.pravatar.cc/100?u=${user.id}`,
-      });
-    });
-  }, []);
-
-  /* ── Load rooms + memberships ──────────────────────────────────────────── */
-  useEffect(() => {
-    (async () => {
-      const { data: roomData, error } = await supabase
-        .from('chat_rooms').select('id,name,slug,description,icon_color')
-        .eq('is_active', true).order('created_at', { ascending: true });
-
-      if (error) { console.error('load rooms:', error); setLoadingRooms(false); return; }
-      if (!roomData?.length) { setLoadingRooms(false); return; }
-
-      /* member counts */
-      const withCounts = await Promise.all(
-        roomData.map(async (r: any) => {
-          const { count } = await supabase
-            .from('room_memberships').select('*', { count: 'exact', head: true }).eq('room_id', r.id);
-          return { ...r, memberCount: count ?? 0 } as ChatRoom;
-        })
-      );
-      setRooms(withCounts);
-
-      /* user's memberships */
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: membs } = await supabase
-          .from('room_memberships').select('room_id').eq('user_id', user.id);
-        const ids = new Set((membs || []).map((m: any) => m.room_id as string));
-        setJoinedRoomIds(ids);
-        const first = withCounts.find(r => ids.has(r.id)) ?? withCounts[0];
-        setActiveRoom(first ?? null);
-      } else {
-        setActiveRoom(withCounts[0] ?? null);
-      }
-      setLoadingRooms(false);
-    })();
-  }, []);
-
-  /* ── Load messages + realtime per active room ──────────────────────────── */
-  const loadMessages = useCallback(async (room: ChatRoom) => {
-    setLoadingMsgs(true);
-    setMessages([]);
-    const { data, error } = await supabase
-      .from('community_messages')
-      .select('id, content, image_url, is_pinned, created_at, user_id, profiles(name, role, avatar_url)')
-      .eq('channel', room.slug)
-      .order('created_at', { ascending: true })
-      .limit(200);
-    if (error) console.error('load messages:', error);
-    setMessages((data as unknown as Message[]) || []);
-    setLoadingMsgs(false);
-  }, []);
-
-  useEffect(() => {
-    if (!activeRoom) return;
-    if (realtimeRef.current) supabase.removeChannel(realtimeRef.current);
-
-    loadMessages(activeRoom);
-    setShowPinned(true);
-
-    const sub = supabase
-      .channel(`comm_${activeRoom.slug}_${Date.now()}`)
-      .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'community_messages', filter: `channel=eq.${activeRoom.slug}` },
-        async (payload) => {
-          /* Fetch full row with profiles JOIN now that SELECT is public */
-          const { data } = await supabase
-            .from('community_messages')
-            .select('id, content, image_url, is_pinned, created_at, user_id, profiles(name, role, avatar_url)')
-            .eq('id', payload.new.id).single();
-          if (data) {
-            setMessages(prev => prev.some(m => m.id === (data as any).id)
-              ? prev
-              : [...prev, data as unknown as Message]);
-          }
-        }
-      )
-      .on('postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'community_messages' },
-        (payload) => {
-          setMessages(prev => prev.map(m =>
-            m.id === payload.new.id ? { ...m, is_pinned: payload.new.is_pinned } : m));
-        }
-      )
-      .on('postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'community_messages' },
-        (payload) => setMessages(prev => prev.filter(m => m.id !== payload.old.id))
-      )
-      .subscribe((status) => {
-        if (status === 'CHANNEL_ERROR') console.error('Realtime channel error for', activeRoom.slug);
-      });
-
-    realtimeRef.current = sub;
-    return () => { supabase.removeChannel(sub); };
-  }, [activeRoom?.id]);
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  /* ── Join ──────────────────────────────────────────────────────────────── */
-  const joinRoom = async (room: ChatRoom) => {
-    if (!currentUser) { toast('You must be signed in to join a room.'); return; }
-    setJoiningId(room.id);
-    const { error } = await supabase
-      .from('room_memberships')
-      .insert({ user_id: currentUser.id, room_id: room.id });
-    if (error) {
-      console.error('join room:', error);
-      toast(`Could not join room: ${error.message}`);
-      setJoiningId(null);
-      return;
-    }
-    setJoinedRoomIds(prev => new Set([...prev, room.id]));
-    setRooms(prev => prev.map(r => r.id === room.id ? { ...r, memberCount: (r.memberCount ?? 0) + 1 } : r));
-    setActiveRoom(room);
-    setJoiningId(null);
-  };
-
-  /* ── Leave ─────────────────────────────────────────────────────────────── */
-  const leaveRoom = async (room: ChatRoom) => {
-    if (!currentUser) return;
-    const { error } = await supabase
-      .from('room_memberships')
-      .delete().eq('user_id', currentUser.id).eq('room_id', room.id);
-    if (error) { toast(`Could not leave room: ${error.message}`); return; }
-    setJoinedRoomIds(prev => { const s = new Set(prev); s.delete(room.id); return s; });
-    setRooms(prev => prev.map(r => r.id === room.id ? { ...r, memberCount: Math.max(0, (r.memberCount ?? 1) - 1) } : r));
-  };
-
-  /* ── Image select ─────────────────────────────────────────────────────── */
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { toast('Image must be under 5 MB.'); return; }
-    setImageFile(file);
-    const reader = new FileReader();
-    reader.onload = ev => setImagePreview(ev.target?.result as string);
-    reader.readAsDataURL(file);
-    // reset input so same file can be re-selected
-    e.target.value = '';
-  };
-
-  const clearImage = () => { setImageFile(null); setImagePreview(null); };
-
-  /* ── Send message ──────────────────────────────────────────────────────── */
-  const handleSend = async () => {
-    const hasText  = inputValue.trim().length > 0;
-    const hasImage = imageFile !== null;
-    if ((!hasText && !hasImage) || !currentUser || !activeRoom || sending) return;
-
-    const content = inputValue.trim();
-    setInputValue('');
-    setSending(true);
-
-    /* Upload image first if present */
-    let image_url: string | null = null;
-    if (imageFile) {
-      setUploadingImg(true);
-      const ext  = imageFile.name.split('.').pop() ?? 'jpg';
-      const path = `${currentUser.id}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage
-        .from('chat-images')
-        .upload(path, imageFile, { contentType: imageFile.type, upsert: false });
-      setUploadingImg(false);
-      clearImage();
-      if (upErr) {
-        console.error('image upload:', upErr);
-        toast(`Image upload failed: ${upErr.message}`);
-        setSending(false);
-        if (content) setInputValue(content);
-        return;
-      }
-      const { data: urlData } = supabase.storage.from('chat-images').getPublicUrl(path);
-      image_url = urlData.publicUrl;
-    }
-
-    const { data, error } = await supabase
-      .from('community_messages')
-      .insert({ user_id: currentUser.id, channel: activeRoom.slug, content: content || '', image_url })
-      .select('id, content, image_url, is_pinned, created_at, user_id, profiles(name, role, avatar_url)')
-      .single();
-
-    setSending(false);
-
-    if (error) {
-      console.error('send message:', error);
-      if (content) setInputValue(content); // restore so they don't lose their text
-      toast(`Message not sent: ${error.message}`);
-      return;
-    }
-
-    /* Optimistic add — Realtime will also fire but deduplicated by id */
-    if (data) {
-      setMessages(prev => prev.some(m => m.id === (data as any).id)
-        ? prev
-        : [...prev, data as unknown as Message]);
-    }
-  };
-
-  /* ── Admin: pin / delete ───────────────────────────────────────────────── */
-  const togglePin = async (msgId: string, current: boolean) => {
-    const { error } = await supabase
-      .from('community_messages').update({ is_pinned: !current }).eq('id', msgId);
-    if (error) toast(`Pin failed: ${error.message}`);
-  };
-
-  const deleteMessage = async (msgId: string) => {
-    const { error } = await supabase
-      .from('community_messages').delete().eq('id', msgId);
-    if (error) toast(`Delete failed: ${error.message}`);
-  };
-
-  /* ── Admin: create room ────────────────────────────────────────────────── */
-  const handleCreateRoom = async () => {
-    if (!newName.trim()) return;
-    setCreating(true);
-    const slug = newName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-    const { data: { user } } = await supabase.auth.getUser();
-
-    const { data, error } = await supabase
-      .from('chat_rooms')
-      .insert({ name: newName.trim(), slug, description: newDesc.trim(), icon_color: newColor, created_by: user?.id ?? null })
-      .select().single();
-
-    setCreating(false);
-    if (error) {
-      console.error('create room:', error);
-      toast(`Could not create room: ${error.message}`);
-      return;
-    }
-    if (data) {
-      setRooms(prev => [...prev, { ...data, memberCount: 0 } as ChatRoom]);
-      setActiveRoom({ ...data, memberCount: 0 } as ChatRoom);
-    }
-    setNewName(''); setNewDesc(''); setNewColor('#2F6DF2');
-    setShowCreate(false);
-  };
-
-  /* ── Helpers ───────────────────────────────────────────────────────────── */
-  const isMember   = activeRoom ? joinedRoomIds.has(activeRoom.id) : false;
-  const pinned     = messages.filter(m => m.is_pinned);
-  const getAvatar  = (m: Message) => m.profiles?.avatar_url || `https://i.pravatar.cc/100?u=${m.user_id}`;
-  const getName    = (m: Message) => m.profiles?.name || 'User';
-  const getRole    = (m: Message): UserRole => (m.profiles?.role as UserRole) || UserRole.LEARNER;
-  const isOwn      = (m: Message) => m.user_id === currentUser?.id;
-
-  /* Group by date */
-  const grouped = messages.reduce<Array<{ date: string; msgs: Message[] }>>((acc, msg) => {
-    const d = formatDate(msg.created_at);
-    const last = acc[acc.length - 1];
-    if (last?.date === d) last.msgs.push(msg);
-    else acc.push({ date: d, msgs: [msg] });
-    return acc;
-  }, []);
-
-  /* ═══════════════════════════════════════════════════════════════════════ */
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-slate-50 dark:bg-[#0b0e14] md:flex-row">
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', minWidth: 200, maxWidth: 280 }}>
+      <audio ref={ref} src={url}
+        onTimeUpdate={e => setCur(Math.floor((e.target as HTMLAudioElement).currentTime))}
+        onLoadedMetadata={e => { const d = (e.target as HTMLAudioElement).duration; if (isFinite(d)) setTotal(Math.floor(d)); }}
+        onEnded={() => { setPlaying(false); setCur(0); if (ref.current) ref.current.currentTime = 0; }}
+      />
+      <button onClick={toggle} style={{
+        width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer', flexShrink: 0,
+        background: own ? 'rgba(255,255,255,0.2)' : 'rgba(99,102,241,0.15)',
+        color: own ? '#fff' : '#818cf8',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        {playing ? <Square style={{ width: 11, height: 11 }} /> : <Play style={{ width: 11, height: 11, marginLeft: 1 }} />}
+      </button>
+      <div style={{ flex: 1, display: 'flex', gap: 2, alignItems: 'center', height: 24 }}>
+        {Array.from({ length: 24 }).map((_, i) => {
+          const h = 4 + Math.abs(Math.sin(i * 1.2) * 5 + Math.cos(i * 0.7) * 4);
+          const filled = total > 0 && i / 24 < cur / total;
+          return <div key={i} style={{
+            width: 3, height: Math.max(3, h), borderRadius: 99,
+            background: own
+              ? (filled ? '#fff' : 'rgba(255,255,255,0.3)')
+              : (filled ? '#818cf8' : 'rgba(129,140,248,0.25)'),
+            transition: 'background 0.1s',
+          }} />;
+        })}
+      </div>
+      <span style={{ fontSize: 10, fontWeight: 700, color: own ? 'rgba(255,255,255,0.7)' : 'var(--color-text-muted)', minWidth: 32, flexShrink: 0 }}>
+        {fmtDur(playing ? cur : total)}
+      </span>
+    </div>
+  );
+};
 
-      {/* Toast */}
-      {toastMsg && <Toast msg={toastMsg} onDismiss={() => setToastMsg(null)} />}
+/* ─── Room item in sidebar ───────────────────────────────────────── */
+const RoomItem: React.FC<{
+  room: ChatRoom; active: boolean; joined: boolean;
+  onClick: () => void; onJoin: (e: React.MouseEvent) => void; onLeave: (e: React.MouseEvent) => void;
+}> = ({ room, active, joined, onClick, onJoin, onLeave }) => {
+  const [hov, setHov] = useState(false);
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 11,
+        padding: '9px 12px', borderRadius: 12, cursor: 'pointer',
+        background: active ? `${room.iconColor}14` : hov ? 'var(--color-bg-deep)' : 'transparent',
+        border: active ? `1px solid ${room.iconColor}30` : '1px solid transparent',
+        transition: 'all 0.15s', marginBottom: 2, position: 'relative',
+      }}
+    >
+      {/* Avatar */}
+      <div style={{
+        width: 38, height: 38, borderRadius: 11, flexShrink: 0,
+        background: `linear-gradient(135deg, ${room.iconColor}cc, ${room.iconColor}88)`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: '#fff', fontWeight: 800, fontSize: 15,
+        boxShadow: active ? `0 0 14px ${room.iconColor}40` : 'none',
+      }}>
+        {room.name[0].toUpperCase()}
+      </div>
 
-      {/* ── Mobile room picker bar ───────────────────────────────────────── */}
-      <div className="md:hidden shrink-0 border-b border-slate-200 dark:border-white/5 bg-white dark:bg-[#0b0e14]">
-        <button
-          onClick={() => setShowMobileRooms(v => !v)}
-          className="w-full flex items-center gap-3 px-4 py-3"
-        >
-          {activeRoom && (
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white shrink-0"
-              style={{ backgroundColor: activeRoom.icon_color }}>
-              {ROOM_ICONS[activeRoom.slug] ?? <Hash className="w-4 h-4" />}
-            </div>
-          )}
-          <span className="flex-1 text-left font-bold text-sm text-slate-900 dark:text-white truncate">
-            {activeRoom?.name ?? 'Select a room'}
-          </span>
-          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${showMobileRooms ? 'rotate-180' : ''}`} />
-        </button>
-
-        {showMobileRooms && (
-          <div className="border-t border-slate-100 dark:border-white/5 max-h-48 overflow-y-auto">
-            {rooms.map(room => (
-              <button
-                key={room.id}
-                onClick={() => { setActiveRoom(room); setShowMobileRooms(false); }}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors ${
-                  activeRoom?.id === room.id ? 'bg-blue-50 dark:bg-blue-600/10' : 'hover:bg-slate-50 dark:hover:bg-white/5'
-                }`}
-              >
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white shrink-0"
-                  style={{ backgroundColor: room.icon_color }}>
-                  {ROOM_ICONS[room.slug] ?? <Hash className="w-4 h-4" />}
-                </div>
-                <span className={`text-sm font-bold flex-1 text-left ${activeRoom?.id === room.id ? 'text-blue-600 dark:text-blue-400' : 'text-slate-800 dark:text-white'}`}>
-                  {room.name}
-                </span>
-                <span className="text-[10px] text-slate-400 dark:text-gray-600">{room.memberCount ?? 0} members</span>
-                {joinedRoomIds.has(room.id) && <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
-              </button>
-            ))}
-          </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={{
+            fontSize: 13, fontWeight: active ? 700 : 500,
+            color: active ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
+          }}>{room.name}</span>
+          {joined && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#34d399', flexShrink: 0 }} />}
+        </div>
+        {room.description && (
+          <p style={{ fontSize: 11, color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>
+            {room.description}
+          </p>
         )}
       </div>
 
-      {/* ── Sidebar (desktop) ────────────────────────────────────────────── */}
-      <aside className="w-64 shrink-0 border-r border-slate-200 dark:border-white/5 flex-col bg-white dark:bg-[#0b0e14] hidden md:flex">
-        <div className="p-5 border-b border-slate-200 dark:border-white/5">
-          <p className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-gray-500">Chat Rooms</p>
-        </div>
+      {/* Join/leave on hover */}
+      {hov && (
+        <button
+          onClick={joined ? onLeave : onJoin}
+          style={{
+            position: 'absolute', right: 8, flexShrink: 0,
+            padding: '4px 10px', borderRadius: 8, fontSize: 10, fontWeight: 700,
+            border: 'none', cursor: 'pointer',
+            background: joined ? 'rgba(248,113,113,0.12)' : `${room.iconColor}20`,
+            color: joined ? '#f87171' : room.iconColor,
+          }}
+        >
+          {joined ? 'Leave' : 'Join'}
+        </button>
+      )}
+    </div>
+  );
+};
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-1">
-          {loadingRooms ? (
-            <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-blue-500" /></div>
-          ) : rooms.map(room => {
-            const joined = joinedRoomIds.has(room.id);
-            const active = activeRoom?.id === room.id;
-            return (
-              <div
-                key={room.id}
-                onClick={() => setActiveRoom(room)}
-                className={`group relative flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all ${
-                  active
-                    ? 'bg-blue-50 dark:bg-blue-600/10 border border-blue-200 dark:border-blue-500/20'
-                    : 'hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent'
-                }`}
-              >
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-white shadow-sm"
-                  style={{ backgroundColor: room.icon_color }}>
-                  {ROOM_ICONS[room.slug] ?? <Hash className="w-5 h-5" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className={`text-sm font-bold truncate ${active ? 'text-blue-600 dark:text-blue-400' : 'text-slate-800 dark:text-white'}`}>
-                      {room.name}
-                    </span>
-                    {joined && <Check className="w-3 h-3 text-emerald-500 shrink-0" />}
-                  </div>
-                  <div className="flex items-center gap-1 text-[10px] text-slate-400 dark:text-gray-600">
-                    <Users className="w-3 h-3" />
-                    <span>{room.memberCount ?? 0} members</span>
-                  </div>
-                </div>
-                {currentUser && (
-                  <div className="opacity-0 group-hover:opacity-100 transition-all shrink-0">
-                    {joined ? (
-                      <button onClick={e => { e.stopPropagation(); leaveRoom(room); }}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all" title="Leave">
-                        <LeaveIcon className="w-3.5 h-3.5" />
-                      </button>
-                    ) : (
-                      <button onClick={e => { e.stopPropagation(); joinRoom(room); }}
-                        disabled={joiningId === room.id}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-all" title="Join">
-                        {joiningId === room.id
-                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          : <LogIn className="w-3.5 h-3.5" />}
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+/* ─── Main ───────────────────────────────────────────────────────── */
+const Community: React.FC<CommunityProps> = ({ role }) => {
+  const isAdmin = role === UserRole.ADMIN || role === UserRole.MOD;
+  const session = getSession();
 
-        {isAdmin && (
-          <div className="p-3 border-t border-slate-200 dark:border-white/5">
-            <button onClick={() => setShowCreate(true)}
-              className="w-full flex items-center gap-2 px-4 py-3 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-lg shadow-blue-500/20">
-              <Plus className="w-4 h-4" /> Create New Room
-            </button>
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [activeRoom, setActiveRoom]     = useState<ChatRoom | null>(null);
+  const [input, setInput]               = useState('');
+  const [sending, setSending]           = useState(false);
+  const [showPinned, setShowPinned]     = useState(true);
+  const [joiningId, setJoiningId]       = useState<string | null>(null);
+  const [toast, setToast]               = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen]   = useState(false); // mobile
+  const [roomSearch, setRoomSearch]     = useState('');
+
+  // Image
+  const [imgFile, setImgFile]     = useState<File | null>(null);
+  const [imgPrev, setImgPrev]     = useState<string | null>(null);
+  const [upImg, setUpImg]         = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  // Voice
+  const [recording, setRecording]       = useState(false);
+  const [recSecs, setRecSecs]           = useState(0);
+  const [audioBlob, setAudioBlob]       = useState<Blob | null>(null);
+  const [audioPrev, setAudioPrev]       = useState<string | null>(null);
+  const [upAudio, setUpAudio]           = useState(false);
+  const mrRef    = useRef<MediaRecorder | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const chatEnd  = useRef<HTMLDivElement>(null);
+
+  // Create room
+  const [showCreate, setShowCreate] = useState(false);
+  const [newName, setNewName]       = useState('');
+  const [newDesc, setNewDesc]       = useState('');
+  const [newColor, setNewColor]     = useState('#6366f1');
+  const [creating, setCreating]     = useState(false);
+
+  const rooms    = useQuery(api.community.listRooms) ?? [];
+  const messages = useQuery(api.community.listMessagesWithProfiles, activeRoom ? { roomId: activeRoom._id } : 'skip') as Message[] | undefined;
+  const memberIds = useQuery(api.community.getUserMemberships, session ? { userId: session.userId } : 'skip');
+  const joinedSet = new Set<string>((memberIds ?? []).map(String));
+
+  useEffect(() => {
+    if (!session) return;
+    convex.query(api.profiles.getByUserId, { userId: session.userId }).then((p: any) => {
+      setCurrentUser({ id: session.userId, name: p?.name || session.email?.split('@')[0] || 'User', avatarUrl: p?.avatarUrl || '' });
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!activeRoom && rooms.length > 0) {
+      const first = memberIds && memberIds.length > 0
+        ? rooms.find(r => memberIds.map(String).includes(String(r._id))) ?? rooms[0]
+        : rooms[0];
+      setActiveRoom(first ?? null);
+    }
+  }, [rooms, memberIds]);
+
+  useEffect(() => { chatEnd.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages?.length]);
+  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
+
+  const showToast = (m: string) => { setToast(m); setTimeout(() => setToast(null), 4000); };
+
+  const joinRoom = async (room: ChatRoom) => {
+    if (!currentUser) return;
+    setJoiningId(String(room._id));
+    try { await convex.mutation(api.community.joinRoom, { roomId: room._id, userId: currentUser.id }); setActiveRoom(room); }
+    catch (e: any) { showToast(e.message ?? 'Failed to join'); }
+    setJoiningId(null);
+  };
+
+  const leaveRoom = async (room: ChatRoom) => {
+    if (!currentUser) return;
+    try { await convex.mutation(api.community.leaveRoom, { roomId: room._id, userId: currentUser.id }); }
+    catch (e: any) { showToast(e.message ?? 'Failed to leave'); }
+  };
+
+  const handleImg = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > 5 * 1024 * 1024) { showToast('Image must be under 5 MB'); return; }
+    setImgFile(f);
+    const r = new FileReader(); r.onload = ev => setImgPrev(ev.target?.result as string); r.readAsDataURL(f);
+    e.target.value = '';
+  };
+  const clearImg = () => { setImgFile(null); setImgPrev(null); };
+
+  const startRec = async () => {
+    if (imgFile) { showToast('Clear image before recording'); return; }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      chunksRef.current = [];
+      const mime = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
+      const mr = new MediaRecorder(stream, { mimeType: mime });
+      mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        const b = new Blob(chunksRef.current, { type: mime });
+        setAudioBlob(b); setAudioPrev(URL.createObjectURL(b));
+      };
+      mr.start(200); mrRef.current = mr;
+      setRecording(true); setRecSecs(0);
+      timerRef.current = setInterval(() => setRecSecs(s => s + 1), 1000);
+    } catch { showToast('Mic access denied'); }
+  };
+
+  const stopRec = () => { mrRef.current?.stop(); mrRef.current = null; setRecording(false); if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } };
+  const cancelRec = () => {
+    stopRec(); setAudioBlob(null);
+    if (audioPrev) { URL.revokeObjectURL(audioPrev); setAudioPrev(null); }
+    setRecSecs(0);
+  };
+
+  const handleSend = async () => {
+    if ((!input.trim() && !imgFile && !audioBlob) || !currentUser || !activeRoom || sending) return;
+    const text = input.trim(); setInput(''); setSending(true);
+    let imgId: Id<'_storage'> | undefined;
+    let audId: Id<'_storage'> | undefined;
+    const audDur = audioBlob ? recSecs : undefined;
+
+    if (imgFile) {
+      setUpImg(true);
+      try {
+        const url = await convex.mutation(api.community.generateUploadUrl, {});
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': imgFile.type }, body: imgFile });
+        imgId = (await res.json()).storageId;
+      } catch (e: any) { showToast('Image upload failed'); setSending(false); setUpImg(false); if (text) setInput(text); return; }
+      setUpImg(false); clearImg();
+    }
+
+    if (audioBlob) {
+      setUpAudio(true);
+      try {
+        const url = await convex.mutation(api.community.generateUploadUrl, {});
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': audioBlob.type }, body: audioBlob });
+        audId = (await res.json()).storageId;
+      } catch (e: any) { showToast('Audio upload failed'); setSending(false); setUpAudio(false); return; }
+      setUpAudio(false); setAudioBlob(null);
+      if (audioPrev) { URL.revokeObjectURL(audioPrev); setAudioPrev(null); }
+      setRecSecs(0);
+    }
+
+    try {
+      await convex.mutation(api.community.sendMessage, {
+        roomId: activeRoom._id, userId: currentUser.id, content: text || '',
+        imageStorageId: imgId, audioStorageId: audId, audioDuration: audDur,
+      });
+    } catch (e: any) { if (text) setInput(text); showToast('Message not sent'); }
+    setSending(false);
+  };
+
+  const handleCreate = async () => {
+    if (!newName.trim() || !currentUser) return;
+    setCreating(true);
+    const slug = newName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '-' + Date.now().toString(36);
+    try {
+      const roomId = await convex.mutation(api.community.createRoom, { name: newName.trim(), slug, description: newDesc.trim(), iconColor: newColor, createdBy: currentUser.id });
+      await convex.mutation(api.community.joinRoom, { roomId, userId: currentUser.id });
+      setTimeout(() => { const r = rooms.find(x => String(x._id) === String(roomId)); if (r) setActiveRoom(r); }, 600);
+    } catch (e: any) { showToast(e.message ?? 'Failed to create room'); }
+    setCreating(false); setNewName(''); setNewDesc(''); setNewColor('#6366f1'); setShowCreate(false);
+  };
+
+  const isMember = activeRoom ? joinedSet.has(String(activeRoom._id)) : false;
+  const pinned = (messages ?? []).filter(m => m.isPinned);
+  const grouped = (messages ?? []).reduce<Array<{ date: string; msgs: Message[] }>>((acc, m) => {
+    const d = fmtDate(m._creationTime); const last = acc[acc.length - 1];
+    if (last?.date === d) last.msgs.push(m); else acc.push({ date: d, msgs: [m] });
+    return acc;
+  }, []);
+
+  const filteredRooms = rooms.filter(r => r.name.toLowerCase().includes(roomSearch.toLowerCase()));
+  const canSend = (input.trim().length > 0 || imgFile || audioBlob) && !sending;
+
+  /* ── Sidebar content (shared between desktop + mobile drawer) ── */
+  const SidebarContent = (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* Header */}
+      <div style={{ padding: '20px 16px 14px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 10, background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <MessageSquare style={{ width: 15, height: 15, color: '#fff' }} />
+            </div>
+            <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.02em' }}>Chats</span>
           </div>
+          {currentUser && (
+            <button onClick={() => setShowCreate(true)} style={{
+              width: 30, height: 30, borderRadius: 9, border: 'none', cursor: 'pointer',
+              background: 'rgba(99,102,241,0.12)', color: '#818cf8',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'all 0.15s',
+            }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(99,102,241,0.2)'; (e.currentTarget as HTMLElement).style.color = '#a5b4fc'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(99,102,241,0.12)'; (e.currentTarget as HTMLElement).style.color = '#818cf8'; }}
+              title="New room"
+            >
+              <Plus style={{ width: 14, height: 14 }} />
+            </button>
+          )}
+        </div>
+
+        {/* Search */}
+        <div style={{ position: 'relative' }}>
+          <Search style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', width: 13, height: 13, color: 'var(--color-text-muted)' }} />
+          <input
+            value={roomSearch} onChange={e => setRoomSearch(e.target.value)}
+            placeholder="Search rooms…"
+            style={{
+              width: '100%', padding: '8px 10px 8px 30px', borderRadius: 10,
+              background: 'var(--color-bg-deep)', border: '1px solid var(--color-border)',
+              color: 'var(--color-text-primary)', fontSize: 12, outline: 'none',
+              fontFamily: 'inherit', boxSizing: 'border-box',
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Room list */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '0 10px' }} className="custom-scrollbar">
+        <p style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--color-text-muted)', padding: '4px 4px 8px', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Hash style={{ width: 10, height: 10 }} /> Rooms · {rooms.length}
+        </p>
+        {filteredRooms.length === 0 && (
+          <p style={{ fontSize: 12, color: 'var(--color-text-muted)', padding: '8px 4px' }}>
+            {roomSearch ? 'No rooms match' : 'No rooms yet'}
+          </p>
         )}
+        {filteredRooms.map(room => (
+          <RoomItem key={String(room._id)} room={room}
+            active={activeRoom?._id === room._id}
+            joined={joinedSet.has(String(room._id))}
+            onClick={() => { setActiveRoom(room); setSidebarOpen(false); }}
+            onJoin={e => { e.stopPropagation(); joinRoom(room); }}
+            onLeave={e => { e.stopPropagation(); leaveRoom(room); }}
+          />
+        ))}
+      </div>
+
+      {/* Footer: current user */}
+      {currentUser && (
+        <div style={{ padding: '10px 14px', borderTop: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          <img src={currentUser.avatarUrl || `https://i.pravatar.cc/100?u=${currentUser.id}`}
+            style={{ width: 32, height: 32, borderRadius: 9, objectFit: 'cover', border: '1px solid var(--color-border)', flexShrink: 0 }} alt="" />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser.name}</p>
+            <p style={{ fontSize: 10, color: '#34d399', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#34d399', display: 'inline-block' }} /> Online
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div style={{ display: 'flex', height: '100%', overflow: 'hidden', background: 'var(--color-bg-primary)', position: 'relative' }}>
+      {toast && <Toast msg={toast} onClose={() => setToast(null)} />}
+
+      {/* ── Desktop sidebar ─────────────────────────────────────────── */}
+      <aside className="hidden md:block" style={{
+        width: 256, flexShrink: 0,
+        borderRight: '1px solid var(--color-border)',
+        background: 'var(--color-bg-card)',
+        height: '100%', overflow: 'hidden',
+      }}>
+        {SidebarContent}
       </aside>
 
-      {/* ── Chat area ──────────────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {!activeRoom ? (
-          <div className="flex-1 flex items-center justify-center text-slate-400 dark:text-gray-600">
-            <div className="text-center">
-              <Globe className="w-12 h-12 mx-auto mb-4 opacity-30" />
-              <p className="font-bold">Select a room to start chatting</p>
-            </div>
+      {/* ── Mobile sidebar overlay ──────────────────────────────────── */}
+      {sidebarOpen && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex' }}
+          className="md:hidden"
+        >
+          <div onClick={() => setSidebarOpen(false)} style={{ flex: 1, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }} />
+          <div style={{ width: 280, background: 'var(--color-bg-card)', borderLeft: '1px solid var(--color-border)', height: '100%', overflow: 'hidden' }}>
+            {SidebarContent}
           </div>
-        ) : (
-          <>
-            {/* Header */}
-            <div className="h-[68px] bg-white/80 dark:bg-[#0b0e14]/80 backdrop-blur-md border-b border-slate-200 dark:border-white/5 px-6 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white shrink-0"
-                  style={{ backgroundColor: activeRoom.icon_color }}>
-                  {ROOM_ICONS[activeRoom.slug] ?? <Hash className="w-4 h-4" />}
-                </div>
-                <div>
-                  <h1 className="text-base font-black text-slate-900 dark:text-white leading-none">{activeRoom.name}</h1>
-                  <p className="text-[11px] text-slate-400 dark:text-gray-500 mt-0.5 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
-                    Live · {activeRoom.memberCount ?? 0} members
-                  </p>
-                </div>
+        </div>
+      )}
+
+      {/* ── Main chat area ──────────────────────────────────────────── */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+
+        {/* ── Top bar ────────────────────────────────────────────── */}
+        <header style={{
+          height: 64, flexShrink: 0,
+          background: 'var(--color-bg-card)',
+          borderBottom: '1px solid var(--color-border)',
+          display: 'flex', alignItems: 'center', padding: '0 20px', gap: 12,
+        }}>
+          {/* Mobile menu */}
+          <button className="md:hidden" onClick={() => setSidebarOpen(true)} style={{
+            width: 36, height: 36, borderRadius: 10, background: 'var(--color-bg-deep)',
+            border: '1px solid var(--color-border)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)', flexShrink: 0,
+          }}>
+            <ChevronLeft style={{ width: 16, height: 16, transform: 'rotate(180deg)' }} />
+          </button>
+
+          {activeRoom ? (
+            <>
+              <div style={{
+                width: 38, height: 38, borderRadius: 11, flexShrink: 0,
+                background: `linear-gradient(135deg, ${activeRoom.iconColor}cc, ${activeRoom.iconColor}88)`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#fff', fontWeight: 800, fontSize: 16,
+                boxShadow: `0 0 16px ${activeRoom.iconColor}30`,
+              }}>{activeRoom.name[0].toUpperCase()}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h2 style={{ fontSize: 15, fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>{activeRoom.name}</h2>
+                <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#34d399', display: 'inline-block' }} />
+                  {activeRoom.description || 'Chat room'}
+                </p>
               </div>
+
+              {/* Pinned toggle */}
+              {pinned.length > 0 && (
+                <button onClick={() => setShowPinned(v => !v)} style={{
+                  display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px',
+                  borderRadius: 9, background: showPinned ? 'rgba(99,102,241,0.1)' : 'var(--color-bg-deep)',
+                  border: `1px solid ${showPinned ? 'rgba(99,102,241,0.25)' : 'var(--color-border)'}`,
+                  color: showPinned ? '#818cf8' : 'var(--color-text-muted)',
+                  fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                }}>
+                  <Pin style={{ width: 11, height: 11 }} /> {pinned.length}
+                </button>
+              )}
+
+              {/* Join / Leave */}
               {currentUser && (
                 isMember ? (
-                  <button onClick={() => leaveRoom(activeRoom)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 text-xs font-bold text-slate-500 dark:text-gray-400 hover:border-red-400 hover:text-red-500 transition-all">
-                    <LeaveIcon className="w-3.5 h-3.5" /> Leave
+                  <button onClick={() => leaveRoom(activeRoom)} style={{
+                    display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px',
+                    borderRadius: 10, background: 'transparent',
+                    border: '1px solid var(--color-border)', cursor: 'pointer',
+                    color: 'var(--color-text-muted)', fontSize: 12, fontWeight: 600,
+                    transition: 'all 0.15s',
+                  }}
+                    onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = '#f87171'; el.style.color = '#f87171'; }}
+                    onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--color-border)'; el.style.color = 'var(--color-text-muted)'; }}
+                  >
+                    <LeaveIcon style={{ width: 13, height: 13 }} /> Leave
                   </button>
                 ) : (
-                  <button onClick={() => joinRoom(activeRoom)} disabled={joiningId === activeRoom.id}
-                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-500 transition-all disabled:opacity-60">
-                    {joiningId === activeRoom.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogIn className="w-3.5 h-3.5" />}
-                    Join Room
+                  <button onClick={() => joinRoom(activeRoom)} disabled={joiningId === String(activeRoom._id)} style={{
+                    display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px',
+                    borderRadius: 10, background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                    border: 'none', cursor: 'pointer', color: '#fff', fontSize: 12, fontWeight: 700,
+                    boxShadow: '0 4px 16px rgba(99,102,241,0.35)',
+                  }}>
+                    {joiningId === String(activeRoom._id) ? <Loader2 style={{ width: 13, height: 13, animation: 'spin 1s linear infinite' }} /> : <LogIn style={{ width: 13, height: 13 }} />}
+                    Join
                   </button>
                 )
               )}
+            </>
+          ) : (
+            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text-primary)' }}>Chats</span>
+          )}
+        </header>
+
+        {/* ── Pinned strip ───────────────────────────────────────── */}
+        {showPinned && pinned.length > 0 && (
+          <div style={{
+            flexShrink: 0, background: 'rgba(99,102,241,0.05)',
+            borderBottom: '1px solid rgba(99,102,241,0.15)',
+            padding: '8px 20px', display: 'flex', alignItems: 'center', gap: 10,
+          }}>
+            <Pin style={{ width: 12, height: 12, color: '#818cf8', flexShrink: 0 }} />
+            <div style={{ flex: 1, overflow: 'hidden', display: 'flex', gap: 16 }}>
+              {pinned.map(p => (
+                <span key={String(p._id)} style={{ fontSize: 12, color: '#818cf8', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 240 }}>
+                  {p.content || (p.audioUrl ? '🎤 Voice note' : p.imageUrl ? '🖼 Image' : '…')}
+                </span>
+              ))}
             </div>
+            <button onClick={() => setShowPinned(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: 4, borderRadius: 6 }}>
+              <X style={{ width: 12, height: 12 }} />
+            </button>
+          </div>
+        )}
 
-            {/* Pinned */}
-            {pinned.length > 0 && showPinned && (
-              <div className="bg-blue-50 dark:bg-blue-600/10 border-b border-blue-200 dark:border-blue-500/20 px-6 py-2.5 flex items-center justify-between">
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <Pin className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                  <div className="flex gap-4 overflow-x-auto whitespace-nowrap">
-                    {pinned.map(pm => (
-                      <span key={pm.id} className="text-xs font-bold text-blue-700 dark:text-blue-200/80 truncate max-w-xs pr-4 border-r border-blue-200 dark:border-blue-500/10 last:border-none">
-                        {pm.content}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <button onClick={() => setShowPinned(false)} className="p-1 rounded-lg hover:bg-blue-100 dark:hover:bg-white/5 text-blue-400 transition-all shrink-0 ml-2">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+        {/* ── Empty state ────────────────────────────────────────── */}
+        {!activeRoom ? (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: 32 }}>
+            <div style={{
+              width: 80, height: 80, borderRadius: 24,
+              background: 'linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.1))',
+              border: '1px solid rgba(99,102,241,0.2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <MessageSquare style={{ width: 34, height: 34, color: '#818cf8', opacity: 0.7 }} />
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--color-text-primary)', marginBottom: 8, letterSpacing: '-0.02em' }}>Pick a room to start chatting</h3>
+              <p style={{ fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.6 }}>Select a room from the sidebar, or create your own.</p>
+            </div>
+            {currentUser && (
+              <button onClick={() => setShowCreate(true)} style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '11px 22px', borderRadius: 12,
+                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                color: '#fff', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer',
+                boxShadow: '0 4px 20px rgba(99,102,241,0.35)',
+              }}>
+                <Plus style={{ width: 15, height: 15 }} /> Create a Room
+              </button>
             )}
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4">
-              {loadingMsgs ? (
-                <div className="flex items-center justify-center h-full">
-                  <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
+          </div>
+        ) : (
+          <>
+            {/* ── Messages ─────────────────────────────────────── */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }} className="custom-scrollbar">
+              {messages === undefined ? (
+                <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 60 }}>
+                  <Loader2 style={{ width: 24, height: 24, color: '#818cf8', animation: 'spin 1s linear infinite' }} />
                 </div>
               ) : messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full opacity-40 text-slate-500 dark:text-gray-500 select-none">
-                  <Hash className="w-10 h-10 mb-3" />
-                  <p className="font-bold text-sm">No messages yet — be the first!</p>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12, opacity: 0.35, color: 'var(--color-text-muted)' }}>
+                  <Hash style={{ width: 40, height: 40 }} />
+                  <p style={{ fontSize: 14, fontWeight: 600 }}>No messages yet — say hello!</p>
                 </div>
               ) : (
-                <div className="space-y-1">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {grouped.map(({ date, msgs }) => (
                     <div key={date}>
-                      <div className="flex items-center gap-3 my-6 select-none">
-                        <div className="flex-1 h-px bg-slate-200 dark:bg-white/5" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-gray-600 px-3">{date}</span>
-                        <div className="flex-1 h-px bg-slate-200 dark:bg-white/5" />
+                      {/* Date divider */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '24px 0 16px' }}>
+                        <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
+                        <span style={{ padding: '4px 12px', borderRadius: 20, background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-text-muted)' }}>
+                          {date}
+                        </span>
+                        <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
                       </div>
-                      <div className="space-y-4">
-                        {msgs.map(msg => {
-                          const own = isOwn(msg);
-                          const sRole = getRole(msg);
+
+                      {/* Messages in group */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {msgs.map((msg, idx) => {
+                          const own = msg.userId === currentUser?.id;
+                          const isStaff = msg.userRole === 'ADMIN' || msg.userRole === 'MOD';
+                          const avatar = msg.userAvatar || `https://i.pravatar.cc/100?u=${msg.userId}`;
+                          // Cluster: same user as previous message
+                          const prev = idx > 0 ? msgs[idx - 1] : null;
+                          const clustered = prev && prev.userId === msg.userId && (msg._creationTime - prev._creationTime) < 120000;
+
                           return (
-                            <div key={msg.id} className={`flex gap-3 group ${own ? 'flex-row-reverse' : ''}`}>
-                              <img src={getAvatar(msg)} alt={getName(msg)}
-                                className="w-9 h-9 rounded-2xl object-cover border-2 border-slate-200 dark:border-white/10 shrink-0" />
-                              <div className={`flex flex-col max-w-[68%] ${own ? 'items-end' : ''}`}>
-                                <div className={`flex items-center gap-2 mb-1.5 ${own ? 'flex-row-reverse' : ''}`}>
-                                  <span className="text-xs font-black text-slate-700 dark:text-gray-300">{own ? 'You' : getName(msg)}</span>
-                                  {(sRole === UserRole.ADMIN || sRole === UserRole.MOD) && (
-                                    <span className="px-1.5 py-0.5 rounded-md bg-red-500/10 border border-red-400/20 text-[8px] font-black text-red-500 dark:text-red-400 uppercase tracking-widest flex items-center gap-1">
-                                      <ShieldCheck className="w-2.5 h-2.5" /> Staff
+                            <div key={String(msg._id)}
+                              style={{ display: 'flex', gap: 10, flexDirection: own ? 'row-reverse' : 'row', alignItems: 'flex-end' }}
+                              className="group"
+                            >
+                              {/* Avatar (hidden in clusters) */}
+                              {!own && (
+                                <div style={{ width: 34, flexShrink: 0, alignSelf: 'flex-end' }}>
+                                  {!clustered && (
+                                    <img src={avatar} alt="" style={{ width: 34, height: 34, borderRadius: 10, objectFit: 'cover', border: '1px solid var(--color-border)', display: 'block' }} />
+                                  )}
+                                </div>
+                              )}
+
+                              <div style={{ display: 'flex', flexDirection: 'column', maxWidth: '70%', alignItems: own ? 'flex-end' : 'flex-start' }}>
+                                {/* Name row — only at top of cluster */}
+                                {!clustered && (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 5, flexDirection: own ? 'row-reverse' : 'row', paddingLeft: own ? 0 : 2, paddingRight: own ? 2 : 0 }}>
+                                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-primary)' }}>{own ? 'You' : msg.userName}</span>
+                                    {isStaff && (
+                                      <span style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 5, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.18)', fontSize: 9, fontWeight: 700, color: '#f87171', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                                        <ShieldCheck style={{ width: 8, height: 8 }} /> Staff
+                                      </span>
+                                    )}
+                                    <span style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>{fmt(msg._creationTime)}</span>
+                                  </div>
+                                )}
+
+                                {/* Bubble */}
+                                <div style={{
+                                  position: 'relative',
+                                  borderRadius: own ? '18px 4px 18px 18px' : '4px 18px 18px 18px',
+                                  background: own
+                                    ? 'linear-gradient(135deg, #6366f1, #7c3aed)'
+                                    : 'var(--color-bg-card)',
+                                  border: own ? 'none' : '1px solid var(--color-border)',
+                                  boxShadow: own ? '0 4px 20px rgba(99,102,241,0.25)' : '0 2px 8px rgba(0,0,0,0.08)',
+                                  outline: msg.isPinned ? '2px solid rgba(99,102,241,0.4)' : 'none',
+                                  outlineOffset: 2, overflow: 'hidden',
+                                }}>
+                                  {/* Text content */}
+                                  {msg.content && (
+                                    <p style={{
+                                      fontSize: 14, lineHeight: 1.55,
+                                      padding: msg.imageUrl || msg.audioUrl ? '12px 14px 8px' : '11px 14px',
+                                      color: own ? '#fff' : 'var(--color-text-primary)',
+                                      wordBreak: 'break-word',
+                                    }}>{msg.content}</p>
+                                  )}
+
+                                  {/* Image */}
+                                  {msg.imageUrl && (
+                                    <img src={msg.imageUrl} alt="attachment" style={{
+                                      display: 'block', maxWidth: 280, maxHeight: 220, objectFit: 'cover',
+                                      borderRadius: msg.content ? '0 0 16px 16px' : 'inherit',
+                                    }} />
+                                  )}
+
+                                  {/* Audio */}
+                                  {msg.audioUrl && (
+                                    <AudioMsg url={msg.audioUrl} duration={msg.audioDuration} own={own} />
+                                  )}
+
+                                  {/* Time (clustered, no name shown) */}
+                                  {clustered && (
+                                    <span style={{
+                                      position: 'absolute', bottom: 6, [own ? 'left' : 'right']: 10,
+                                      fontSize: 9, color: own ? 'rgba(255,255,255,0.45)' : 'var(--color-text-muted)',
+                                      opacity: 0, transition: 'opacity 0.15s',
+                                    }} className="group-hover:opacity-100">
+                                      {fmt(msg._creationTime)}
                                     </span>
                                   )}
-                                  <span className="text-[9px] text-slate-400 dark:text-gray-600">{formatTime(msg.created_at)}</span>
-                                </div>
-                                <div className={`
-                                  relative rounded-[20px] group/bubble overflow-hidden
-                                  ${own
-                                    ? 'bg-blue-600 text-white rounded-tr-sm shadow-lg shadow-blue-500/10'
-                                    : 'bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 text-slate-800 dark:text-gray-200 rounded-tl-sm shadow-sm dark:shadow-none'}
-                                  ${msg.is_pinned ? 'ring-2 ring-blue-500/40' : ''}
-                                `}>
-                                  {/* Image */}
-                                  {msg.image_url && (
-                                    <a href={msg.image_url} target="_blank" rel="noopener noreferrer">
-                                      <img
-                                        src={msg.image_url}
-                                        alt="shared image"
-                                        className="max-w-[280px] w-full object-cover rounded-t-[20px] block"
-                                        style={{ maxHeight: 320 }}
-                                      />
-                                    </a>
-                                  )}
-                                  {/* Text */}
-                                  {msg.content && (
-                                    <p className="text-sm leading-relaxed break-words px-4 py-3">{msg.content}</p>
-                                  )}
-                                  {/* Image-only padding */}
-                                  {msg.image_url && !msg.content && <div className="h-1" />}
+
+                                  {/* Admin actions */}
                                   {isAdmin && (
-                                    <div className={`absolute top-1 opacity-0 group-hover/bubble:opacity-100 transition-all flex items-center gap-0.5 p-1 bg-white dark:bg-black/80 backdrop-blur-md rounded-xl border border-slate-200 dark:border-white/10 shadow-lg z-10 ${own ? 'right-full mr-2' : 'left-full ml-2'}`}>
-                                      <button onClick={() => togglePin(msg.id, msg.is_pinned)}
-                                        className={`p-1.5 rounded-lg transition-all ${msg.is_pinned ? 'text-blue-500 bg-blue-50 dark:bg-blue-500/20' : 'text-slate-400 dark:text-gray-500 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'}`}>
-                                        <Pin className="w-3.5 h-3.5" />
+                                    <div className="opacity-0 group-hover:opacity-100" style={{
+                                      position: 'absolute', top: 6, [own ? 'right' : 'left']: 'calc(100% + 6px)',
+                                      display: 'flex', gap: 3, padding: '4px',
+                                      background: 'var(--color-bg-deep)', border: '1px solid var(--color-border)',
+                                      borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.25)', zIndex: 10,
+                                      transition: 'opacity 0.15s',
+                                    }}>
+                                      <button onClick={() => convex.mutation(api.community.pinMessage, { messageId: msg._id, isPinned: !msg.isPinned })} style={{
+                                        padding: '5px', borderRadius: 7,
+                                        background: msg.isPinned ? 'rgba(99,102,241,0.15)' : 'none',
+                                        border: 'none', cursor: 'pointer',
+                                        color: msg.isPinned ? '#818cf8' : 'var(--color-text-muted)',
+                                      }}>
+                                        <Pin style={{ width: 12, height: 12 }} />
                                       </button>
-                                      <button onClick={() => deleteMessage(msg.id)}
-                                        className="p-1.5 rounded-lg text-slate-400 dark:text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all">
-                                        <Trash2 className="w-3.5 h-3.5" />
+                                      <button onClick={() => convex.mutation(api.community.deleteMessage, { messageId: msg._id })} style={{
+                                        padding: '5px', borderRadius: 7, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)',
+                                      }}
+                                        onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
+                                        onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-muted)')}
+                                      >
+                                        <Trash2 style={{ width: 12, height: 12 }} />
                                       </button>
                                     </div>
                                   )}
@@ -632,136 +726,208 @@ const Community: React.FC<CommunityProps> = ({ role }) => {
                       </div>
                     </div>
                   ))}
+                  <div ref={chatEnd} />
                 </div>
               )}
-              <div ref={chatEndRef} />
             </div>
 
-            {/* Input */}
-            <div className="border-t border-slate-200 dark:border-white/5 bg-white dark:bg-[#0b0e14] shrink-0">
-              {/* Hidden file input */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/gif,image/webp"
-                className="hidden"
-                onChange={handleImageSelect}
-              />
+            {/* ── Input area ─────────────────────────────────────── */}
+            <div style={{ flexShrink: 0, background: 'var(--color-bg-card)', borderTop: '1px solid var(--color-border)', padding: '12px 16px' }}>
+              <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImg} />
 
-              {/* Image preview strip */}
-              {imagePreview && (
-                <div className="px-4 pt-3">
-                  <div className="relative inline-block">
-                    <img
-                      src={imagePreview}
-                      alt="preview"
-                      className="h-24 w-auto rounded-2xl object-cover border-2 border-blue-400/40 shadow-lg"
-                    />
-                    <button
-                      onClick={clearImage}
-                      className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg hover:bg-red-600 transition-colors"
-                    >
-                      <XCircle className="w-4 h-4" />
+              {/* Image preview */}
+              {imgPrev && (
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ position: 'relative', display: 'inline-block' }}>
+                    <img src={imgPrev} style={{ height: 72, width: 'auto', borderRadius: 10, objectFit: 'cover', border: '2px solid rgba(99,102,241,0.35)', display: 'block' }} alt="preview" />
+                    <button onClick={clearImg} style={{ position: 'absolute', top: -7, right: -7, width: 20, height: 20, borderRadius: '50%', background: '#dc2626', border: 'none', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <X style={{ width: 11, height: 11 }} />
                     </button>
-                    {uploadingImg && (
-                      <div className="absolute inset-0 bg-black/50 rounded-2xl flex items-center justify-center">
-                        <Loader2 className="w-6 h-6 text-white animate-spin" />
-                      </div>
-                    )}
+                    {upImg && <div style={{ position: 'absolute', inset: 0, borderRadius: 10, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Loader2 style={{ width: 18, height: 18, color: '#fff', animation: 'spin 1s linear infinite' }} />
+                    </div>}
                   </div>
                 </div>
               )}
 
-              <div className="p-4">
-              {!currentUser ? (
-                <p className="text-center py-3 text-sm text-slate-400 dark:text-gray-600">Sign in to participate in the conversation</p>
-              ) : !isMember ? (
-                <div className="flex items-center justify-between p-4 rounded-2xl bg-blue-50 dark:bg-blue-600/10 border border-blue-200 dark:border-blue-500/20">
-                  <p className="text-sm text-blue-700 dark:text-blue-300 font-semibold">
-                    Join <span className="font-black">{activeRoom.name}</span> to send messages
-                  </p>
-                  <button onClick={() => joinRoom(activeRoom)} disabled={joiningId === activeRoom.id}
-                    className="flex items-center gap-2 px-5 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-500 transition-all disabled:opacity-60">
-                    {joiningId === activeRoom.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
-                    Join Room
-                  </button>
-                </div>
-              ) : (
-                <div className={`flex items-center gap-3 bg-slate-100 dark:bg-white/5 border rounded-2xl px-4 py-2 transition-all ${sending ? 'border-blue-400 dark:border-blue-500/50' : 'border-slate-200 dark:border-white/10 hover:border-blue-400 dark:hover:border-blue-500/30'}`}>
-                  {/* Image upload button */}
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={sending}
-                    title="Attach image"
-                    className={`p-1.5 rounded-lg transition-all shrink-0 ${imageFile ? 'text-blue-500 bg-blue-50 dark:bg-blue-500/20' : 'text-slate-400 dark:text-gray-600 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10'} disabled:opacity-40`}
-                  >
-                    <ImagePlus className="w-4 h-4" />
-                  </button>
-                  <input
-                    type="text"
-                    value={inputValue}
-                    onChange={e => setInputValue(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                    placeholder={`Message #${activeRoom.name}...`}
-                    disabled={sending}
-                    className="flex-1 bg-transparent border-none outline-none py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 disabled:opacity-50"
-                  />
-                  <button
-                    onClick={handleSend}
-                    disabled={(!inputValue.trim() && !imageFile) || sending}
-                    className={`p-2 rounded-xl transition-all shrink-0 ${(inputValue.trim() || imageFile) && !sending ? 'bg-blue-600 text-white hover:bg-blue-500 shadow-md shadow-blue-500/20' : 'text-slate-300 dark:text-gray-700 cursor-not-allowed'}`}
-                  >
-                    {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {/* Audio preview */}
+              {audioPrev && !recording && (
+                <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ flex: 1, background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 14, overflow: 'hidden' }}>
+                    <AudioMsg url={audioPrev} duration={recSecs} own={false} />
+                  </div>
+                  <button onClick={cancelRec} style={{ width: 30, height: 30, borderRadius: 9, border: 'none', cursor: 'pointer', background: 'rgba(239,68,68,0.1)', color: '#f87171', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <X style={{ width: 13, height: 13 }} />
                   </button>
                 </div>
               )}
-              <p className="text-[10px] text-center text-slate-300 dark:text-gray-700 font-bold uppercase tracking-widest mt-2">
-                Be respectful · No spam · Follow community guidelines
-              </p>
-              </div>
+
+              {/* Not a member */}
+              {!currentUser ? (
+                <p style={{ textAlign: 'center', fontSize: 13, color: 'var(--color-text-muted)', padding: '8px 0' }}>Sign in to participate</p>
+              ) : !isMember ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderRadius: 12, background: 'rgba(99,102,241,0.05)', border: '1px solid rgba(99,102,241,0.15)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Lock style={{ width: 14, height: 14, color: '#818cf8' }} />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)' }}>Join <strong>{activeRoom.name}</strong> to chat</span>
+                  </div>
+                  <button onClick={() => joinRoom(activeRoom)} disabled={joiningId === String(activeRoom._id)} style={{
+                    display: 'flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 10,
+                    background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: '#fff',
+                    fontSize: 12, fontWeight: 700, border: 'none', cursor: 'pointer',
+                    boxShadow: '0 4px 14px rgba(99,102,241,0.3)',
+                  }}>
+                    {joiningId === String(activeRoom._id) ? <Loader2 style={{ width: 13, height: 13, animation: 'spin 1s linear infinite' }} /> : <LogIn style={{ width: 13, height: 13 }} />}
+                    Join Room
+                  </button>
+                </div>
+              ) : recording ? (
+                /* Recording UI */
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 14, background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                  <div style={{ width: 9, height: 9, borderRadius: '50%', background: '#ef4444', animation: 'pulse 1s ease-in-out infinite', flexShrink: 0 }} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#ef4444' }}>Recording</span>
+                  <span style={{ fontSize: 13, color: 'var(--color-text-muted)', fontVariantNumeric: 'tabular-nums' }}>{fmtDur(recSecs)}</span>
+                  <div style={{ flex: 1 }} />
+                  <button onClick={cancelRec} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: 12, fontWeight: 600 }}>Cancel</button>
+                  <button onClick={stopRec} style={{ padding: '8px', borderRadius: 9, border: 'none', cursor: 'pointer', background: '#ef4444', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Square style={{ width: 13, height: 13 }} />
+                  </button>
+                </div>
+              ) : (
+                /* Normal input */
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  background: 'var(--color-bg-deep)',
+                  border: '1.5px solid var(--color-border)',
+                  borderRadius: 16, padding: '5px 6px 5px 12px',
+                  transition: 'border-color 0.15s',
+                }}
+                  onFocusCapture={e => (e.currentTarget.style.borderColor = 'rgba(99,102,241,0.5)')}
+                  onBlurCapture={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
+                >
+                  {/* Image */}
+                  <button onClick={() => fileRef.current?.click()} disabled={!!audioBlob} title="Attach image" style={{
+                    padding: '7px', borderRadius: 9, background: imgFile ? 'rgba(99,102,241,0.12)' : 'none',
+                    border: 'none', cursor: 'pointer', color: imgFile ? '#818cf8' : 'var(--color-text-muted)', flexShrink: 0,
+                    transition: 'all 0.15s',
+                  }}
+                    onMouseEnter={e => { if (!imgFile) (e.currentTarget as HTMLElement).style.color = '#818cf8'; }}
+                    onMouseLeave={e => { if (!imgFile) (e.currentTarget as HTMLElement).style.color = 'var(--color-text-muted)'; }}
+                  >
+                    <ImagePlus style={{ width: 16, height: 16 }} />
+                  </button>
+
+                  {/* Text */}
+                  <input type="text" value={input} onChange={e => setInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                    placeholder={audioBlob ? 'Add a caption… (optional)' : `Message #${activeRoom.name}…`}
+                    disabled={sending}
+                    style={{
+                      flex: 1, background: 'none', border: 'none', outline: 'none',
+                      color: 'var(--color-text-primary)', fontSize: 14, padding: '7px 4px',
+                      fontFamily: 'inherit', opacity: sending ? 0.5 : 1,
+                    }}
+                  />
+
+                  {/* Mic */}
+                  {!audioBlob && (
+                    <button onClick={startRec} disabled={!!imgFile || sending} title="Record voice note" style={{
+                      padding: '7px', borderRadius: 9, border: 'none', cursor: 'pointer', flexShrink: 0,
+                      background: 'none', color: 'var(--color-text-muted)', transition: 'all 0.15s',
+                    }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#ef4444'; (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.08)'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--color-text-muted)'; (e.currentTarget as HTMLElement).style.background = 'none'; }}
+                    >
+                      <Mic style={{ width: 16, height: 16 }} />
+                    </button>
+                  )}
+
+                  {/* Send */}
+                  <button onClick={handleSend} disabled={!canSend} style={{
+                    width: 36, height: 36, borderRadius: 11, border: 'none', cursor: canSend ? 'pointer' : 'default', flexShrink: 0,
+                    background: canSend ? 'linear-gradient(135deg, #6366f1, #7c3aed)' : 'var(--color-bg-card)',
+                    color: canSend ? '#fff' : 'var(--color-text-muted)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: canSend ? '0 4px 14px rgba(99,102,241,0.35)' : 'none',
+                    transition: 'all 0.15s',
+                  }}>
+                    {upImg || upAudio
+                      ? <Loader2 style={{ width: 15, height: 15, animation: 'spin 1s linear infinite' }} />
+                      : <Send style={{ width: 15, height: 15 }} />}
+                  </button>
+                </div>
+              )}
             </div>
           </>
         )}
       </div>
 
-      {/* ── Create Room Modal ─────────────────────────────────────────────── */}
-      {showCreate && isAdmin && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-          <div className="w-full max-w-md bg-white dark:bg-[#0f1218] border border-slate-200 dark:border-white/10 rounded-[40px] p-10 shadow-2xl">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-xl font-black text-slate-900 dark:text-white">Create Chat Room</h2>
-              <button onClick={() => setShowCreate(false)} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400">
-                <X className="w-5 h-5" />
+      {/* ── Create Room Modal ──────────────────────────────────────── */}
+      {showCreate && currentUser && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}
+          onClick={e => { if (e.target === e.currentTarget) setShowCreate(false); }}
+        >
+          <div style={{
+            width: '100%', maxWidth: 440,
+            background: 'var(--color-bg-card)', border: '1px solid var(--color-border)',
+            borderRadius: 22, padding: 28, boxShadow: '0 40px 80px rgba(0,0,0,0.4)',
+          }}>
+            {/* Modal header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 12, background: `linear-gradient(135deg, ${newColor}cc, ${newColor}88)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 18 }}>
+                  {newName ? newName[0].toUpperCase() : '#'}
+                </div>
+                <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.02em' }}>Create Room</h2>
+              </div>
+              <button onClick={() => setShowCreate(false)} style={{ width: 30, height: 30, borderRadius: 9, background: 'var(--color-bg-deep)', border: '1px solid var(--color-border)', cursor: 'pointer', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <X style={{ width: 13, height: 13 }} />
               </button>
             </div>
-            <div className="space-y-5">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-gray-500">Room Name *</label>
-                <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
-                  placeholder="e.g. Crypto Signals"
-                  className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl py-3.5 px-5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-white" />
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-text-muted)', display: 'block', marginBottom: 7 }}>Room Name *</label>
+                <input type="text" value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. DeFi Signals"
+                  style={{ width: '100%', padding: '11px 14px', borderRadius: 11, background: 'var(--color-bg-deep)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)', fontSize: 14, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(99,102,241,0.5)')}
+                  onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
+                />
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-gray-500">Description</label>
-                <textarea rows={3} value={newDesc} onChange={e => setNewDesc(e.target.value)}
-                  placeholder="What is this room about?"
-                  className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl py-3.5 px-5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-slate-900 dark:text-white" />
+              <div>
+                <label style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-text-muted)', display: 'block', marginBottom: 7 }}>Description</label>
+                <textarea rows={2} value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="What's this room about?"
+                  style={{ width: '100%', padding: '11px 14px', borderRadius: 11, background: 'var(--color-bg-deep)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)', fontSize: 13, outline: 'none', resize: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(99,102,241,0.5)')}
+                  onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
+                />
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-gray-500">Room Colour</label>
-                <div className="flex gap-3 flex-wrap">
-                  {PRESET_COLORS.map(c => (
-                    <button key={c} onClick={() => setNewColor(c)}
-                      className={`w-9 h-9 rounded-xl transition-all ${newColor === c ? 'ring-2 ring-offset-2 ring-blue-500 dark:ring-offset-[#0f1218] scale-110' : 'hover:scale-105'}`}
-                      style={{ backgroundColor: c }} />
+              <div>
+                <label style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-text-muted)', display: 'block', marginBottom: 10 }}>Room Color</label>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {COLORS.map(c => (
+                    <button key={c} onClick={() => setNewColor(c)} style={{
+                      width: 30, height: 30, borderRadius: 9, background: c, cursor: 'pointer',
+                      border: newColor === c ? '3px solid var(--color-text-primary)' : '3px solid transparent',
+                      transform: newColor === c ? 'scale(1.2)' : 'none',
+                      transition: 'all 0.15s', boxShadow: newColor === c ? `0 0 10px ${c}60` : 'none',
+                    }} />
                   ))}
                 </div>
               </div>
             </div>
-            <button onClick={handleCreateRoom} disabled={!newName.trim() || creating}
-              className="w-full mt-8 py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black transition-all shadow-xl shadow-blue-500/20 flex items-center justify-center gap-2 disabled:opacity-50">
-              {creating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-              {creating ? 'Creating...' : 'Create Room'}
+
+            <button onClick={handleCreate} disabled={!newName.trim() || creating} style={{
+              width: '100%', marginTop: 22, padding: '13px', borderRadius: 12,
+              background: newName.trim() ? 'linear-gradient(135deg, #6366f1, #7c3aed)' : 'var(--color-bg-deep)',
+              color: newName.trim() ? '#fff' : 'var(--color-text-muted)',
+              fontWeight: 800, fontSize: 14, border: 'none', cursor: newName.trim() ? 'pointer' : 'default',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              boxShadow: newName.trim() ? '0 4px 20px rgba(99,102,241,0.35)' : 'none',
+              transition: 'all 0.15s',
+            }}>
+              {creating ? <><Loader2 style={{ width: 15, height: 15, animation: 'spin 1s linear infinite' }} /> Creating…</> : <><Plus style={{ width: 15, height: 15 }} /> Create Room</>}
             </button>
           </div>
         </div>

@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState } from 'react';
 // Add BookOpen to the lucide-react imports
 import { Upload, File, CheckCircle2, X, ChevronDown, Info, BookOpen } from 'lucide-react';
@@ -72,7 +72,7 @@ const ProjectSubmission: React.FC = () => {
           ))}
         </div>
 
-        <button className="w-full py-6 rounded-3xl bg-[#2F6DF2] hover:bg-blue-600 transition-all font-black text-xl shadow-2xl shadow-blue-500/20">
+        <button className="w-full py-6 rounded-3xl bg-[var(--color-accent)] hover:bg-purple-600 transition-all font-black text-xl shadow-2xl shadow-blue-500/20">
           Submit Project
         </button>
       </div>

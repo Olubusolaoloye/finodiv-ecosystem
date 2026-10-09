@@ -6,7 +6,7 @@ export const CAREER_PATHS: Record<string, CareerPath> = {
   RWA: {
     id: 'RWA',
     title: 'Real World Asset (RWA) Developer',
-    description: 'The tokenization architect. You bridge TradFi and DeFi by tokenizing real-world assets — real estate, bonds, private credit, and commodities — onto blockchain rails that settle in seconds, not days.',
+    description: 'The tokenization architect. You bridge TradFi and DeFi by tokenizing real-world assets — real estate, bonds, private credit, and commodities — onto blockchain rails that settle in seconds, not days. RWA is the dominant narrative of 2026 with $15T+ of tradeable assets targeted for tokenization by 2030.',
     traits: ['Bridge Builder', 'Compliance-Aware', 'Finance-Literate'],
     skills: ['ERC-3643', 'ERC-1400', 'Solidity', 'KYC/AML Integration', 'Oracle Design', 'Legal Frameworks'],
     duration: '8-14 Months',
@@ -174,14 +174,38 @@ export const CAREER_PATHS: Record<string, CareerPath> = {
   DAO: {
     id: 'DAO',
     title: 'DAO Governance Specialist',
-    description: 'The architect of decentralized democracy. You design governance frameworks, write proposals, facilitate votes, and help communities make collective decisions at scale.',
+    description: 'The architect of decentralized democracy. You design governance frameworks, write proposals, facilitate votes, and help communities make collective decisions at scale. In 2026, DAOs manage $80B+ in treasury assets.',
     traits: ['Diplomatic', 'Strategic', 'Community-First'],
     skills: ['Snapshot', 'Tally', 'Discourse', 'Token Engineering', 'Multisig Management'],
     duration: '4-8 Months',
     demand: 'Growing',
     overlap: 50,
-    freelanceRate: '$50–$100/hr',
+    freelanceRate: '$50–$110/hr',
     platforms: ['Aragon', 'DAOhaus', 'MakerDAO', 'Gitcoin Governance'],
+  },
+  DEPIN: {
+    id: 'DEPIN',
+    title: 'DePIN Developer',
+    description: 'The infrastructure pioneer of 2026. You build Decentralized Physical Infrastructure Networks — connecting IoT sensors, wireless nodes, compute grids, and energy devices to blockchain rails. DePIN is the fastest-growing sector, with $50B+ in network value across Helium, Hivemapper, DIMO, and Render Network.',
+    traits: ['Systems Builder', 'Hardware-Curious', 'Protocol Designer'],
+    skills: ['Solidity', 'IoT Integration', 'Tokenomics Design', 'Rust', 'LoRaWAN / 5G', 'Helium SDK', 'Zero-Knowledge Proofs'],
+    duration: '8-14 Months',
+    demand: 'Very High',
+    overlap: 82,
+    freelanceRate: '$120–$260/hr',
+    platforms: ['Helium Foundation', 'Hivemapper', 'DIMO Network', 'Render Network', 'Akash Network'],
+  },
+  REGTECH: {
+    id: 'REGTECH',
+    title: 'Crypto Compliance & RegTech Specialist',
+    description: 'The bridge between crypto and the law. You implement MiCA, FATF Travel Rule, and global AML/KYC frameworks on-chain — making crypto projects legally operational in the EU, US, and emerging markets. The most underdeveloped and highest-growth career path of 2026 as institutional money floods in.',
+    traits: ['Detail-Oriented', 'Legally-Minded', 'Systems Thinker'],
+    skills: ['MiCA Compliance', 'KYC/AML On-chain', 'FATF Travel Rule', 'Chainalysis', 'ERC-3643', 'Legal Frameworks', 'Risk Assessment'],
+    duration: '6-10 Months',
+    demand: 'Very High',
+    overlap: 74,
+    freelanceRate: '$100–$220/hr',
+    platforms: ['Chainalysis', 'Elliptic', 'Refinitiv', 'Law Firms', 'Exchange Compliance Teams'],
   },
 };
 
@@ -193,17 +217,17 @@ export const CAREER_QUESTIONS: AssessmentQuestion[] = [
       { label: "Building unbreakable cryptographic logic and smart contracts", impact: { SCD: 3, SEC: 2, ZKD: 1 } },
       { label: "Designing beautiful, interactive Web3 interfaces", impact: { FWD: 3, WPM: 1, DEVREL: 1 } },
       { label: "Finding hidden patterns in on-chain data and market moves", impact: { BDA: 3, DEF: 2, MEV: 1 } },
-      { label: "Building AI agents or RWA systems on-chain", impact: { AIW: 3, RWA: 2, SCD: 1 } },
+      { label: "Building AI agents, RWA systems, or physical infrastructure on-chain", impact: { AIW: 3, RWA: 2, DEPIN: 2, SCD: 1 } },
       { label: "Educating, leading communities, and onboarding newcomers", impact: { TW: 2, WCM: 2, DEVREL: 2, DAO: 1 } },
     ]
   },
   {
     id: 2,
-    question: "Which sector of Web3 energizes you the most?",
+    question: "Which sector of Web3 energizes you the most in 2026?",
     options: [
-      { label: "DeFi, money markets, and Real World Asset tokenization", impact: { DEF: 3, RWA: 3, SEC: 1 } },
+      { label: "DeFi, RWA tokenization, and institutional on-chain finance", impact: { DEF: 3, RWA: 3, REGTECH: 1, SEC: 1 } },
       { label: "Layer 2s, zero-knowledge proofs, and blockchain scaling", impact: { ZKD: 3, SCD: 1 } },
-      { label: "Gaming, metaverse, and digital ownership economies", impact: { WGD: 3, FWD: 1 } },
+      { label: "DePIN — connecting physical devices and infrastructure to blockchain", impact: { DEPIN: 3, AIW: 1, SCD: 1 } },
       { label: "MEV, quantitative trading, and on-chain arbitrage", impact: { MEV: 3, BDA: 2, DEF: 1 } },
       { label: "DAOs, developer ecosystems, and community coordination", impact: { DAO: 3, DEVREL: 2, WCM: 2 } },
     ]
@@ -216,7 +240,7 @@ export const CAREER_QUESTIONS: AssessmentQuestion[] = [
       { label: "Collaborative — brainstorming, whiteboarding, and sprints", impact: { WPM: 2, FWD: 2, WGD: 1 } },
       { label: "Research mode — reading papers, protocols, and audit reports", impact: { DEF: 3, ZKD: 1, SEC: 1 } },
       { label: "Social — engaging live with communities, calls, and events", impact: { WCM: 3, DAO: 2 } },
-      { label: "Creative experiments — prototyping with new tools and frameworks", impact: { AIW: 2, WGD: 2, FWD: 1 } },
+      { label: "Creative experiments — prototyping with new tools, hardware, or frameworks", impact: { AIW: 2, DEPIN: 1, WGD: 2, FWD: 1 } },
     ]
   },
   {
@@ -287,12 +311,34 @@ export const CAREER_QUESTIONS: AssessmentQuestion[] = [
   },
   {
     id: 10,
+    question: "How do you feel about the intersection of crypto and real-world physical infrastructure?",
+    options: [
+      { label: "I want to build DePIN networks — IoT, wireless, compute, or energy on-chain", impact: { DEPIN: 3, SCD: 1 } },
+      { label: "Exciting but I prefer pure blockchain/software — no hardware involvement", impact: { SCD: 2, ZKD: 2, FWD: 1 } },
+      { label: "I'm interested in the tokenomics and data side of DePIN", impact: { DEPIN: 2, BDA: 2, DEF: 1 } },
+      { label: "I'll use DePIN data but focus on analytics and research", impact: { BDA: 2, DEF: 2 } },
+      { label: "I prefer digital-only infrastructure — pure DeFi or social protocols", impact: { DEF: 2, WCM: 2, DAO: 1 } },
+    ]
+  },
+  {
+    id: 11,
+    question: "How important is regulatory compliance and legal frameworks to your ideal role?",
+    options: [
+      { label: "Central — I want to be the bridge between crypto protocols and regulators (MiCA, FATF)", impact: { REGTECH: 3, RWA: 1 } },
+      { label: "Important — I'll integrate KYC/AML into smart contracts and on-chain systems", impact: { REGTECH: 2, RWA: 2, SCD: 1 } },
+      { label: "Useful context but not my focus — I'll leave compliance to specialists", impact: { FWD: 2, AIW: 1, WGD: 1 } },
+      { label: "I'll handle security and auditing which involves some compliance", impact: { SEC: 2, RWA: 1 } },
+      { label: "I prefer decentralised, permissionless protocols — regulatory friction is a problem", impact: { ZKD: 2, DEF: 2, MEV: 1 } },
+    ]
+  },
+  {
+    id: 12,
     question: "What motivates you most in the long run?",
     options: [
       { label: "Becoming a legendary researcher the ecosystem relies on", impact: { SEC: 3, ZKD: 2, SCD: 2 } },
-      { label: "Building infrastructure that millions of people use daily", impact: { SCD: 2, ZKD: 2, FWD: 1 } },
+      { label: "Building infrastructure that millions of people use daily — on-chain and in the physical world", impact: { SCD: 2, DEPIN: 2, ZKD: 1, FWD: 1 } },
       { label: "Turning on-chain data into insights that move markets", impact: { BDA: 3, DEF: 2 } },
-      { label: "Creating games and experiences that redefine entertainment", impact: { WGD: 3 } },
+      { label: "Making crypto legally accessible to institutions and governments", impact: { REGTECH: 3, RWA: 2 } },
       { label: "Shaping decentralised governance and culture at scale", impact: { DAO: 3, WCM: 2 } },
       { label: "Building autonomous AI systems that live and earn on-chain", impact: { AIW: 3, ZKD: 1 } },
     ]

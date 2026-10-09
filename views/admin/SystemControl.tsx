@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState } from 'react';
 import { SystemSettings } from '../../types';
 import { 
@@ -33,7 +33,7 @@ const SystemControl: React.FC<Props> = ({ settings, onUpdate }) => {
     <div className="p-8 max-w-[1000px] mx-auto pb-32">
        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
         <div>
-          <h1 className="text-4xl font-black mb-2 tracking-tight">System <span className="text-blue-500">Control</span></h1>
+          <h1 className="text-4xl font-black mb-2 tracking-tight">System <span className="text-purple-400">Control</span></h1>
           <p className="text-gray-500 font-medium">Configure core platform behavior and security.</p>
         </div>
         <div className="flex gap-4">
@@ -89,7 +89,7 @@ const SystemControl: React.FC<Props> = ({ settings, onUpdate }) => {
 
          {/* General Config */}
          <div className="p-10 lg:p-16 rounded-[48px] bg-white/5 border border-white/5">
-            <h2 className="text-2xl font-black mb-10 flex items-center gap-4"><Settings className="w-6 h-6 text-blue-500" /> Platform Metadata</h2>
+            <h2 className="text-2xl font-black mb-10 flex items-center gap-4"><Settings className="w-6 h-6 text-purple-400" /> Platform Metadata</h2>
             <div className="grid md:grid-cols-2 gap-10">
                <div className="space-y-3">
                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 px-2 flex items-center gap-2"><Globe className="w-3 h-3" /> Ecosystem Name</label>
@@ -97,7 +97,7 @@ const SystemControl: React.FC<Props> = ({ settings, onUpdate }) => {
                     type="text" 
                     value={localSettings.siteName}
                     onChange={(e) => setLocalSettings({...localSettings, siteName: e.target.value})}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 focus:outline-none focus:ring-1 focus:ring-blue-500" 
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 focus:outline-none focus:ring-1 focus:ring-purple-500" 
                   />
                </div>
                <div className="space-y-3">
@@ -106,7 +106,7 @@ const SystemControl: React.FC<Props> = ({ settings, onUpdate }) => {
                     type="email" 
                     value={localSettings.supportEmail}
                     onChange={(e) => setLocalSettings({...localSettings, supportEmail: e.target.value})}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 focus:outline-none focus:ring-1 focus:ring-blue-500" 
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 focus:outline-none focus:ring-1 focus:ring-purple-500" 
                   />
                </div>
                <div className="md:col-span-2 space-y-3">
@@ -116,7 +116,7 @@ const SystemControl: React.FC<Props> = ({ settings, onUpdate }) => {
                     value={localSettings.announcement}
                     onChange={(e) => setLocalSettings({...localSettings, announcement: e.target.value})}
                     placeholder="E.g. Schedule maintenance for Oct 30..."
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none" 
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 focus:outline-none focus:ring-1 focus:ring-purple-500 resize-none" 
                   ></textarea>
                </div>
             </div>

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+﻿import React, { useEffect, useRef } from 'react';
 
 interface AmbientGridProps {
   className?: string;
@@ -9,7 +9,7 @@ interface AmbientGridProps {
 }
 
 /**
- * Slow-drifting dot grid using #2F6DF2 at ~7% opacity.
+ * Slow-drifting dot grid using var(--color-accent) at ~7% opacity.
  * Renders on a <canvas> for zero DOM overhead.
  * Respects prefers-reduced-motion.
  */
@@ -55,7 +55,7 @@ const AmbientGrid: React.FC<AmbientGridProps> = ({
       const startX = -(cellSize - (dx % cellSize));
       const startY = -(cellSize - (dy % cellSize));
 
-      ctx.fillStyle = 'rgba(47, 109, 242, 0.07)';
+      ctx.fillStyle = 'rgba(139, 92, 246, 0.07)';
 
       for (let x = startX; x < w + cellSize; x += cellSize) {
         for (let y = startY; y < h + cellSize; y += cellSize) {

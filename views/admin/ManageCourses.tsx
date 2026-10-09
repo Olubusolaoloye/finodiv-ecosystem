@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState, useEffect } from 'react';
 import { api } from '../../services/backend';
 import { Plus, Search, Edit3, Trash2, X, ChevronDown, Loader2 } from 'lucide-react';
@@ -70,7 +70,7 @@ const ManageCourses: React.FC = () => {
     return matchesSearch && matchesCat;
   });
 
-  const inputCls = 'w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl py-4 px-5 focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 transition-colors';
+  const inputCls = 'w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl py-4 px-5 focus:outline-none focus:ring-1 focus:ring-purple-500 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 transition-colors';
 
   return (
     <>
@@ -78,7 +78,7 @@ const ManageCourses: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
         <div>
           <h1 className="text-4xl font-black mb-2 tracking-tight text-slate-900 dark:text-white">
-            Manage <span className="text-blue-500">Courses</span>
+            Manage <span className="text-purple-400">Courses</span>
           </h1>
           <p className="text-slate-500 dark:text-gray-500 font-medium">Curate the learning paths for the ecosystem.</p>
         </div>
@@ -92,7 +92,7 @@ const ManageCourses: React.FC = () => {
         <div className="relative flex-1 w-full">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
           <input type="text" placeholder="Search courses…" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-            className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl py-4 pl-12 pr-4 focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 transition-colors" />
+            className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl py-4 pl-12 pr-4 focus:outline-none focus:ring-1 focus:ring-purple-500 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 transition-colors" />
         </div>
         <div className="relative shrink-0">
           <button onClick={() => setShowCatMenu(v => !v)}
@@ -159,7 +159,7 @@ const ManageCourses: React.FC = () => {
 
       {loading ? (
         <div className="py-20 flex flex-col items-center justify-center gap-4">
-          <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+          <Loader2 className="w-12 h-12 text-purple-400 animate-spin" />
           <p className="text-slate-400 dark:text-gray-500 font-bold uppercase tracking-widest text-xs">Loading courses…</p>
         </div>
       ) : filtered.length === 0 ? (

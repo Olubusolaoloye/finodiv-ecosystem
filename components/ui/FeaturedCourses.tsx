@@ -13,7 +13,7 @@ const COURSES: CourseCardData[] = [
     priceUSD: 9,
     level: 'Beginner',
     enrolled: 4820,
-    thumbnailColor: 'linear-gradient(135deg, #0c1a36 0%, #1a2f5a 50%, #0A1929 100%)',
+    thumbnailColor: 'linear-gradient(135deg, #0c1a36 0%, #1a2f5a 50%, #1a0a3e 100%)',
   },
   {
     id: 'dollar-proof',
@@ -25,7 +25,7 @@ const COURSES: CourseCardData[] = [
     priceUSD: 7,
     level: 'Beginner',
     enrolled: 3210,
-    thumbnailColor: 'linear-gradient(135deg, #0e1535 0%, #1e1050 50%, #0A1929 100%)',
+    thumbnailColor: 'linear-gradient(135deg, #0e1535 0%, #1e1050 50%, #2d1b69 100%)',
   },
   {
     id: 'defi-scratch',
@@ -37,7 +37,7 @@ const COURSES: CourseCardData[] = [
     priceUSD: 14,
     level: 'Intermediate',
     enrolled: 1980,
-    thumbnailColor: 'linear-gradient(135deg, #0d1f3c 0%, #0f2a4a 50%, #0A1929 100%)',
+    thumbnailColor: 'linear-gradient(135deg, #0d1f3c 0%, #0f2a4a 50%, #1a0a3e 100%)',
   },
   {
     id: 'paid-in-dollars',
@@ -49,7 +49,7 @@ const COURSES: CourseCardData[] = [
     priceUSD: 6,
     level: 'Beginner',
     enrolled: 6540,
-    thumbnailColor: 'linear-gradient(135deg, #0a1c2e 0%, #0d2640 50%, #0A1929 100%)',
+    thumbnailColor: 'linear-gradient(135deg, #0a1c2e 0%, #0d2640 50%, #2d1b69 100%)',
   },
 ];
 

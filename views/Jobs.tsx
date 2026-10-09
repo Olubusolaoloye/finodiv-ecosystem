@@ -1,10 +1,10 @@
-
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../services/backend';
-import { supabase } from '../services/supabase';
+import { getSession } from '../services/session';
 import {
-  Search, MapPin, DollarSign, Briefcase, Tag, Loader2,
-  CheckCircle, Send, X, ChevronDown,
+  Search, MapPin, DollarSign, Briefcase, Loader2,
+  CheckCircle, Send, X, Clock,
 } from 'lucide-react';
 
 interface Job {
@@ -18,20 +18,26 @@ interface Job {
   createdAt: string;
 }
 
-const TAG_COLORS: Record<string, string> = {
-  Solidity:    'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
-  React:       'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  DeFi:        'bg-purple-500/10 text-purple-400 border-purple-500/20',
-  Security:    'bg-red-500/10 text-red-400 border-red-500/20',
-  Data:        'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
-  Python:      'bg-green-500/10 text-green-400 border-green-500/20',
-  Rust:        'bg-orange-500/10 text-orange-400 border-orange-500/20',
-  Community:   'bg-pink-500/10 text-pink-400 border-pink-500/20',
-  default:     'bg-white/5 text-gray-400 border-white/10',
+const TAG_ACCENT: Record<string, string> = {
+  Solidity:       '#818cf8',
+  React:          '#60a5fa',
+  DeFi:           '#a78bfa',
+  Security:       '#f87171',
+  Data:           '#fbbf24',
+  Python:         '#34d399',
+  Rust:           '#fb923c',
+  Community:      '#f472b6',
 };
 
-function tagColor(tag: string) {
-  return TAG_COLORS[tag] ?? TAG_COLORS.default;
+function tagStyle(tag: string): React.CSSProperties {
+  const c = TAG_ACCENT[tag] ?? '#94a3b8';
+  return {
+    padding: '3px 10px', borderRadius: 6,
+    background: `${c}18`, color: c,
+    border: `1px solid ${c}30`,
+    fontSize: 10, fontWeight: 700,
+    textTransform: 'uppercase', letterSpacing: '0.1em',
+  };
 }
 
 function timeAgo(iso: string) {
@@ -43,16 +49,15 @@ function timeAgo(iso: string) {
   return `${Math.floor(days / 7)}w ago`;
 }
 
+const COMPANY_COLORS = ['var(--color-accent)', '#7C3AED', '#059669', '#d97706', '#dc2626', '#0ea5e9'];
+
 const Jobs: React.FC = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
-  const [applyingId, setApplyingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTag, setActiveTag] = useState<string | null>(null);
-
-  // Apply modal state
   const [modalJob, setModalJob] = useState<Job | null>(null);
   const [coverLetter, setCoverLetter] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -60,10 +65,10 @@ const Jobs: React.FC = () => {
 
   useEffect(() => {
     const init = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserId(user.id);
-        const applied = await api.getUserApplications(user.id);
+      const session = getSession();
+      if (session) {
+        setUserId(session.userId);
+        const applied = await api.getUserApplications(session.userId);
         setAppliedIds(new Set(applied));
       }
       const data = await api.getJobs();
@@ -79,22 +84,15 @@ const Jobs: React.FC = () => {
     return Array.from(s).sort();
   }, [jobs]);
 
-  const filtered = useMemo(() => {
-    return jobs.filter(j => {
-      const q = searchQuery.toLowerCase();
-      const matchesSearch = !q || j.title.toLowerCase().includes(q) ||
-        j.company.toLowerCase().includes(q) || j.tags.some(t => t.toLowerCase().includes(q));
-      const matchesTag = !activeTag || j.tags.includes(activeTag);
-      return matchesSearch && matchesTag;
-    });
-  }, [jobs, searchQuery, activeTag]);
+  const filtered = useMemo(() => jobs.filter(j => {
+    const q = searchQuery.toLowerCase();
+    const matchesSearch = !q || j.title.toLowerCase().includes(q) ||
+      j.company.toLowerCase().includes(q) || j.tags.some(t => t.toLowerCase().includes(q));
+    const matchesTag = !activeTag || j.tags.includes(activeTag);
+    return matchesSearch && matchesTag;
+  }), [jobs, searchQuery, activeTag]);
 
-  const openModal = (job: Job) => {
-    setModalJob(job);
-    setCoverLetter('');
-    setSubmitted(false);
-  };
-
+  const openModal = (job: Job) => { setModalJob(job); setCoverLetter(''); setSubmitted(false); };
   const closeModal = () => { setModalJob(null); setSubmitted(false); };
 
   const handleApply = async () => {
@@ -107,191 +105,288 @@ const Jobs: React.FC = () => {
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto pb-32">
+    <div style={{ minHeight: '100vh', padding: '40px 24px 80px', maxWidth: 900, margin: '0 auto' }}>
+
       {/* Header */}
-      <div className="mb-12">
-        <h1 className="text-4xl font-bold mb-4 text-slate-900 dark:text-white">
-          Web3 <span className="text-blue-600 dark:text-blue-400">Job Board</span>
+      <div style={{ marginBottom: 40 }}>
+        <p className="eyebrow" style={{ marginBottom: 10 }}>Opportunities</p>
+        <h1 style={{
+          fontSize: 'clamp(1.8rem, 4vw, 2.4rem)', fontWeight: 600,
+          letterSpacing: '-0.02em', color: 'var(--color-text-primary)', marginBottom: 8,
+        }}>
+          Web3{' '}
+          <span style={{
+            background: 'linear-gradient(135deg,#7C3AED,#3B82F6)',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+          }}>
+            Job Board
+          </span>
         </h1>
-        <p className="text-slate-500 dark:text-gray-500 text-lg">
+        <p style={{ fontSize: 15, color: 'var(--color-text-muted)' }}>
           Curated opportunities at the frontier of decentralized technology.
         </p>
       </div>
 
-      {/* Search + Filters */}
-      <div className="flex flex-col gap-6 mb-10">
-        <div className="relative max-w-2xl">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search roles, companies, or skills..."
-            className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-white placeholder-gray-500"
-          />
-        </div>
-        {allTags.length > 0 && (
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={() => setActiveTag(null)}
-              className={`px-4 py-1.5 rounded-xl text-xs font-bold border transition-all ${
-                !activeTag ? 'bg-blue-600 text-white border-blue-600' : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10'
-              }`}
-            >
-              All
-            </button>
-            {allTags.map(tag => (
-              <button
-                key={tag}
-                onClick={() => setActiveTag(activeTag === tag ? null : tag)}
-                className={`px-4 py-1.5 rounded-xl text-xs font-bold border transition-all ${
-                  activeTag === tag ? 'bg-blue-600 text-white border-blue-600' : `${tagColor(tag)} hover:opacity-80`
-                }`}
-              >
-                {tag}
-              </button>
-            ))}
-          </div>
-        )}
+      {/* Search */}
+      <div style={{ position: 'relative', marginBottom: 20, maxWidth: 560 }}>
+        <Search style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: 'var(--color-text-muted)' }} />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Search roles, companies, or skills…"
+          style={{
+            width: '100%', padding: '12px 16px 12px 40px',
+            borderRadius: 10,
+            background: 'var(--color-bg-card)',
+            border: '1px solid var(--color-border)',
+            color: 'var(--color-text-primary)',
+            fontSize: 14, outline: 'none',
+          }}
+          onFocus={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)')}
+          onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
+        />
       </div>
 
-      {/* Jobs list */}
+      {/* Tag filters */}
+      {allTags.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 32 }}>
+          <button
+            onClick={() => setActiveTag(null)}
+            style={{
+              padding: '5px 14px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+              background: !activeTag ? 'var(--color-accent)' : 'var(--color-bg-card)',
+              color: !activeTag ? '#fff' : 'var(--color-text-muted)',
+              border: `1px solid ${!activeTag ? 'var(--color-accent)' : 'var(--color-border)'}`,
+              transition: 'all 0.15s',
+            }}
+          >
+            All
+          </button>
+          {allTags.map(tag => (
+            <button
+              key={tag}
+              onClick={() => setActiveTag(activeTag === tag ? null : tag)}
+              style={{
+                padding: '5px 14px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                background: activeTag === tag ? 'var(--color-accent)' : 'var(--color-bg-card)',
+                color: activeTag === tag ? '#fff' : 'var(--color-text-muted)',
+                border: `1px solid ${activeTag === tag ? 'var(--color-accent)' : 'var(--color-border)'}`,
+                transition: 'all 0.15s',
+              }}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Jobs */}
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-32">
-          <Loader2 className="w-10 h-10 animate-spin text-blue-500 mb-4" />
-          <p className="text-gray-500 text-xs font-bold uppercase tracking-widest">Loading opportunities...</p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 0' }}>
+          <Loader2 style={{ width: 28, height: 28, color: 'var(--color-accent)', animation: 'spin 1s linear infinite' }} />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-          <Briefcase className="w-16 h-16 text-gray-700 mb-6" />
-          <h3 className="text-2xl font-bold mb-2 text-white">No jobs found</h3>
-          <p className="text-gray-500">Try a different search or filter.</p>
+        <div style={{ textAlign: 'center', padding: '80px 0' }}>
+          <Briefcase style={{ width: 40, height: 40, color: 'var(--color-text-muted)', margin: '0 auto 16px' }} />
+          <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 8 }}>No jobs found</p>
+          <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Try a different search or filter.</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {filtered.map(job => {
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {filtered.map((job, idx) => {
             const applied = appliedIds.has(job.id);
+            const companyColor = COMPANY_COLORS[job.company.charCodeAt(0) % COMPANY_COLORS.length];
             return (
-              <div
+              <motion.div
                 key={job.id}
-                className="bg-white/5 border border-white/5 hover:border-blue-500/30 rounded-[32px] p-8 transition-all group"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, delay: idx * 0.04 }}
+                whileHover={{ y: -2 }}
+                style={{
+                  background: 'var(--color-bg-card)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 16, padding: '24px',
+                  transition: 'border-color 0.2s, box-shadow 0.2s',
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(139,92,246,0.35)';
+                  (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 24px rgba(139,92,246,0.08)';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border)';
+                  (e.currentTarget as HTMLElement).style.boxShadow = 'none';
+                }}
               >
-                <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-                  <div className="flex items-start gap-5 flex-1 min-w-0">
-                    {/* Company logo placeholder */}
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600/20 to-indigo-600/20 border border-white/10 flex items-center justify-center shrink-0 text-xl font-black text-blue-400">
-                      {job.company[0]}
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="text-xl font-bold text-white mb-1 group-hover:text-blue-400 transition-colors">
-                        {job.title}
-                      </h3>
-                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 mb-4">
-                        <span className="font-semibold text-gray-300">{job.company}</span>
-                        <span className="flex items-center gap-1.5">
-                          <MapPin className="w-3.5 h-3.5" /> {job.location}
-                        </span>
-                        {job.salaryRange && (
-                          <span className="flex items-center gap-1.5">
-                            <DollarSign className="w-3.5 h-3.5" /> {job.salaryRange}
-                          </span>
-                        )}
-                        <span className="text-gray-600">{timeAgo(job.createdAt)}</span>
-                      </div>
-                      <p className="text-gray-400 text-sm leading-relaxed mb-5 line-clamp-2">
-                        {job.description}
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {job.tags.map(tag => (
-                          <span
-                            key={tag}
-                            className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${tagColor(tag)}`}
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
+                <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                  {/* Company avatar */}
+                  <div style={{
+                    width: 48, height: 48, borderRadius: 12,
+                    background: `${companyColor}20`,
+                    border: `1px solid ${companyColor}30`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 18, fontWeight: 800, color: companyColor, flexShrink: 0,
+                  }}>
+                    {job.company[0]}
                   </div>
 
-                  <div className="shrink-0">
-                    {applied ? (
-                      <div className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-green-500/10 border border-green-500/20 text-green-400 text-sm font-bold">
-                        <CheckCircle className="w-4 h-4" /> Applied
+                  {/* Content */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 4 }}>
+                      {job.title}
+                    </h3>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)' }}>{job.company}</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--color-text-muted)' }}>
+                        <MapPin style={{ width: 11, height: 11 }} />{job.location}
+                      </span>
+                      {job.salaryRange && (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--color-text-muted)' }}>
+                          <DollarSign style={{ width: 11, height: 11 }} />{job.salaryRange}
+                        </span>
+                      )}
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--color-text-muted)' }}>
+                        <Clock style={{ width: 11, height: 11 }} />{timeAgo(job.createdAt)}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.6, marginBottom: 14, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                      {job.description}
+                    </p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {job.tags.map(tag => (
+                          <span key={tag} style={tagStyle(tag)}>{tag}</span>
+                        ))}
                       </div>
-                    ) : userId ? (
-                      <button
-                        onClick={() => openModal(job)}
-                        className="px-6 py-3 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold transition-all shadow-lg shadow-blue-500/20 flex items-center gap-2"
-                      >
-                        <Send className="w-4 h-4" /> Apply Now
-                      </button>
-                    ) : (
-                      <span className="text-xs text-gray-600 font-bold">Sign in to apply</span>
-                    )}
+                      <div style={{ marginTop: 8 }}>
+                        {applied ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, background: 'rgba(5,150,105,0.12)', border: '1px solid rgba(5,150,105,0.25)', color: '#34d399', fontSize: 12, fontWeight: 600 }}>
+                            <CheckCircle style={{ width: 13, height: 13 }} /> Applied
+                          </div>
+                        ) : userId ? (
+                          <button
+                            onClick={() => openModal(job)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 6,
+                              padding: '7px 16px', borderRadius: 8,
+                              background: 'var(--color-accent)', color: '#fff',
+                              fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer',
+                              transition: 'background 0.15s',
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-accent-hover)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-accent)')}
+                          >
+                            <Send style={{ width: 12, height: 12 }} /> Apply Now
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Sign in to apply</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>
       )}
 
       {/* Apply Modal */}
-      {modalJob && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-          <div className="w-full max-w-xl bg-[#0f1218] border border-white/10 rounded-[40px] p-10 shadow-2xl">
-            <div className="flex items-start justify-between mb-8">
-              <div>
-                <h2 className="text-2xl font-black text-white mb-1">{modalJob.title}</h2>
-                <p className="text-gray-500 font-semibold">{modalJob.company} · {modalJob.location}</p>
-              </div>
-              <button onClick={closeModal} className="p-2 rounded-xl hover:bg-white/5 text-gray-500 transition-all">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {submitted ? (
-              <div className="flex flex-col items-center text-center py-8">
-                <div className="w-20 h-20 rounded-full bg-green-500/10 flex items-center justify-center mb-6">
-                  <CheckCircle className="w-10 h-10 text-green-400" />
+      <AnimatePresence>
+        {modalJob && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 50,
+              background: 'var(--color-overlay)',
+              backdropFilter: 'blur(8px)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+            }}
+            onClick={e => { if (e.target === e.currentTarget) closeModal(); }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 16 }}
+              transition={{ duration: 0.2 }}
+              style={{
+                width: '100%', maxWidth: 520,
+                background: 'var(--color-bg-card)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 20, padding: 32,
+                boxShadow: '0 32px 80px rgba(0,0,0,0.4)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
+                <div>
+                  <h2 style={{ fontSize: 17, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 4 }}>{modalJob.title}</h2>
+                  <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>{modalJob.company} · {modalJob.location}</p>
                 </div>
-                <h3 className="text-xl font-black text-white mb-3">Application Submitted!</h3>
-                <p className="text-gray-500 mb-8">Your application to {modalJob.company} has been recorded. Good luck!</p>
                 <button
                   onClick={closeModal}
-                  className="px-8 py-3 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-500 transition-all"
+                  style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-deep)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-text-muted)' }}
                 >
-                  Close
+                  <X style={{ width: 14, height: 14 }} />
                 </button>
               </div>
-            ) : (
-              <>
-                <div className="space-y-2 mb-6">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">
-                    Cover Letter <span className="text-gray-600">(optional)</span>
-                  </label>
-                  <textarea
-                    rows={5}
-                    value={coverLetter}
-                    onChange={e => setCoverLetter(e.target.value)}
-                    placeholder="Tell them why you're the right fit for this role..."
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none transition-all"
-                  />
+
+              {submitted ? (
+                <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                  <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(5,150,105,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                    <CheckCircle style={{ width: 28, height: 28, color: '#34d399' }} />
+                  </div>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 8 }}>Application Submitted!</h3>
+                  <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 24 }}>Your application to {modalJob.company} has been recorded. Good luck!</p>
+                  <button onClick={closeModal} style={{ padding: '10px 24px', borderRadius: 10, background: 'var(--color-accent)', color: '#fff', fontWeight: 600, fontSize: 14, border: 'none', cursor: 'pointer' }}>
+                    Close
+                  </button>
                 </div>
-                <button
-                  onClick={handleApply}
-                  disabled={submitting}
-                  className="w-full py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black text-sm transition-all shadow-xl shadow-blue-500/20 flex items-center justify-center gap-2 disabled:opacity-60"
-                >
-                  {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                  {submitting ? 'Submitting...' : 'Submit Application'}
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+              ) : (
+                <>
+                  <div style={{ marginBottom: 20 }}>
+                    <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-text-muted)', display: 'block', marginBottom: 8 }}>
+                      Cover Letter <span style={{ textTransform: 'none', fontWeight: 400 }}>(optional)</span>
+                    </label>
+                    <textarea
+                      rows={5}
+                      value={coverLetter}
+                      onChange={e => setCoverLetter(e.target.value)}
+                      placeholder="Tell them why you're the right fit for this role…"
+                      style={{
+                        width: '100%', padding: '12px 14px', borderRadius: 10,
+                        background: 'var(--color-bg-deep)',
+                        border: '1px solid var(--color-border)',
+                        color: 'var(--color-text-primary)',
+                        fontSize: 13, outline: 'none', resize: 'none',
+                        fontFamily: 'inherit', lineHeight: 1.6,
+                      }}
+                      onFocus={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)')}
+                      onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
+                    />
+                  </div>
+                  <button
+                    onClick={handleApply}
+                    disabled={submitting}
+                    style={{
+                      width: '100%', padding: '13px', borderRadius: 10,
+                      background: 'var(--color-accent)', color: '#fff',
+                      fontWeight: 600, fontSize: 14, border: 'none', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      opacity: submitting ? 0.6 : 1,
+                    }}
+                  >
+                    {submitting ? <Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} /> : <Send style={{ width: 16, height: 16 }} />}
+                    {submitting ? 'Submitting…' : 'Submit Application'}
+                  </button>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+﻿import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { UserRole } from '../types';
-import { supabase } from '../services/supabase';
+import { convex } from '../services/convex';
+import { api } from '../convex/_generated/api';
 import {
   Mail, Lock, Eye, EyeOff, Loader2,
-  AlertCircle, CheckCircle2, User, ArrowRight,
+  AlertCircle, User, ArrowRight,
 } from 'lucide-react';
 
 interface LoginProps {
   onWalletLogin: (address: string, role: UserRole) => void;
+  onLoginSuccess?: (userId: string, email: string) => Promise<void>;
 }
 
 type Tab = 'signin' | 'signup';
@@ -64,7 +66,7 @@ const PasswordInput: React.FC<{
         style={{
           ...inputStyle,
           paddingRight: '42px',
-          borderColor: focused ? 'rgba(47,109,242,0.6)' : 'var(--color-border)',
+          borderColor: focused ? 'rgba(139,92,246,0.6)' : 'var(--color-border)',
         }}
       />
       <button
@@ -105,7 +107,7 @@ const EmailInput: React.FC<{
         onBlur={() => setFocused(false)}
         style={{
           ...inputStyle,
-          borderColor: focused ? 'rgba(47,109,242,0.6)' : 'var(--color-border)',
+          borderColor: focused ? 'rgba(139,92,246,0.6)' : 'var(--color-border)',
         }}
       />
     </div>
@@ -168,7 +170,7 @@ const BrandPanel: React.FC = () => (
     {/* Subtle ambient glow */}
     <div
       className="absolute top-0 left-0 w-full h-full pointer-events-none"
-      style={{ background: 'radial-gradient(ellipse at 30% 20%, rgba(47,109,242,0.08) 0%, transparent 60%)' }}
+      style={{ background: 'radial-gradient(ellipse at 30% 20%, rgba(139,92,246,0.08) 0%, transparent 60%)' }}
       aria-hidden="true"
     />
 
@@ -220,12 +222,10 @@ const BrandPanel: React.FC = () => (
 
 // ── Main Login component ──────────────────────────────────────────────────────
 
-const Login: React.FC<LoginProps> = ({ onWalletLogin: _ }) => {
-  const navigate = useNavigate();
-  const [tab, setTab]           = useState<Tab>('signin');
-  const [loading, setLoading]   = useState(false);
-  const [errMsg, setErrMsg]     = useState('');
-  const [signedUp, setSignedUp] = useState(false);
+const Login: React.FC<LoginProps> = ({ onWalletLogin: _, onLoginSuccess }) => {
+  const [tab, setTab]         = useState<Tab>('signin');
+  const [loading, setLoading] = useState(false);
+  const [errMsg, setErrMsg]   = useState('');
 
   /* Sign-in fields */
   const [siEmail, setSiEmail] = useState('');
@@ -239,10 +239,8 @@ const Login: React.FC<LoginProps> = ({ onWalletLogin: _ }) => {
   const [suRole,    setSuRole]    = useState<'LEARNER' | 'EMPLOYER' | 'EDUCATOR'>('LEARNER');
 
   /* Forgot password */
-  const [forgotMode,    setForgotMode]    = useState(false);
-  const [forgotEmail,   setForgotEmail]   = useState('');
-  const [forgotSent,    setForgotSent]    = useState(false);
-  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotMode,  setForgotMode]  = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
 
   const clearErr = () => setErrMsg('');
 
@@ -252,67 +250,55 @@ const Login: React.FC<LoginProps> = ({ onWalletLogin: _ }) => {
     if (!siEmail.trim()) { setErrMsg('Please enter your email.'); return; }
     if (!siPass)         { setErrMsg('Please enter your password.'); return; }
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: siEmail.trim().toLowerCase(),
-      password: siPass,
-    });
-    setLoading(false);
-    if (error) {
-      if (error.message.includes('Invalid login credentials')) {
-        setErrMsg('Incorrect email or password. If you signed in via a magic link before, tap "Forgot?" to set a password.');
-      } else if (error.message.includes('Email not confirmed')) {
-        setErrMsg('Please confirm your email before signing in. Check your inbox.');
+    try {
+      const result = await convex.action(api.authActions.signIn, {
+        email: siEmail.trim().toLowerCase(),
+        password: siPass,
+      });
+      if (result.error || !result.userId) {
+        setErrMsg(result.error ?? 'Sign in failed. Please try again.');
       } else {
-        setErrMsg(error.message);
+        await onLoginSuccess?.(result.userId, result.email ?? siEmail.trim().toLowerCase());
       }
+    } catch (e: any) {
+      setErrMsg(e?.message ?? 'Network error. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    // App.tsx onAuthStateChange(SIGNED_IN) handles the redirect — do NOT navigate here.
   };
 
   /* ── Sign Up ────────────────────────────────────────────────────────────── */
   const handleSignUp = async () => {
     clearErr();
-    if (!suName.trim())    { setErrMsg('Please enter your full name.'); return; }
-    if (!suEmail.trim())   { setErrMsg('Please enter your email.'); return; }
-    if (suPass.length < 8) { setErrMsg('Password must be at least 8 characters.'); return; }
+    if (!suName.trim())       { setErrMsg('Please enter your full name.'); return; }
+    if (!suEmail.trim())      { setErrMsg('Please enter your email.'); return; }
+    if (suPass.length < 8)    { setErrMsg('Password must be at least 8 characters.'); return; }
     if (suPass !== suConfirm) { setErrMsg('Passwords do not match.'); return; }
 
     setLoading(true);
-    const { data, error } = await supabase.auth.signUp({
-      email: suEmail.trim().toLowerCase(),
-      password: suPass,
-      options: { data: { name: suName.trim(), role: suRole } },
-    });
-    setLoading(false);
-
-    if (error) {
-      setErrMsg(error.message.includes('User already registered')
-        ? 'An account with this email already exists. Sign in instead.'
-        : error.message);
-      return;
-    }
-
-    if (data.session) {
-      if (suRole !== 'LEARNER' && data.user) {
-        await supabase.from('profiles').update({ role: suRole }).eq('id', data.user.id);
+    try {
+      const result = await convex.action(api.authActions.signUp, {
+        email: suEmail.trim().toLowerCase(),
+        password: suPass,
+        name: suName.trim(),
+        role: suRole,
+      });
+      if (result.error || !result.userId) {
+        setErrMsg(result.error ?? 'Sign up failed. Please try again.');
+      } else {
+        await onLoginSuccess?.(result.userId, suEmail.trim().toLowerCase());
       }
-      navigate('/dashboard');
-    } else {
-      setSignedUp(true);
+    } catch (e: any) {
+      setErrMsg(e?.message ?? 'Network error. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   /* ── Forgot Password ───────────────────────────────────────────────────── */
-  const handleForgotPassword = async () => {
+  const handleForgotPassword = () => {
     clearErr();
-    if (!forgotEmail.trim()) { setErrMsg('Please enter your email address.'); return; }
-    setForgotLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(
-      forgotEmail.trim().toLowerCase(),
-      { redirectTo: window.location.origin },
-    );
-    setForgotLoading(false);
-    if (error) { setErrMsg(error.message); } else { setForgotSent(true); }
+    setErrMsg('Password reset via email is not currently available. Please contact support at devolufinodiv@gmail.com to reset your password.');
   };
 
   // ── Card wrapper shared by full-page flows ─────────────────────────────────
@@ -327,80 +313,35 @@ const Login: React.FC<LoginProps> = ({ onWalletLogin: _ }) => {
     </div>
   );
 
-  /* ── Email confirmation screen ────────────────────────────────────────── */
-  if (signedUp) return card(
-    <div className="flex flex-col items-center text-center">
-      <div
-        className="w-16 h-16 rounded-full flex items-center justify-center mb-6"
-        style={{ backgroundColor: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)' }}
-      >
-        <CheckCircle2 className="w-8 h-8" style={{ color: '#4ade80' }} />
-      </div>
-      <h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--color-text-primary)' }}>Check your email</h2>
-      <p className="text-sm mb-1" style={{ color: 'var(--color-text-muted)' }}>
-        A confirmation link was sent to
-      </p>
-      <p className="text-sm font-semibold mb-6" style={{ color: 'var(--color-accent-hover)' }}>{suEmail}</p>
-      <p className="text-xs leading-relaxed mb-8" style={{ color: 'var(--color-text-muted)' }}>
-        Click the link in your email to activate your account, then come back and sign in.
-      </p>
-      <PrimaryBtn onClick={() => { setSignedUp(false); setTab('signin'); setSiEmail(suEmail); }}>
-        Go to Sign In
-      </PrimaryBtn>
-    </div>
-  );
-
   /* ── Forgot password screen ───────────────────────────────────────────── */
   if (forgotMode) return card(
-    forgotSent ? (
-      <div className="flex flex-col items-center text-center">
-        <div
-          className="w-16 h-16 rounded-full flex items-center justify-center mb-6"
-          style={{ backgroundColor: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)' }}
-        >
-          <CheckCircle2 className="w-8 h-8" style={{ color: '#4ade80' }} />
-        </div>
-        <h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--color-text-primary)' }}>Reset email sent</h2>
-        <p className="text-sm mb-1" style={{ color: 'var(--color-text-muted)' }}>
-          We sent a password reset link to
-        </p>
-        <p className="text-sm font-semibold mb-6" style={{ color: 'var(--color-accent-hover)' }}>{forgotEmail}</p>
-        <p className="text-xs leading-relaxed mb-8" style={{ color: 'var(--color-text-muted)' }}>
-          Click the link in your email to set a new password. Check your spam folder if you don't see it.
-        </p>
-        <PrimaryBtn onClick={() => { setForgotMode(false); setForgotSent(false); setSiEmail(forgotEmail); }}>
-          Back to Sign In
-        </PrimaryBtn>
+    <div className="flex flex-col gap-5">
+      <div className="text-center">
+        <h2 className="text-xl font-semibold mb-1" style={{ color: 'var(--color-text-primary)' }}>Reset password</h2>
+        <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>Contact support to reset your password</p>
       </div>
-    ) : (
-      <div className="flex flex-col gap-5">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-1" style={{ color: 'var(--color-text-primary)' }}>Reset password</h2>
-          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>We'll send you a reset link</p>
-        </div>
-        {errMsg && <ErrBox msg={errMsg} />}
-        <div>
-          <label style={labelStyle}>Your email</label>
-          <EmailInput
-            value={forgotEmail}
-            onChange={v => { setForgotEmail(v); clearErr(); }}
-            onEnter={handleForgotPassword}
-            autoFocus
-          />
-        </div>
-        <PrimaryBtn onClick={handleForgotPassword} loading={forgotLoading}>
-          {!forgotLoading && <Mail className="w-4 h-4" />}
-          Send Reset Link
-        </PrimaryBtn>
-        <button
-          onClick={() => { setForgotMode(false); clearErr(); }}
-          className="text-sm text-center transition-opacity hover:opacity-70"
-          style={{ color: 'var(--color-text-muted)' }}
-        >
-          ← Back to Sign In
-        </button>
+      {errMsg && <ErrBox msg={errMsg} />}
+      <div>
+        <label style={labelStyle}>Your email</label>
+        <EmailInput
+          value={forgotEmail}
+          onChange={v => { setForgotEmail(v); clearErr(); }}
+          onEnter={handleForgotPassword}
+          autoFocus
+        />
       </div>
-    )
+      <PrimaryBtn onClick={handleForgotPassword}>
+        <Mail className="w-4 h-4" />
+        Get Reset Instructions
+      </PrimaryBtn>
+      <button
+        onClick={() => { setForgotMode(false); clearErr(); }}
+        className="text-sm text-center transition-opacity hover:opacity-70"
+        style={{ color: 'var(--color-text-muted)' }}
+      >
+        ← Back to Sign In
+      </button>
+    </div>
   );
 
   /* ══════════════════════════════════════════════════════════════════════════
@@ -524,8 +465,8 @@ const Login: React.FC<LoginProps> = ({ onWalletLogin: _ }) => {
                       onClick={() => setSuRole(r)}
                       className="flex-1 py-2 rounded-[8px] text-xs font-medium transition-all duration-150"
                       style={{
-                        backgroundColor: suRole === r ? 'rgba(47,109,242,0.12)' : 'var(--color-bg-deep)',
-                        border: `1px solid ${suRole === r ? 'rgba(47,109,242,0.4)' : 'var(--color-border)'}`,
+                        backgroundColor: suRole === r ? 'rgba(139,92,246,0.12)' : 'var(--color-bg-deep)',
+                        border: `1px solid ${suRole === r ? 'rgba(139,92,246,0.4)' : 'var(--color-border)'}`,
                         color: suRole === r ? 'var(--color-accent-hover)' : 'var(--color-text-muted)',
                       }}
                     >
@@ -612,7 +553,7 @@ const NameInput: React.FC<{ value: string; onChange: (v: string) => void }> = ({
       onBlur={() => setFocused(false)}
       style={{
         ...inputStyle,
-        borderColor: focused ? 'rgba(47,109,242,0.6)' : 'var(--color-border)',
+        borderColor: focused ? 'rgba(139,92,246,0.6)' : 'var(--color-border)',
       }}
     />
   );

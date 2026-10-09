@@ -2,6 +2,15 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  // ── Auth accounts (email + hashed password) ────────────────────────────────
+  authAccounts: defineTable({
+    email: v.string(),         // always lowercased
+    passwordHash: v.string(),  // "salt:sha256hash"
+    userId: v.string(),        // stable UUID, foreign key into profiles
+  })
+    .index("by_email", ["email"])
+    .index("by_userId", ["userId"]),
+
   // ── User profiles ──────────────────────────────────────────────────────────
   profiles: defineTable({
     // Links to Convex Auth identity (or a Supabase uid stored as a string)
@@ -149,6 +158,8 @@ export default defineSchema({
     userId: v.string(),
     content: v.string(),
     imageStorageId: v.optional(v.id("_storage")),
+    audioStorageId: v.optional(v.id("_storage")),
+    audioDuration: v.optional(v.number()),
     isPinned: v.boolean(),
   })
     .index("by_roomId", ["roomId"])
