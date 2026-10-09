@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { UserRole, WalletBinding } from '../types';
 import { api } from '../services/backend';
 import { convex } from '../services/convex';
@@ -155,7 +155,7 @@ const Settings: React.FC<SettingsProps> = ({ userId, role, authEmail, walletAddr
                   </label>
                   <input type="text" value={displayName} onChange={e => setDisplayName(e.target.value)}
                     placeholder="Your name" style={inputStyle}
-                    onFocus={e => (e.currentTarget.style.borderColor = 'rgba(47,109,242,0.5)')}
+                    onFocus={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)')}
                     onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
                   />
                 </div>
@@ -165,7 +165,7 @@ const Settings: React.FC<SettingsProps> = ({ userId, role, authEmail, walletAddr
                   </label>
                   <input type="text" value={professionalTitle} onChange={e => setProfessionalTitle(e.target.value)}
                     placeholder="e.g. Smart Contract Developer" style={inputStyle}
-                    onFocus={e => (e.currentTarget.style.borderColor = 'rgba(47,109,242,0.5)')}
+                    onFocus={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)')}
                     onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
                   />
                 </div>
@@ -214,7 +214,7 @@ const Settings: React.FC<SettingsProps> = ({ userId, role, authEmail, walletAddr
                   {/* Email identity */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', borderRadius: 14, background: 'var(--color-bg-deep)', border: '1px solid var(--color-border)', flexWrap: 'wrap', gap: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(47,109,242,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(139,92,246,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <Mail style={{ width: 16, height: 16, color: 'var(--color-accent)' }} />
                       </div>
                       <div>
@@ -245,7 +245,7 @@ const Settings: React.FC<SettingsProps> = ({ userId, role, authEmail, walletAddr
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       {binding ? (
                         <>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 6, background: 'rgba(47,109,242,0.12)', color: 'var(--color-accent)', border: '1px solid rgba(47,109,242,0.2)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 6, background: 'rgba(139,92,246,0.12)', color: 'var(--color-accent)', border: '1px solid rgba(139,92,246,0.2)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase' }}>
                             <Check style={{ width: 10, height: 10 }} /> Bound
                           </div>
                           <button style={{ fontSize: 11, color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Unbind</button>
@@ -269,7 +269,7 @@ const Settings: React.FC<SettingsProps> = ({ userId, role, authEmail, walletAddr
                 </div>
               </div>
 
-              <div style={{ padding: 20, borderRadius: 14, background: 'rgba(47,109,242,0.06)', border: '1px solid rgba(47,109,242,0.15)' }}>
+              <div style={{ padding: 20, borderRadius: 14, background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.15)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                   <Link2 style={{ width: 16, height: 16, color: 'var(--color-accent)' }} />
                   <h4 style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>Identity Sync</h4>
@@ -292,7 +292,7 @@ const Settings: React.FC<SettingsProps> = ({ userId, role, authEmail, walletAddr
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
                 {[
-                  { icon: CreditCard, label: 'Fiat Payments', sub: 'Card & bank transfers', color: '#2F6DF2', bg: 'rgba(47,109,242,0.1)', badge: 'Paystack Ready' },
+                  { icon: CreditCard, label: 'Fiat Payments', sub: 'Card & bank transfers', color: 'var(--color-accent)', bg: 'rgba(139,92,246,0.1)', badge: 'Paystack Ready' },
                   { icon: Wallet,     label: 'Blockchain',    sub: 'USDT on BSC',           color: '#f97316', bg: 'rgba(249,115,22,0.1)', badge: 'USDT / BSC' },
                 ].map(({ icon: Icon, label, sub, color, bg, badge }) => (
                   <div key={label} style={{ padding: '20px', borderRadius: 14, background: 'var(--color-bg-deep)', border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: 12 }}>

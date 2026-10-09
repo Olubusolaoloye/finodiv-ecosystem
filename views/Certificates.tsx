@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { api } from '../services/backend';
 import { CertificateNFT } from '../types';
 import {
@@ -31,7 +31,7 @@ const CertCard: React.FC<{ cert: CertificateNFT; title: string }> = ({ cert, tit
       position: 'relative',
       transition: 'border-color 0.2s',
     }}
-      onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(47,109,242,0.35)')}
+      onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.35)')}
       onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
     >
       {cert.status === 'minting' && (
@@ -48,7 +48,7 @@ const CertCard: React.FC<{ cert: CertificateNFT; title: string }> = ({ cert, tit
 
       {/* Certificate visual */}
       <div style={{
-        background: 'linear-gradient(135deg, rgba(47,109,242,0.35) 0%, rgba(124,58,237,0.25) 100%)',
+        background: 'linear-gradient(135deg, rgba(139,92,246,0.35) 0%, rgba(124,58,237,0.25) 100%)',
         padding: '28px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center',
         position: 'relative',
       }}>
@@ -77,7 +77,7 @@ const CertCard: React.FC<{ cert: CertificateNFT; title: string }> = ({ cert, tit
       <div style={{ padding: '16px 18px' }}>
         {cert.status === 'minted' && cert.tokenId && (
           <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
-            <span style={{ padding: '3px 8px', borderRadius: 6, background: 'rgba(47,109,242,0.1)', color: 'var(--color-accent)', border: '1px solid rgba(47,109,242,0.2)', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+            <span style={{ padding: '3px 8px', borderRadius: 6, background: 'rgba(139,92,246,0.1)', color: 'var(--color-accent)', border: '1px solid rgba(139,92,246,0.2)', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
               Token #{cert.tokenId}
             </span>
             <span style={{ padding: '3px 8px', borderRadius: 6, background: 'rgba(52,211,153,0.1)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
@@ -169,7 +169,7 @@ const Certificates: React.FC<CertificatesProps> = ({ userId, walletAddress }) =>
   const isEmpty = unclaimed.length === 0 && certs.length === 0;
 
   const STATS = [
-    { label: 'Completed',  value: completedEnrollments.length,                     icon: BookOpen, color: '#2F6DF2', bg: 'rgba(47,109,242,0.1)' },
+    { label: 'Completed',  value: completedEnrollments.length,                     icon: BookOpen, color: 'var(--color-accent)', bg: 'rgba(139,92,246,0.1)' },
     { label: 'Minted',     value: certs.filter(c => c.status === 'minted').length,  icon: Award,   color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
     { label: 'Unclaimed',  value: unclaimed.length,                                  icon: Zap,     color: '#fbbf24', bg: 'rgba(251,191,36,0.1)' },
   ];
@@ -190,7 +190,7 @@ const Certificates: React.FC<CertificatesProps> = ({ userId, walletAddress }) =>
         </div>
         <a href="https://bscscan.com" target="_blank" rel="noopener noreferrer"
           style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 10, background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)', fontSize: 12, fontWeight: 600, textDecoration: 'none', transition: 'border-color 0.15s' }}
-          onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(47,109,242,0.4)')}
+          onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.4)')}
           onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
         >
           Verification Portal <ExternalLink style={{ width: 12, height: 12 }} />
@@ -238,15 +238,15 @@ const Certificates: React.FC<CertificatesProps> = ({ userId, walletAddress }) =>
                 {unclaimed.map(enrol => (
                   <div key={enrol.courseId} style={{
                     background: 'var(--color-bg-card)',
-                    border: '2px dashed rgba(47,109,242,0.25)',
+                    border: '2px dashed rgba(139,92,246,0.25)',
                     borderRadius: 20, padding: '28px 20px',
                     display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center',
                     transition: 'border-color 0.2s',
                   }}
-                    onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(47,109,242,0.5)')}
-                    onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(47,109,242,0.25)')}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)')}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.25)')}
                   >
-                    <div style={{ width: 64, height: 64, borderRadius: 18, background: 'linear-gradient(135deg,rgba(47,109,242,0.2),rgba(124,58,237,0.15))', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16, color: 'var(--color-accent)' }}>
+                    <div style={{ width: 64, height: 64, borderRadius: 18, background: 'linear-gradient(135deg,rgba(139,92,246,0.2),rgba(124,58,237,0.15))', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16, color: 'var(--color-accent)' }}>
                       <Award style={{ width: 28, height: 28 }} />
                     </div>
                     <span style={{ padding: '3px 10px', borderRadius: 6, background: 'rgba(52,211,153,0.1)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>

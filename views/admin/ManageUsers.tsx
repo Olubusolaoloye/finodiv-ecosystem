@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState, useEffect } from 'react';
 import { User, UserRole } from '../../types';
 import { db } from '../../services/firebase';
@@ -77,7 +77,7 @@ const ManageUsers: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
         <div>
           <h1 className="text-4xl font-black mb-2 tracking-tight text-slate-900 dark:text-white">
-            Platform <span className="text-blue-500">Users</span>
+            Platform <span className="text-purple-400">Users</span>
           </h1>
           <p className="text-slate-500 dark:text-gray-500 font-medium">Manage permissions and assign Elite Status badges.</p>
         </div>
@@ -95,14 +95,14 @@ const ManageUsers: React.FC = () => {
             placeholder="Search members…"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl py-4 pl-12 pr-4 focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 transition-colors"
+            className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl py-4 pl-12 pr-4 focus:outline-none focus:ring-1 focus:ring-purple-500 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 transition-colors"
           />
         </div>
       </div>
 
       {loading ? (
         <div className="py-20 flex flex-col items-center gap-4 text-slate-400 dark:text-gray-500">
-          <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
+          <Loader2 className="w-10 h-10 animate-spin text-purple-400" />
           <p className="font-bold uppercase tracking-widest text-xs">Querying User Database…</p>
         </div>
       ) : (
@@ -169,7 +169,7 @@ const ManageUsers: React.FC = () => {
               className="absolute top-8 right-8 text-slate-400 dark:text-gray-500 hover:text-slate-900 dark:hover:text-white transition-colors">
               <X className="w-6 h-6" />
             </button>
-            <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center mb-6 text-blue-500">
+            <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center mb-6 text-purple-400">
               <UserPlus className="w-7 h-7" />
             </div>
             <h3 className="text-xl font-black mb-2 text-slate-900 dark:text-white">Invite a Member</h3>
@@ -203,7 +203,7 @@ const ManageUsers: React.FC = () => {
           <div className="w-full max-w-md bg-white dark:bg-[#0b0e14] border border-slate-200 dark:border-white/10 rounded-[40px] p-10 shadow-2xl relative">
             {isUpdating && (
               <div className="absolute inset-0 bg-white/70 dark:bg-black/50 z-10 flex items-center justify-center rounded-[40px] backdrop-blur-sm">
-                <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
+                <Loader2 className="w-10 h-10 animate-spin text-purple-400" />
               </div>
             )}
             <button onClick={() => setSelectedUser(null)} className="absolute top-8 right-8 text-slate-400 dark:text-gray-500 hover:text-slate-900 dark:hover:text-white transition-colors">

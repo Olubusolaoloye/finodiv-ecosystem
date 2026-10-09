@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../services/backend';
@@ -119,7 +119,7 @@ const CurriculumSection: React.FC<{
                 <button
                   onClick={() => onPreview(lesson)}
                   className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors duration-150"
-                  style={{ backgroundColor: 'rgba(47,109,242,0.15)' }}
+                  style={{ backgroundColor: 'rgba(139,92,246,0.15)' }}
                   aria-label={`Preview ${lesson.title}`}
                 >
                   <Play className="w-3 h-3" style={{ color: 'var(--color-accent)' }} />
@@ -138,7 +138,7 @@ const CurriculumSection: React.FC<{
               {lesson.free && (
                 <span
                   className="shrink-0 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
-                  style={{ backgroundColor: 'rgba(47,109,242,0.15)', color: 'var(--color-accent-hover)' }}
+                  style={{ backgroundColor: 'rgba(139,92,246,0.15)', color: 'var(--color-accent-hover)' }}
                 >
                   Free
                 </span>
@@ -214,7 +214,7 @@ const PreviewModal: React.FC<{ lesson: Lesson | null; onClose: () => void }> = (
             >
               <div
                 className="w-16 h-16 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: 'rgba(47,109,242,0.2)', border: '1px solid rgba(47,109,242,0.4)' }}
+                style={{ backgroundColor: 'rgba(139,92,246,0.2)', border: '1px solid rgba(139,92,246,0.4)' }}
               >
                 <Play className="w-6 h-6 translate-x-0.5" style={{ color: 'var(--color-accent)' }} />
               </div>
@@ -253,7 +253,7 @@ const EnrollCard: React.FC<{
       >
         <div
           className="w-12 h-12 rounded-full flex items-center justify-center"
-          style={{ backgroundColor: 'rgba(47,109,242,0.15)' }}
+          style={{ backgroundColor: 'rgba(139,92,246,0.15)' }}
         >
           <Play className="w-5 h-5 translate-x-0.5" style={{ color: 'var(--color-accent)' }} />
         </div>
@@ -410,7 +410,7 @@ const CourseDetail: React.FC = () => {
               {/* Level badge */}
               <span
                 className="inline-block text-[10px] font-semibold uppercase tracking-widest px-2.5 py-1 rounded-md mb-4"
-                style={{ backgroundColor: 'rgba(47,109,242,0.15)', color: 'var(--color-accent-hover)' }}
+                style={{ backgroundColor: 'rgba(139,92,246,0.15)', color: 'var(--color-accent-hover)' }}
               >
                 {course.level}
               </span>
@@ -558,7 +558,7 @@ const CourseDetail: React.FC = () => {
                 <div className="flex items-center gap-3 mb-4">
                   <div
                     className="w-9 h-9 rounded-[10px] flex items-center justify-center"
-                    style={{ backgroundColor: 'rgba(47,109,242,0.12)' }}
+                    style={{ backgroundColor: 'rgba(139,92,246,0.12)' }}
                   >
                     <ClipboardList className="w-4.5 h-4.5" style={{ color: 'var(--color-accent)' }} />
                   </div>
@@ -605,7 +605,7 @@ const CourseDetail: React.FC = () => {
                         border: '1px solid var(--color-border)',
                         color: 'var(--color-text-primary)',
                       }}
-                      onFocus={e => (e.currentTarget.style.borderColor = 'rgba(47,109,242,0.6)')}
+                      onFocus={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.6)')}
                       onBlur={e  => (e.currentTarget.style.borderColor = 'var(--color-border)')}
                     />
                     <button

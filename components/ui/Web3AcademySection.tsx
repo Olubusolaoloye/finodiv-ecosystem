@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+﻿import React, { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useInView } from 'framer-motion';
 import { BookOpen, Layers, Zap, Star, Wifi, Shield, Download } from 'lucide-react';
@@ -9,7 +9,7 @@ const FEATURES = [
   { icon: Star,     label: '43 Blockchain Nets',  desc: 'Every major chain plus the apps built on them',          color: '#34d399', bg: 'rgba(52,211,153,0.12)'  },
   { icon: Zap,      label: 'Daily Challenge',     desc: 'Module quizzes, daily quiz, XP, streaks & 19 badges',    color: '#fbbf24', bg: 'rgba(251,191,36,0.12)'  },
   { icon: Wifi,     label: 'Works Offline',       desc: 'Full functionality once loaded — no connection needed',  color: '#f472b6', bg: 'rgba(244,114,182,0.12)' },
-  { icon: Shield,   label: 'No Account Needed',   desc: 'Progress stays privately on your device, no sign-up',   color: '#2F6DF2', bg: 'rgba(47,109,242,0.12)'  },
+  { icon: Shield,   label: 'No Account Needed',   desc: 'Progress stays privately on your device, no sign-up',   color: 'var(--color-accent)', bg: 'rgba(139,92,246,0.12)'  },
 ];
 
 const STATS = [
@@ -30,7 +30,7 @@ const Web3AcademySection: React.FC = () => {
     <section
       ref={ref}
       style={{
-        background: 'linear-gradient(160deg, #0f0a2e 0%, #0b0e14 50%, #0a0e1a 100%)',
+        background: 'linear-gradient(160deg, #0f0a2e 0%, #09081a 50%, #0e0c22 100%)',
         padding: '100px 24px',
         borderTop: '1px solid var(--color-border)',
         position: 'relative', overflow: 'hidden',
@@ -38,7 +38,7 @@ const Web3AcademySection: React.FC = () => {
     >
       {/* Ambient glows */}
       <div aria-hidden="true" style={{ position: 'absolute', top: '-10%', right: '-5%', width: 600, height: 600, background: 'radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 65%)', borderRadius: '50%', pointerEvents: 'none' }} />
-      <div aria-hidden="true" style={{ position: 'absolute', bottom: 0, left: '-5%', width: 500, height: 500, background: 'radial-gradient(circle, rgba(47,109,242,0.08) 0%, transparent 65%)', borderRadius: '50%', pointerEvents: 'none' }} />
+      <div aria-hidden="true" style={{ position: 'absolute', bottom: 0, left: '-5%', width: 500, height: 500, background: 'radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 65%)', borderRadius: '50%', pointerEvents: 'none' }} />
 
       <div style={{ maxWidth: 1200, margin: '0 auto', position: 'relative', zIndex: 1 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 64, alignItems: 'center' }}>

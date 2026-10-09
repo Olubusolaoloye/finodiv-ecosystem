@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen, Clock, Users, Star } from 'lucide-react';
 
@@ -23,7 +23,7 @@ interface CourseCardProps {
 }
 
 const CATEGORY_GRADIENTS: Record<string, string> = {
-  Forex:          'linear-gradient(135deg, #1d3a6b 0%, #1e3a8a 50%, #2F6DF2 100%)',
+  Forex:          'linear-gradient(135deg, #1d3a6b 0%, #1e3a8a 50%, var(--color-accent) 100%)',
   Crypto:         'linear-gradient(135deg, #3b0764 0%, #5b21b6 50%, #7C3AED 100%)',
   DeFi:           'linear-gradient(135deg, #0c4a6e 0%, #0369a1 50%, #38bdf8 100%)',
   'Digital Skills':'linear-gradient(135deg, #064e3b 0%, #065f46 50%, #10b981 100%)',
@@ -31,7 +31,7 @@ const CATEGORY_GRADIENTS: Record<string, string> = {
 };
 
 const LEVEL_STYLES: Record<string, { bg: string; color: string }> = {
-  Beginner:     { bg: 'rgba(47,109,242,0.15)',  color: '#60a5fa'  },
+  Beginner:     { bg: 'rgba(139,92,246,0.15)',  color: '#60a5fa'  },
   Intermediate: { bg: 'rgba(124,58,237,0.15)',  color: '#a78bfa'  },
   Advanced:     { bg: 'rgba(239,68,68,0.12)',   color: '#f87171'  },
 };
@@ -45,7 +45,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 const CourseCard: React.FC<CourseCardProps> = ({ course, onClick }) => {
-  const gradient = CATEGORY_GRADIENTS[course.category] ?? 'linear-gradient(135deg, #0A1929 0%, #1e2530 100%)';
+  const gradient = CATEGORY_GRADIENTS[course.category] ?? 'linear-gradient(135deg, #1a0a3e 0%, #2d1b69 100%)';
   const level    = LEVEL_STYLES[course.level] ?? LEVEL_STYLES.Beginner;
   const icon     = CATEGORY_ICONS[course.category] ?? '📚';
   const rating   = course.rating ?? 4.8;
@@ -66,8 +66,8 @@ const CourseCard: React.FC<CourseCardProps> = ({ course, onClick }) => {
         transition: 'border-color 0.2s, box-shadow 0.2s',
       }}
       onMouseEnter={e => {
-        (e.currentTarget as HTMLElement).style.borderColor = 'rgba(47,109,242,0.4)';
-        (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 32px rgba(47,109,242,0.12)';
+        (e.currentTarget as HTMLElement).style.borderColor = 'rgba(139,92,246,0.4)';
+        (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 32px rgba(139,92,246,0.12)';
       }}
       onMouseLeave={e => {
         (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border)';
@@ -104,7 +104,7 @@ const CourseCard: React.FC<CourseCardProps> = ({ course, onClick }) => {
           </span>
         </div>
         {/* Hover overlay */}
-        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200" style={{ background: 'rgba(47,109,242,0.08)' }} aria-hidden="true" />
+        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200" style={{ background: 'rgba(139,92,246,0.08)' }} aria-hidden="true" />
       </div>
 
       {/* Body */}

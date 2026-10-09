@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { TALENTS } from '../constants';
 import { UserRole } from '../types';
@@ -113,7 +113,7 @@ const Profile: React.FC<ProfileProps> = ({ currentSessionRole }) => {
         {/* Cover */}
         <div style={{
           height: 200, borderRadius: 20, overflow: 'hidden',
-          background: 'linear-gradient(135deg, rgba(47,109,242,0.3) 0%, rgba(124,58,237,0.2) 100%)',
+          background: 'linear-gradient(135deg, rgba(139,92,246,0.3) 0%, rgba(124,58,237,0.2) 100%)',
           border: '1px solid var(--color-border)',
           position: 'relative',
         }}>

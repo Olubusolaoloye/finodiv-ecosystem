@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState } from 'react';
 import { UserRole } from '../types';
 import { GraduationCap, Briefcase, ArrowRight, CheckCircle2 } from 'lucide-react';
@@ -81,7 +81,7 @@ const JoinAs: React.FC<JoinAsProps> = ({ onSelect }) => {
 
               {selected === opt.role && (
                  <div className="absolute top-6 right-6">
-                    <CheckCircle2 className="w-8 h-8 text-blue-500" />
+                    <CheckCircle2 className="w-8 h-8 text-purple-400" />
                  </div>
               )}
             </button>

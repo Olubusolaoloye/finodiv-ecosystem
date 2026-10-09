@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { api } from '../services/backend';
 import { getSession } from '../services/session';
@@ -150,7 +150,7 @@ const LearningPlayer: React.FC = () => {
                           width: '100%', display: 'flex', alignItems: 'center', gap: 12,
                           padding: '10px 12px', borderRadius: 12, textAlign: 'left',
                           background: isActive ? 'rgba(255,255,255,0.05)' : 'transparent',
-                          border: `1px solid ${isActive ? 'rgba(47,109,242,0.3)' : 'transparent'}`,
+                          border: `1px solid ${isActive ? 'rgba(139,92,246,0.3)' : 'transparent'}`,
                           cursor: 'pointer', transition: 'all 0.15s',
                         }}
                         onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.03)'; }}
@@ -234,7 +234,7 @@ const LearningPlayer: React.FC = () => {
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 40 }}>
                   <button
                     onClick={() => setIsPlaying(!isPlaying)}
-                    style={{ width: 72, height: 72, borderRadius: '50%', background: 'var(--color-accent)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', boxShadow: '0 8px 32px rgba(47,109,242,0.4)', transition: 'transform 0.15s' }}
+                    style={{ width: 72, height: 72, borderRadius: '50%', background: 'var(--color-accent)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', boxShadow: '0 8px 32px rgba(139,92,246,0.4)', transition: 'transform 0.15s' }}
                     onMouseEnter={e => ((e.currentTarget as HTMLElement).style.transform = 'scale(1.1)')}
                     onMouseLeave={e => ((e.currentTarget as HTMLElement).style.transform = 'scale(1)')}
                   >
@@ -278,7 +278,7 @@ const LearningPlayer: React.FC = () => {
                     color: isCurrentComplete ? '#34d399' : '#fff',
                     border: isCurrentComplete ? '1px solid rgba(52,211,153,0.2)' : 'none',
                     cursor: isCurrentComplete ? 'default' : 'pointer',
-                    boxShadow: isCurrentComplete ? 'none' : '0 8px 24px rgba(47,109,242,0.2)',
+                    boxShadow: isCurrentComplete ? 'none' : '0 8px 24px rgba(139,92,246,0.2)',
                   }}
                 >
                   {markingComplete
@@ -347,7 +347,7 @@ const LearningPlayer: React.FC = () => {
               <div style={{ background: 'var(--color-bg-card)', borderRadius: 32, padding: 32, border: '1px solid var(--color-border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
                   <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--color-text-primary)' }}>Test Your Knowledge</h3>
-                  <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(47,109,242,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-accent)' }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(139,92,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-accent)' }}>
                     <HelpCircle style={{ width: 18, height: 18 }} />
                   </div>
                 </div>
@@ -366,7 +366,7 @@ const LearningPlayer: React.FC = () => {
                       onClick={() => !quizSubmitted && setSelectedAnswer(idx)}
                       style={{
                         width: '100%', padding: '16px 18px', borderRadius: 14, textAlign: 'left', fontSize: 13,
-                        background: selectedAnswer === idx ? 'rgba(47,109,242,0.08)' : 'rgba(255,255,255,0.02)',
+                        background: selectedAnswer === idx ? 'rgba(139,92,246,0.08)' : 'rgba(255,255,255,0.02)',
                         border: `2px solid ${selectedAnswer === idx ? 'var(--color-accent)' : 'var(--color-border)'}`,
                         cursor: quizSubmitted ? 'default' : 'pointer',
                         display: 'flex', alignItems: 'center', gap: 14, transition: 'all 0.15s',

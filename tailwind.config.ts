@@ -1,4 +1,4 @@
-import type { Config } from 'tailwindcss';
+﻿import type { Config } from 'tailwindcss';
 
 const config: Config = {
   darkMode: 'class',
@@ -15,7 +15,7 @@ const config: Config = {
         'brand-deep':   '#040D18',   // bg-brand-deep   — modals, hero, footer
 
         // ── Accent ───────────────────────────────────────────────────────
-        'accent':       '#2F6DF2',   // bg-accent / text-accent / border-accent
+        'accent':       'var(--color-accent)',   // bg-accent / text-accent / border-accent
         'accent-hover': '#4B83F5',   // hover:bg-accent-hover
 
         // ── Text ─────────────────────────────────────────────────────────
@@ -45,7 +45,7 @@ const config: Config = {
       },
 
       boxShadow: {
-        'accent-glow': '0 0 32px rgba(47, 109, 242, 0.18)',
+        'accent-glow': '0 0 32px rgba(139, 92, 246, 0.18)',
         'card':        '0 1px 3px rgba(0,0,0,0.4), 0 4px 24px rgba(0,0,0,0.3)',
       },
 

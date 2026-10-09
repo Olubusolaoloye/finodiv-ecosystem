@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../services/backend';
@@ -85,7 +85,7 @@ const OrderStep: React.FC<{ onNext: () => void }> = ({ onNext }) => (
     >
       <div
         className="w-14 h-14 rounded-full flex items-center justify-center"
-        style={{ backgroundColor: 'rgba(47,109,242,0.15)' }}
+        style={{ backgroundColor: 'rgba(139,92,246,0.15)' }}
       >
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M5 3l14 9-14 9V3z" fill="var(--color-accent)" />
@@ -178,13 +178,13 @@ const PaymentStep: React.FC<{
             onClick={() => onMethod(m.id)}
             className="flex items-center gap-4 p-4 rounded-[14px] text-left transition-all duration-150"
             style={{
-              backgroundColor: method === m.id ? 'rgba(47,109,242,0.08)' : 'var(--color-bg-card)',
-              border: `1px solid ${method === m.id ? 'rgba(47,109,242,0.5)' : 'var(--color-border)'}`,
+              backgroundColor: method === m.id ? 'rgba(139,92,246,0.08)' : 'var(--color-bg-card)',
+              border: `1px solid ${method === m.id ? 'rgba(139,92,246,0.5)' : 'var(--color-border)'}`,
             }}
           >
             <div
               className="w-10 h-10 rounded-[10px] flex items-center justify-center shrink-0"
-              style={{ backgroundColor: 'rgba(47,109,242,0.12)' }}
+              style={{ backgroundColor: 'rgba(139,92,246,0.12)' }}
             >
               {m.icon}
             </div>
@@ -257,7 +257,7 @@ const ConfirmStep: React.FC<{ txId?: string; onDone: () => void }> = ({ txId, on
       animate={{ scale: 1 }}
       transition={{ type: 'spring', damping: 12, stiffness: 200, delay: 0.1 }}
       className="w-20 h-20 rounded-full flex items-center justify-center mb-6"
-      style={{ backgroundColor: 'rgba(47,109,242,0.15)', border: '2px solid rgba(47,109,242,0.4)' }}
+      style={{ backgroundColor: 'rgba(139,92,246,0.15)', border: '2px solid rgba(139,92,246,0.4)' }}
     >
       <CheckCircle2 className="w-9 h-9" style={{ color: 'var(--color-accent)' }} />
     </motion.div>

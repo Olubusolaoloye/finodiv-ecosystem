@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CAREER_QUESTIONS, CAREER_PATHS } from '../constants';
 import { CareerPath } from '../types';
@@ -63,7 +63,7 @@ const CareerCompass: React.FC = () => {
         <div style={{
           position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
           width: 700, height: 700,
-          background: 'radial-gradient(circle, rgba(47,109,242,0.08) 0%, transparent 65%)',
+          background: 'radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 65%)',
           borderRadius: '50%', pointerEvents: 'none',
         }} aria-hidden="true" />
 
@@ -71,10 +71,10 @@ const CareerCompass: React.FC = () => {
           {/* Icon */}
           <div style={{
             width: 80, height: 80, borderRadius: 28,
-            background: 'rgba(47,109,242,0.1)',
-            border: '1px solid rgba(47,109,242,0.25)',
+            background: 'rgba(139,92,246,0.1)',
+            border: '1px solid rgba(139,92,246,0.25)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            marginBottom: 32, boxShadow: '0 8px 32px rgba(47,109,242,0.12)',
+            marginBottom: 32, boxShadow: '0 8px 32px rgba(139,92,246,0.12)',
           }}>
             <Compass style={{ width: 38, height: 38, color: 'var(--color-accent)' }} strokeWidth={1.5} />
           </div>
@@ -86,7 +86,7 @@ const CareerCompass: React.FC = () => {
           }}>
             Discover Your<br />
             <span style={{
-              background: 'linear-gradient(135deg, #2F6DF2, #7C3AED)',
+              background: 'linear-gradient(135deg, var(--color-accent), #7C3AED)',
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
             }}>
               Web3 Career Path
@@ -104,8 +104,8 @@ const CareerCompass: React.FC = () => {
             {TAGS.map(tag => (
               <span key={tag} style={{
                 padding: '6px 14px', borderRadius: 999,
-                background: 'rgba(47,109,242,0.08)',
-                border: '1px solid rgba(47,109,242,0.2)',
+                background: 'rgba(139,92,246,0.08)',
+                border: '1px solid rgba(139,92,246,0.2)',
                 fontSize: 11, fontWeight: 800, textTransform: 'uppercase',
                 letterSpacing: '0.1em', color: 'var(--color-accent)',
               }}>
@@ -121,7 +121,7 @@ const CareerCompass: React.FC = () => {
               padding: '16px 40px', borderRadius: 16,
               background: 'var(--color-accent)', color: '#fff',
               fontWeight: 900, fontSize: 17, border: 'none', cursor: 'pointer',
-              boxShadow: '0 8px 32px rgba(47,109,242,0.3)',
+              boxShadow: '0 8px 32px rgba(139,92,246,0.3)',
               transition: 'all 0.2s',
             }}
             onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = 'var(--color-accent-hover)'; el.style.transform = 'translateY(-2px)'; }}
@@ -177,7 +177,7 @@ const CareerCompass: React.FC = () => {
               height: '100%', background: 'var(--color-accent)',
               borderRadius: 99, width: `${progress}%`,
               transition: 'width 0.4s ease',
-              boxShadow: '0 0 12px rgba(47,109,242,0.5)',
+              boxShadow: '0 0 12px rgba(139,92,246,0.5)',
             }} />
           </div>
 
@@ -192,7 +192,7 @@ const CareerCompass: React.FC = () => {
             <div style={{
               position: 'absolute', top: 0, right: 0,
               width: 300, height: 300,
-              background: 'radial-gradient(circle, rgba(47,109,242,0.06) 0%, transparent 70%)',
+              background: 'radial-gradient(circle, rgba(139,92,246,0.06) 0%, transparent 70%)',
               transform: 'translate(30%, -30%)', pointerEvents: 'none',
             }} aria-hidden="true" />
 
@@ -221,8 +221,8 @@ const CareerCompass: React.FC = () => {
                   }}
                   onMouseEnter={e => {
                     const el = e.currentTarget as HTMLElement;
-                    el.style.borderColor = 'rgba(47,109,242,0.5)';
-                    el.style.background = 'rgba(47,109,242,0.07)';
+                    el.style.borderColor = 'rgba(139,92,246,0.5)';
+                    el.style.background = 'rgba(139,92,246,0.07)';
                   }}
                   onMouseLeave={e => {
                     const el = e.currentTarget as HTMLElement;
@@ -235,8 +235,8 @@ const CareerCompass: React.FC = () => {
                   </span>
                   <div style={{
                     width: 32, height: 32, borderRadius: 10, flexShrink: 0,
-                    background: 'rgba(47,109,242,0.1)',
-                    border: '1px solid rgba(47,109,242,0.2)',
+                    background: 'rgba(139,92,246,0.1)',
+                    border: '1px solid rgba(139,92,246,0.2)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
                     <ArrowRight style={{ width: 14, height: 14, color: 'var(--color-accent)' }} />
@@ -290,7 +290,7 @@ const CareerCompass: React.FC = () => {
                 background: 'linear-gradient(135deg, #1e3a9a 0%, #2d1872 100%)',
                 borderRadius: 40, padding: 'clamp(28px, 5vw, 52px)',
                 position: 'relative', overflow: 'hidden',
-                boxShadow: '0 24px 80px rgba(47,109,242,0.2)',
+                boxShadow: '0 24px 80px rgba(139,92,246,0.2)',
               }}>
                 <div style={{ position: 'absolute', top: 0, right: 0, width: 400, height: 400, background: 'radial-gradient(circle, rgba(255,255,255,0.07) 0%, transparent 65%)', transform: 'translate(30%, -30%)', pointerEvents: 'none' }} aria-hidden="true" />
                 <div style={{ position: 'relative', zIndex: 1 }}>
@@ -400,11 +400,11 @@ const CareerCompass: React.FC = () => {
                     borderRadius: 24, padding: '24px',
                     transition: 'border-color 0.15s',
                   }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(47,109,242,0.4)'; }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(139,92,246,0.4)'; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border)'; }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <span style={{ padding: '3px 10px', borderRadius: 6, background: 'rgba(47,109,242,0.1)', border: '1px solid rgba(47,109,242,0.2)', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-accent)' }}>
+                    <span style={{ padding: '3px 10px', borderRadius: 6, background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-accent)' }}>
                       Strong Fit
                     </span>
                     <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-muted)' }}>{alt.overlap}% match</span>
@@ -447,7 +447,7 @@ const CareerCompass: React.FC = () => {
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
                   transition: 'all 0.2s',
                 }}
-                onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'rgba(47,109,242,0.5)'; el.style.color = 'var(--color-text-primary)'; }}
+                onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'rgba(139,92,246,0.5)'; el.style.color = 'var(--color-text-primary)'; }}
                 onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--color-border)'; el.style.color = 'var(--color-text-muted)'; }}
               >
                 <RefreshCw style={{ width: 15, height: 15 }} /> Retake Assessment

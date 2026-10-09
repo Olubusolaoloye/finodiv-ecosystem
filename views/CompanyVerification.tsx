@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState } from 'react';
 // Add Lock to the lucide-react imports
 import { Upload, CheckCircle2, File, Info, Building2, Globe, MapPin, X, Lock } from 'lucide-react';
@@ -39,19 +39,19 @@ const CompanyVerification: React.FC = () => {
              <div className="grid md:grid-cols-2 gap-10">
                 <div className="space-y-3">
                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 px-2">Legal Company Name</label>
-                   <input type="text" placeholder="Enter your company's legal name" className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-8 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                   <input type="text" placeholder="Enter your company's legal name" className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-8 focus:outline-none focus:ring-1 focus:ring-purple-500" />
                 </div>
                 <div className="space-y-3">
                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 px-2">Registration Number</label>
-                   <input type="text" placeholder="e.g., 12345678" className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-8 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                   <input type="text" placeholder="e.g., 12345678" className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-8 focus:outline-none focus:ring-1 focus:ring-purple-500" />
                 </div>
                 <div className="space-y-3">
                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 px-2 flex items-center gap-2">Company Website <Globe className="w-3 h-3" /></label>
-                   <input type="text" placeholder="https://example.com" className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-8 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                   <input type="text" placeholder="https://example.com" className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-8 focus:outline-none focus:ring-1 focus:ring-purple-500" />
                 </div>
                 <div className="space-y-3">
                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 px-2">Company Type</label>
-                   <select className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-8 focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none">
+                   <select className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-8 focus:outline-none focus:ring-1 focus:ring-purple-500 appearance-none">
                       <option>Select company type</option>
                       <option>Corporation</option>
                       <option>LLC</option>
@@ -68,19 +68,19 @@ const CompanyVerification: React.FC = () => {
              <div className="grid md:grid-cols-3 gap-10">
                 <div className="md:col-span-3 space-y-3">
                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 px-2">Address Line</label>
-                   <input type="text" placeholder="123 Main Street" className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-8 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                   <input type="text" placeholder="123 Main Street" className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-8 focus:outline-none focus:ring-1 focus:ring-purple-500" />
                 </div>
                 <div className="space-y-3">
                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 px-2">City</label>
-                   <input type="text" placeholder="Metropolis" className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-8 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                   <input type="text" placeholder="Metropolis" className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-8 focus:outline-none focus:ring-1 focus:ring-purple-500" />
                 </div>
                 <div className="space-y-3">
                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 px-2">Postal Code</label>
-                   <input type="text" placeholder="10001" className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-8 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                   <input type="text" placeholder="10001" className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-8 focus:outline-none focus:ring-1 focus:ring-purple-500" />
                 </div>
                 <div className="space-y-3">
                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 px-2">Country</label>
-                   <select className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-8 focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none">
+                   <select className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-8 focus:outline-none focus:ring-1 focus:ring-purple-500 appearance-none">
                       <option>Select country</option>
                       <option>United States</option>
                       <option>Singapore</option>
@@ -134,7 +134,7 @@ const CompanyVerification: React.FC = () => {
                 <span className="text-sm text-gray-500">I confirm that the information provided is accurate and I agree to FINODIV's <span className="text-blue-400 font-bold">Terms of Service</span> and <span className="text-blue-400 font-bold">Privacy Policy</span>.</span>
              </label>
 
-             <button className="w-full max-w-lg py-6 rounded-3xl bg-[#2F6DF2] hover:bg-blue-600 transition-all font-black text-xl shadow-2xl shadow-blue-500/20">
+             <button className="w-full max-w-lg py-6 rounded-3xl bg-[var(--color-accent)] hover:bg-purple-600 transition-all font-black text-xl shadow-2xl shadow-blue-500/20">
                 Submit for Verification
              </button>
              

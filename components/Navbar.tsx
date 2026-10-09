@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { UserRole } from '../types';
 import { Search, Bell, Sun, Moon, Menu, Settings, LogOut, User, ChevronDown } from 'lucide-react';
@@ -127,7 +127,7 @@ const Navbar: React.FC<NavbarProps> = ({
             cursor: 'pointer', color: 'var(--color-text-muted)',
             transition: 'border-color 0.15s',
           }}
-          onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(47,109,242,0.4)')}
+          onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.4)')}
           onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
         >
           {isDarkMode
@@ -144,7 +144,7 @@ const Navbar: React.FC<NavbarProps> = ({
               fontSize: 13, fontWeight: 600,
               textDecoration: 'none',
               transition: 'background 0.15s',
-              boxShadow: '0 0 20px rgba(47,109,242,0.25)',
+              boxShadow: '0 0 20px rgba(139,92,246,0.25)',
             }}
             onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-accent-hover)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-accent)')}
@@ -168,7 +168,7 @@ const Navbar: React.FC<NavbarProps> = ({
                   fontSize: 12, outline: 'none', width: 180,
                   transition: 'border-color 0.15s',
                 }}
-                onFocus={e => (e.currentTarget.style.borderColor = 'rgba(47,109,242,0.5)')}
+                onFocus={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)')}
                 onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
               />
             </div>
@@ -265,7 +265,7 @@ const Navbar: React.FC<NavbarProps> = ({
                         <span style={{
                           display: 'inline-block', marginTop: 3,
                           padding: '1px 6px', borderRadius: 4,
-                          background: 'rgba(47,109,242,0.12)', color: 'var(--color-accent)',
+                          background: 'rgba(139,92,246,0.12)', color: 'var(--color-accent)',
                           fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em',
                         }}>
                           {role}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -76,7 +76,7 @@ const AdminDashboard: React.FC = () => {
         time: new Date(p._creationTime).toISOString(),
         icon: UserPlus,
         color: 'var(--color-accent)',
-        bg: 'rgba(47,109,242,0.1)',
+        bg: 'rgba(139,92,246,0.1)',
       }));
       combined.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
       setEvents(combined.slice(0, 8));
@@ -148,7 +148,7 @@ const AdminDashboard: React.FC = () => {
 
   const KPI_ITEMS = [
     { label: 'Total Revenue',     value: stats ? `$${stats.revenue.toLocaleString()}` : '—', icon: DollarSign,  color: '#34d399', bg: 'rgba(52,211,153,0.1)'  },
-    { label: 'Registered Users',  value: stats ? stats.users.toLocaleString()          : '—', icon: Users,       color: 'var(--color-accent)', bg: 'rgba(47,109,242,0.1)' },
+    { label: 'Registered Users',  value: stats ? stats.users.toLocaleString()          : '—', icon: Users,       color: 'var(--color-accent)', bg: 'rgba(139,92,246,0.1)' },
     { label: 'Total Enrollments', value: stats ? stats.enrollments.toLocaleString()    : '—', icon: BookOpen,    color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
     { label: 'Completions',       value: stats ? stats.completions.toLocaleString()    : '—', icon: ShieldAlert, color: '#f59e0b', bg: 'rgba(245,158,11,0.1)'  },
   ];
@@ -175,7 +175,7 @@ const AdminDashboard: React.FC = () => {
             Export CSV
           </button>
           <button onClick={() => setShowLogs(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderRadius: 16, background: 'var(--color-accent)', color: '#fff', fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer', boxShadow: '0 8px 24px rgba(47,109,242,0.2)' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderRadius: 16, background: 'var(--color-accent)', color: '#fff', fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer', boxShadow: '0 8px 24px rgba(139,92,246,0.2)' }}>
             <Activity style={{ width: 16, height: 16 }} /> System Logs
           </button>
         </div>
@@ -185,7 +185,7 @@ const AdminDashboard: React.FC = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20, marginBottom: 40 }}>
         {KPI_ITEMS.map((kpi, i) => (
           <div key={i} style={{ ...cardStyle, padding: 28, transition: 'border-color 0.15s' }}
-            onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = 'rgba(47,109,242,0.2)')}
+            onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = 'rgba(139,92,246,0.2)')}
             onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border)')}
           >
             <div style={{ width: 44, height: 44, borderRadius: 14, background: kpi.bg, color: kpi.color, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
@@ -211,7 +211,7 @@ const AdminDashboard: React.FC = () => {
                   <button key={r} onClick={() => setChartRange(r)}
                     style={{
                       padding: '6px 14px', borderRadius: 10, fontSize: 11, fontWeight: 700, textTransform: 'capitalize', border: 'none', cursor: 'pointer',
-                      background: chartRange === r ? 'rgba(47,109,242,0.1)' : 'transparent',
+                      background: chartRange === r ? 'rgba(139,92,246,0.1)' : 'transparent',
                       color: chartRange === r ? 'var(--color-accent)' : 'var(--color-text-muted)',
                     }}
                   >{r}</button>
@@ -223,15 +223,15 @@ const AdminDashboard: React.FC = () => {
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor="#2F6DF2" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#2F6DF2" stopOpacity={0} />
+                      <stop offset="5%"  stopColor="var(--color-accent)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="var(--color-accent)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
                   <XAxis dataKey="label" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
                   <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} tickFormatter={v => `$${v / 1000}k`} />
                   <Tooltip contentStyle={{ backgroundColor: 'var(--color-bg-deep)', border: '1px solid var(--color-border)', borderRadius: 12 }} itemStyle={{ color: 'var(--color-text-primary)' }} />
-                  <Area type="monotone" dataKey="revenue" stroke="#2F6DF2" strokeWidth={2.5} fillOpacity={1} fill="url(#colorRev)" />
+                  <Area type="monotone" dataKey="revenue" stroke="var(--color-accent)" strokeWidth={2.5} fillOpacity={1} fill="url(#colorRev)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -276,7 +276,7 @@ const AdminDashboard: React.FC = () => {
                       <tr key={v.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
                         <td style={{ padding: '18px 16px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <div style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(47,109,242,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: 'var(--color-accent)' }}>
+                            <div style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(139,92,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: 'var(--color-accent)' }}>
                               {v.company_name[0].toUpperCase()}
                             </div>
                             <div>

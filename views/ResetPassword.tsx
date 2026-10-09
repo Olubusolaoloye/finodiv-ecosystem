@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Link } from 'react-router-dom';
 import { Mail } from 'lucide-react';
 
@@ -10,7 +10,7 @@ const ResetPassword: React.FC = () => (
     >
       <div
         className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6"
-        style={{ backgroundColor: 'rgba(47,109,242,0.1)', border: '1px solid rgba(47,109,242,0.25)' }}
+        style={{ backgroundColor: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.25)' }}
       >
         <Mail className="w-8 h-8" style={{ color: 'var(--color-accent)' }} />
       </div>

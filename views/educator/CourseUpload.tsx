@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+﻿import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getSession } from '../../services/session';
 import { api as backendApi } from '../../services/backend';
@@ -227,7 +227,7 @@ const CourseUpload: React.FC = () => {
                 <input value={title} onChange={e => setTitle(e.target.value)}
                   placeholder="e.g. Advanced Solidity: From Zero to DeFi"
                   style={inputStyle}
-                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(47,109,242,0.5)')}
+                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)')}
                   onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
                 />
               </div>
@@ -236,7 +236,7 @@ const CourseUpload: React.FC = () => {
                 <textarea rows={4} value={description} onChange={e => setDesc(e.target.value)}
                   placeholder="What will students learn? Why is this course valuable?"
                   style={{ ...inputStyle, resize: 'none' }}
-                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(47,109,242,0.5)')}
+                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)')}
                   onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
                 />
               </div>
@@ -244,7 +244,7 @@ const CourseUpload: React.FC = () => {
                 <label style={labelStyle}>Category</label>
                 <select value={category} onChange={e => setCategory(e.target.value)}
                   style={{ ...inputStyle, appearance: 'none' }}
-                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(47,109,242,0.5)')}
+                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)')}
                   onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
                 >
                   {['Smart Contracts','DeFi','Security','ZK / L2','AI + Web3','Frontend Web3','Blockchain Data','Gaming','Community','Technical Writing','DAO Governance','RWA / Tokenization','MEV / Quant','DevRel'].map(c => <option key={c}>{c}</option>)}
@@ -254,7 +254,7 @@ const CourseUpload: React.FC = () => {
                 <label style={labelStyle}>Level</label>
                 <select value={level} onChange={e => setLevel(e.target.value)}
                   style={{ ...inputStyle, appearance: 'none' }}
-                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(47,109,242,0.5)')}
+                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)')}
                   onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
                 >
                   {['Beginner','Intermediate','Advanced'].map(l => <option key={l}>{l}</option>)}
@@ -265,7 +265,7 @@ const CourseUpload: React.FC = () => {
                 <input type="number" min="0" value={price} onChange={e => setPrice(e.target.value)}
                   placeholder="0 for free"
                   style={inputStyle}
-                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(47,109,242,0.5)')}
+                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)')}
                   onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
                 />
               </div>
@@ -273,7 +273,7 @@ const CourseUpload: React.FC = () => {
                 <label style={labelStyle}>Course Thumbnail</label>
                 <button type="button" onClick={() => thumbRef.current?.click()}
                   style={{ width: '100%', height: 96, borderRadius: 14, border: '2px dashed var(--color-border)', cursor: 'pointer', background: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, overflow: 'hidden', position: 'relative', transition: 'border-color 0.15s' }}
-                  onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = 'rgba(47,109,242,0.4)')}
+                  onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = 'rgba(139,92,246,0.4)')}
                   onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border)')}
                 >
                   {thumbPreview ? (
@@ -291,7 +291,7 @@ const CourseUpload: React.FC = () => {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 8 }}>
               <button onClick={() => { if (!title.trim() || !description.trim()) { setErrMsg('Title and description are required.'); return; } setErrMsg(''); setStep(2); }}
-                style={{ padding: '13px 28px', borderRadius: 14, background: 'var(--color-accent)', color: '#fff', fontWeight: 800, fontSize: 14, border: 'none', cursor: 'pointer', boxShadow: '0 8px 24px rgba(47,109,242,0.2)' }}>
+                style={{ padding: '13px 28px', borderRadius: 14, background: 'var(--color-accent)', color: '#fff', fontWeight: 800, fontSize: 14, border: 'none', cursor: 'pointer', boxShadow: '0 8px 24px rgba(139,92,246,0.2)' }}>
                 Next: Add Content →
               </button>
             </div>
@@ -315,13 +315,13 @@ const CourseUpload: React.FC = () => {
               {modules.map((mod, mIdx) => (
                 <div key={mod.id} style={{ border: '1px solid var(--color-border)', borderRadius: 20, padding: 22, background: 'var(--color-bg-deep)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
-                    <div style={{ width: 30, height: 30, borderRadius: 10, background: 'rgba(47,109,242,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-accent)', fontWeight: 900, fontSize: 13, flexShrink: 0 }}>
+                    <div style={{ width: 30, height: 30, borderRadius: 10, background: 'rgba(139,92,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-accent)', fontWeight: 900, fontSize: 13, flexShrink: 0 }}>
                       {mIdx + 1}
                     </div>
                     <input value={mod.title} onChange={e => updateModule(mIdx, { title: e.target.value })}
                       placeholder={`Module ${mIdx + 1} title`}
                       style={{ flex: 1, background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '10px 14px', color: 'var(--color-text-primary)', fontSize: 13, fontWeight: 700, outline: 'none', fontFamily: 'inherit' }}
-                      onFocus={e => (e.currentTarget.style.borderColor = 'rgba(47,109,242,0.5)')}
+                      onFocus={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)')}
                       onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
                     />
                     {modules.length > 1 && (
@@ -341,13 +341,13 @@ const CourseUpload: React.FC = () => {
                           <input value={les.title} onChange={e => updateLesson(mIdx, lIdx, { title: e.target.value })}
                             placeholder={`Lesson ${lIdx + 1} title`}
                             style={{ width: '100%', background: 'var(--color-bg-deep)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '9px 13px', color: 'var(--color-text-primary)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
-                            onFocus={e => (e.currentTarget.style.borderColor = 'rgba(47,109,242,0.5)')}
+                            onFocus={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)')}
                             onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
                           />
                           <input value={les.duration} onChange={e => updateLesson(mIdx, lIdx, { duration: e.target.value })}
                             placeholder="Duration (e.g. 12:30)"
                             style={{ width: '100%', background: 'var(--color-bg-deep)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '9px 13px', color: 'var(--color-text-primary)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
-                            onFocus={e => (e.currentTarget.style.borderColor = 'rgba(47,109,242,0.5)')}
+                            onFocus={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)')}
                             onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
                           />
                         </div>
@@ -384,7 +384,7 @@ const CourseUpload: React.FC = () => {
             </div>
 
             <button onClick={addModule} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: 'var(--color-text-muted)', background: 'none', border: '2px dashed var(--color-border)', borderRadius: 16, padding: '14px', width: '100%', cursor: 'pointer', transition: 'all 0.15s' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--color-accent)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(47,109,242,0.3)'; }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--color-accent)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(139,92,246,0.3)'; }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--color-text-muted)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border)'; }}
             >
               <Plus style={{ width: 15, height: 15 }} /> Add Module
@@ -392,7 +392,7 @@ const CourseUpload: React.FC = () => {
 
             <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8 }}>
               <button onClick={() => setStep(1)} style={{ padding: '12px 22px', borderRadius: 14, fontWeight: 700, color: 'var(--color-text-muted)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14 }}>← Back</button>
-              <button onClick={() => { setErrMsg(''); setStep(3); }} style={{ padding: '13px 28px', borderRadius: 14, background: 'var(--color-accent)', color: '#fff', fontWeight: 800, fontSize: 14, border: 'none', cursor: 'pointer', boxShadow: '0 8px 24px rgba(47,109,242,0.2)' }}>
+              <button onClick={() => { setErrMsg(''); setStep(3); }} style={{ padding: '13px 28px', borderRadius: 14, background: 'var(--color-accent)', color: '#fff', fontWeight: 800, fontSize: 14, border: 'none', cursor: 'pointer', boxShadow: '0 8px 24px rgba(139,92,246,0.2)' }}>
                 Next: Assignment →
               </button>
             </div>
@@ -412,7 +412,7 @@ const CourseUpload: React.FC = () => {
                 <input value={assignTitle} onChange={e => setAssignTitle(e.target.value)}
                   placeholder="e.g. Build and deploy your first ERC-20 token"
                   style={inputStyle}
-                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(47,109,242,0.5)')}
+                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)')}
                   onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
                 />
               </div>
@@ -421,7 +421,7 @@ const CourseUpload: React.FC = () => {
                 <textarea rows={5} value={assignDesc} onChange={e => setAssignDesc(e.target.value)}
                   placeholder="Describe what students need to submit — code, write-up, GitHub link, etc."
                   style={{ ...inputStyle, resize: 'none' }}
-                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(47,109,242,0.5)')}
+                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)')}
                   onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
                 />
               </div>
@@ -429,14 +429,14 @@ const CourseUpload: React.FC = () => {
                 <label style={labelStyle}>Due Date (optional)</label>
                 <input type="datetime-local" value={assignDue} onChange={e => setAssignDue(e.target.value)}
                   style={inputStyle}
-                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(47,109,242,0.5)')}
+                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)')}
                   onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
                 />
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8 }}>
               <button onClick={() => setStep(2)} style={{ padding: '12px 22px', borderRadius: 14, fontWeight: 700, color: 'var(--color-text-muted)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14 }}>← Back</button>
-              <button onClick={() => { setErrMsg(''); setStep(4); }} style={{ padding: '13px 28px', borderRadius: 14, background: 'var(--color-accent)', color: '#fff', fontWeight: 800, fontSize: 14, border: 'none', cursor: 'pointer', boxShadow: '0 8px 24px rgba(47,109,242,0.2)' }}>
+              <button onClick={() => { setErrMsg(''); setStep(4); }} style={{ padding: '13px 28px', borderRadius: 14, background: 'var(--color-accent)', color: '#fff', fontWeight: 800, fontSize: 14, border: 'none', cursor: 'pointer', boxShadow: '0 8px 24px rgba(139,92,246,0.2)' }}>
                 Next: Review →
               </button>
             </div>
@@ -474,7 +474,7 @@ const CourseUpload: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8 }}>
               <button onClick={() => setStep(3)} style={{ padding: '12px 22px', borderRadius: 14, fontWeight: 700, color: 'var(--color-text-muted)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14 }}>← Back</button>
               <button onClick={handlePublish} disabled={saving}
-                style={{ padding: '13px 32px', borderRadius: 14, background: 'var(--color-accent)', color: '#fff', fontWeight: 800, fontSize: 14, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, opacity: saving ? 0.6 : 1, boxShadow: '0 8px 24px rgba(47,109,242,0.2)' }}>
+                style={{ padding: '13px 32px', borderRadius: 14, background: 'var(--color-accent)', color: '#fff', fontWeight: 800, fontSize: 14, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, opacity: saving ? 0.6 : 1, boxShadow: '0 8px 24px rgba(139,92,246,0.2)' }}>
                 {saving ? <Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} /> : <Upload style={{ width: 18, height: 18 }} />}
                 {saving ? 'Publishing…' : 'Publish Course'}
               </button>

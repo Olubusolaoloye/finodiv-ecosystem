@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getSession } from '../../services/session';
 import { api as backendApi } from '../../services/backend';
@@ -60,7 +60,7 @@ const EducatorDashboard: React.FC = () => {
   }, []);
 
   const TILES = [
-    { label: 'My Courses',           value: stats.totalCourses,       icon: BookOpen,      color: 'var(--color-accent)', bg: 'rgba(47,109,242,0.1)' },
+    { label: 'My Courses',           value: stats.totalCourses,       icon: BookOpen,      color: 'var(--color-accent)', bg: 'rgba(139,92,246,0.1)' },
     { label: 'Total Students',       value: stats.totalStudents,      icon: Users,         color: '#34d399', bg: 'rgba(52,211,153,0.1)' },
     { label: 'Pending Submissions',  value: stats.pendingSubmissions, icon: ClipboardList, color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
     { label: 'Avg. Course Rating',   value: stats.avgRating || '—',   icon: Star,          color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
@@ -81,7 +81,7 @@ const EducatorDashboard: React.FC = () => {
         </div>
         <Link
           to="/educator/upload"
-          style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 24px', borderRadius: 16, background: 'var(--color-accent)', color: '#fff', fontWeight: 800, fontSize: 14, textDecoration: 'none', boxShadow: '0 8px 24px rgba(47,109,242,0.25)', whiteSpace: 'nowrap' }}
+          style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 24px', borderRadius: 16, background: 'var(--color-accent)', color: '#fff', fontWeight: 800, fontSize: 14, textDecoration: 'none', boxShadow: '0 8px 24px rgba(139,92,246,0.25)', whiteSpace: 'nowrap' }}
           onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = 'var(--color-accent-hover)')}
           onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = 'var(--color-accent)')}
         >
@@ -119,7 +119,7 @@ const EducatorDashboard: React.FC = () => {
           </div>
         ) : courses.length === 0 ? (
           <div style={{ padding: '80px 32px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-            <div style={{ width: 60, height: 60, borderRadius: 20, background: 'rgba(47,109,242,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16, color: 'var(--color-accent)' }}>
+            <div style={{ width: 60, height: 60, borderRadius: 20, background: 'rgba(139,92,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16, color: 'var(--color-accent)' }}>
               <BookOpen style={{ width: 28, height: 28 }} />
             </div>
             <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--color-text-primary)' }}>No courses yet</h3>
@@ -137,7 +137,7 @@ const EducatorDashboard: React.FC = () => {
                 onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.02)')}
                 onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = 'transparent')}
               >
-                <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(47,109,242,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-accent)', flexShrink: 0 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(139,92,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-accent)', flexShrink: 0 }}>
                   <BookOpen style={{ width: 18, height: 18 }} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>

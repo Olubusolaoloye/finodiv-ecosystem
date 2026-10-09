@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+﻿import React, { useRef, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
 import {
   Globe, Layers, FileCode2, Coins, Zap, PenTool, ArrowRight,
@@ -149,8 +149,8 @@ const ServicesSection: React.FC = () => {
             style={{
               display: 'inline-block',
               padding: '5px 16px', borderRadius: 999,
-              background: 'rgba(47,109,242,0.12)',
-              border: '1px solid rgba(47,109,242,0.25)',
+              background: 'rgba(139,92,246,0.12)',
+              border: '1px solid rgba(139,92,246,0.25)',
               fontSize: 10, fontWeight: 800, letterSpacing: '0.18em',
               textTransform: 'uppercase', color: '#60a5fa', marginBottom: 20,
             }}
@@ -215,15 +215,15 @@ const ServicesSection: React.FC = () => {
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 10,
               padding: '14px 28px', borderRadius: 14,
-              background: 'linear-gradient(135deg, #2F6DF2, #7C3AED)',
+              background: 'linear-gradient(135deg, var(--color-accent), #7C3AED)',
               color: '#fff', fontWeight: 700, fontSize: 14,
               textDecoration: 'none',
-              boxShadow: '0 8px 32px rgba(47,109,242,0.35)',
+              boxShadow: '0 8px 32px rgba(139,92,246,0.35)',
               transition: 'all 0.25s', whiteSpace: 'nowrap',
               position: 'relative', zIndex: 1,
             }}
-            onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.transform = 'translateY(-2px)'; el.style.boxShadow = '0 14px 40px rgba(47,109,242,0.5)'; }}
-            onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.transform = 'translateY(0)'; el.style.boxShadow = '0 8px 32px rgba(47,109,242,0.35)'; }}
+            onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.transform = 'translateY(-2px)'; el.style.boxShadow = '0 14px 40px rgba(139,92,246,0.5)'; }}
+            onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.transform = 'translateY(0)'; el.style.boxShadow = '0 8px 32px rgba(139,92,246,0.35)'; }}
           >
             Get a Free Quote <ArrowRight style={{ width: 15, height: 15 }} />
           </a>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { UserRole } from '../types';
 import { convex } from '../services/convex';
@@ -66,7 +66,7 @@ const PasswordInput: React.FC<{
         style={{
           ...inputStyle,
           paddingRight: '42px',
-          borderColor: focused ? 'rgba(47,109,242,0.6)' : 'var(--color-border)',
+          borderColor: focused ? 'rgba(139,92,246,0.6)' : 'var(--color-border)',
         }}
       />
       <button
@@ -107,7 +107,7 @@ const EmailInput: React.FC<{
         onBlur={() => setFocused(false)}
         style={{
           ...inputStyle,
-          borderColor: focused ? 'rgba(47,109,242,0.6)' : 'var(--color-border)',
+          borderColor: focused ? 'rgba(139,92,246,0.6)' : 'var(--color-border)',
         }}
       />
     </div>
@@ -170,7 +170,7 @@ const BrandPanel: React.FC = () => (
     {/* Subtle ambient glow */}
     <div
       className="absolute top-0 left-0 w-full h-full pointer-events-none"
-      style={{ background: 'radial-gradient(ellipse at 30% 20%, rgba(47,109,242,0.08) 0%, transparent 60%)' }}
+      style={{ background: 'radial-gradient(ellipse at 30% 20%, rgba(139,92,246,0.08) 0%, transparent 60%)' }}
       aria-hidden="true"
     />
 
@@ -465,8 +465,8 @@ const Login: React.FC<LoginProps> = ({ onWalletLogin: _, onLoginSuccess }) => {
                       onClick={() => setSuRole(r)}
                       className="flex-1 py-2 rounded-[8px] text-xs font-medium transition-all duration-150"
                       style={{
-                        backgroundColor: suRole === r ? 'rgba(47,109,242,0.12)' : 'var(--color-bg-deep)',
-                        border: `1px solid ${suRole === r ? 'rgba(47,109,242,0.4)' : 'var(--color-border)'}`,
+                        backgroundColor: suRole === r ? 'rgba(139,92,246,0.12)' : 'var(--color-bg-deep)',
+                        border: `1px solid ${suRole === r ? 'rgba(139,92,246,0.4)' : 'var(--color-border)'}`,
                         color: suRole === r ? 'var(--color-accent-hover)' : 'var(--color-text-muted)',
                       }}
                     >
@@ -553,7 +553,7 @@ const NameInput: React.FC<{ value: string; onChange: (v: string) => void }> = ({
       onBlur={() => setFocused(false)}
       style={{
         ...inputStyle,
-        borderColor: focused ? 'rgba(47,109,242,0.6)' : 'var(--color-border)',
+        borderColor: focused ? 'rgba(139,92,246,0.6)' : 'var(--color-border)',
       }}
     />
   );

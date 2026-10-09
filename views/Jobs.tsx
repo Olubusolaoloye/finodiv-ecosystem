@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../services/backend';
 import { getSession } from '../services/session';
@@ -49,7 +49,7 @@ function timeAgo(iso: string) {
   return `${Math.floor(days / 7)}w ago`;
 }
 
-const COMPANY_COLORS = ['#2F6DF2', '#7C3AED', '#059669', '#d97706', '#dc2626', '#0ea5e9'];
+const COMPANY_COLORS = ['var(--color-accent)', '#7C3AED', '#059669', '#d97706', '#dc2626', '#0ea5e9'];
 
 const Jobs: React.FC = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -143,7 +143,7 @@ const Jobs: React.FC = () => {
             color: 'var(--color-text-primary)',
             fontSize: 14, outline: 'none',
           }}
-          onFocus={e => (e.currentTarget.style.borderColor = 'rgba(47,109,242,0.5)')}
+          onFocus={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)')}
           onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
         />
       </div>
@@ -211,8 +211,8 @@ const Jobs: React.FC = () => {
                   transition: 'border-color 0.2s, box-shadow 0.2s',
                 }}
                 onMouseEnter={e => {
-                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(47,109,242,0.35)';
-                  (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 24px rgba(47,109,242,0.08)';
+                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(139,92,246,0.35)';
+                  (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 24px rgba(139,92,246,0.08)';
                 }}
                 onMouseLeave={e => {
                   (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border)';
@@ -363,7 +363,7 @@ const Jobs: React.FC = () => {
                         fontSize: 13, outline: 'none', resize: 'none',
                         fontFamily: 'inherit', lineHeight: 1.6,
                       }}
-                      onFocus={e => (e.currentTarget.style.borderColor = 'rgba(47,109,242,0.5)')}
+                      onFocus={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)')}
                       onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
                     />
                   </div>

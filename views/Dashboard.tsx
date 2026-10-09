@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { UserRole } from '../types';
@@ -119,12 +119,12 @@ const CertificateCard: React.FC<{
     <div
       ref={ref}
       className="relative rounded-[20px] overflow-hidden p-8 sm:p-12"
-      style={{ backgroundColor: 'var(--color-bg-deep)', border: '1px solid rgba(47,109,242,0.3)' }}
+      style={{ backgroundColor: 'var(--color-bg-deep)', border: '1px solid rgba(139,92,246,0.3)' }}
     >
       {/* Glow */}
       <div
         className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(47,109,242,0.08) 0%, transparent 70%)' }}
+        style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(139,92,246,0.08) 0%, transparent 70%)' }}
         aria-hidden="true"
       />
 
@@ -171,7 +171,7 @@ const CertificateCard: React.FC<{
 
         <div
           className="flex items-center justify-between pt-8"
-          style={{ borderTop: '1px solid rgba(47,109,242,0.2)' }}
+          style={{ borderTop: '1px solid rgba(139,92,246,0.2)' }}
         >
           <div>
             <p className="text-xs mb-1" style={{ color: 'var(--color-text-muted)' }}>Date issued</p>
@@ -180,7 +180,7 @@ const CertificateCard: React.FC<{
           <button
             onClick={handleDownload}
             className="flex items-center gap-2 px-4 py-2 rounded-[10px] text-sm font-medium transition-opacity hover:opacity-80"
-            style={{ backgroundColor: 'rgba(47,109,242,0.15)', color: 'var(--color-accent-hover)', border: '1px solid rgba(47,109,242,0.3)' }}
+            style={{ backgroundColor: 'rgba(139,92,246,0.15)', color: 'var(--color-accent-hover)', border: '1px solid rgba(139,92,246,0.3)' }}
           >
             <Download className="w-4 h-4" />
             Download
@@ -319,7 +319,7 @@ const Dashboard: React.FC<{ role: UserRole }> = () => {
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   {[
                     { icon: GraduationCap, label: 'Total Courses',    value: 48,            accent: '#7C3AED', bg: 'rgba(124,58,237,0.1)' },
-                    { icon: BookOpen,      label: 'Enrolled',          value: activeCount,   accent: '#2F6DF2', bg: 'rgba(47,109,242,0.1)' },
+                    { icon: BookOpen,      label: 'Enrolled',          value: activeCount,   accent: 'var(--color-accent)', bg: 'rgba(139,92,246,0.1)' },
                     { icon: Trophy,        label: 'Completed',         value: completedCount, accent: '#16a34a', bg: 'rgba(22,163,74,0.1)' },
                     { icon: Flame,         label: 'Learning streak',   value: `${Math.min(activeCount * 3 + 1, 14)}d`, accent: '#EA580C', bg: 'rgba(234,88,12,0.1)' },
                   ].map(({ icon: Icon, label, value, accent, bg }) => (
@@ -380,7 +380,7 @@ const Dashboard: React.FC<{ role: UserRole }> = () => {
                     >
                       <div
                         className="w-12 h-12 rounded-[14px] flex items-center justify-center mb-4"
-                        style={{ backgroundColor: 'rgba(47,109,242,0.1)' }}
+                        style={{ backgroundColor: 'rgba(139,92,246,0.1)' }}
                       >
                         <BookOpen className="w-6 h-6" style={{ color: 'var(--color-accent)' }} />
                       </div>
@@ -501,7 +501,7 @@ const Dashboard: React.FC<{ role: UserRole }> = () => {
                         <div>
                           <span
                             className="text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-md"
-                            style={{ backgroundColor: 'rgba(47,109,242,0.12)', color: 'var(--color-accent-hover)' }}
+                            style={{ backgroundColor: 'rgba(139,92,246,0.12)', color: 'var(--color-accent-hover)' }}
                           >
                             {e.course?.category || 'Course'}
                           </span>
