@@ -37,6 +37,7 @@ import ViewSubmissions from './views/educator/ViewSubmissions';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import Logo from './components/Logo';
+import { PageErrorBoundary } from './components/ErrorBoundary';
 import { Construction } from 'lucide-react';
 
 const SESSION_KEY  = 'finodiv_session';
@@ -311,6 +312,7 @@ const App: React.FC = () => {
               className="flex-1 overflow-y-auto custom-scrollbar auth-main-content"
               style={{ backgroundColor: 'var(--color-app-bg)' }}
             >
+              <PageErrorBoundary>
               <Routes>
                 <Route path="/" element={<Navigate to="/dashboard" />} />
                 <Route path="/login" element={<Login onWalletLogin={handleWalletLogin} onLoginSuccess={handleLoginSuccess} />} />
@@ -395,6 +397,7 @@ const App: React.FC = () => {
 
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
+              </PageErrorBoundary>
           </main>
         </div>
       </div>

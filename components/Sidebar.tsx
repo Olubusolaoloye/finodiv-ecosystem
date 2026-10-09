@@ -5,6 +5,7 @@ import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { UserRole } from '../types';
 import Logo from './Logo';
+import ErrorBoundary from './ErrorBoundary';
 import {
   LayoutDashboard, BookOpen, Users, Briefcase, Settings, LogOut,
   Award, ShieldCheck, MessageSquare, Compass, Zap, Upload,
@@ -27,7 +28,6 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({
   role, isOpen, setIsOpen, onLogout, displayName, authEmail, userId, avatarUrl, isDarkMode, onToggleTheme,
 }) => {
-  const unread = useQuery(api.messages.unreadTotal, userId ? { userId } : 'skip') ?? 0;
   const avatarSrc = avatarUrl || (userId ? `https://i.pravatar.cc/100?u=${userId}` : null);
 
   const learnerLinks = [
@@ -157,10 +157,10 @@ const Sidebar: React.FC<SidebarProps> = ({
             >
               <span style={{ position: 'relative', display: 'flex' }}>
                 <link.icon className="w-5 h-5 shrink-0" />
-                {link.path === '/community' && unread > 0 && !isOpen && <UnreadDot />}
+                {link.path === '/community' && !isOpen && <Unread userId={userId} variant="dot" />}
               </span>
               {isOpen && <span style={{ flex: 1 }}>{link.label}</span>}
-              {isOpen && link.path === '/community' && unread > 0 && <UnreadBadge count={unread} />}
+              {isOpen && link.path === '/community' && <Unread userId={userId} variant="badge" />}
             </NavLink>
           ))}
         </nav>
@@ -296,7 +296,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 )}
                 <span style={{ position: 'relative', display: 'flex' }}>
                   <link.icon style={{ width: 20, height: 20 }} strokeWidth={isActive ? 2 : 1.5} />
-                  {link.path === '/community' && unread > 0 && <UnreadDot />}
+                  {link.path === '/community' && <Unread userId={userId} variant="dot" />}
                 </span>
                 <span style={{ fontSize: 9, fontWeight: isActive ? 700 : 500, letterSpacing: '0.04em' }}>
                   {link.label.split(' ')[0]}
@@ -342,6 +342,20 @@ const Sidebar: React.FC<SidebarProps> = ({
     </>
   );
 };
+
+const UnreadCount: React.FC<{ userId: string; variant: 'dot' | 'badge' }> = ({ userId, variant }) => {
+  const unread = useQuery(api.messages.unreadTotal, { userId }) ?? 0;
+  if (unread <= 0) return null;
+  return variant === 'dot' ? <UnreadDot /> : <UnreadBadge count={unread} />;
+};
+
+// The badge is decorative: if the query fails, hide it rather than take down the layout.
+const Unread: React.FC<{ userId?: string | null; variant: 'dot' | 'badge' }> = ({ userId, variant }) =>
+  userId ? (
+    <ErrorBoundary fallback={null}>
+      <UnreadCount userId={userId} variant={variant} />
+    </ErrorBoundary>
+  ) : null;
 
 const UnreadDot: React.FC = () => (
   <span style={{ position: 'absolute', top: -3, right: -4, width: 9, height: 9, borderRadius: '50%', background: '#f43f5e', border: '2px solid rgba(76,29,149,0.9)' }} />
