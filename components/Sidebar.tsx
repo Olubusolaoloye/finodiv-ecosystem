@@ -27,8 +27,8 @@ const Sidebar: React.FC<SidebarProps> = ({
     { icon: LayoutDashboard, label: 'Dashboard',      path: '/dashboard' },
     { icon: Compass,          label: 'Career Compass', path: '/career-compass' },
     { icon: BookOpen,         label: 'Courses',        path: '/courses' },
-    { icon: Award,            label: 'Certificates',   path: '/certificates' },
     { icon: MessageSquare,    label: 'Chats',           path: '/community' },
+    { icon: Award,            label: 'Certificates',   path: '/certificates' },
   ];
 
   const employerLinks = [
@@ -194,30 +194,41 @@ const Sidebar: React.FC<SidebarProps> = ({
             {isOpen && <span>Log Out</span>}
           </button>
 
-          <div style={{
-            marginTop: 8, padding: '10px 12px', borderRadius: 12,
-            background: 'rgba(255,255,255,0.08)',
-            display: 'flex', alignItems: 'center', gap: 10,
-            justifyContent: isOpen ? 'flex-start' : 'center',
-          }}>
-            {userId ? (
-              <img src={`https://i.pravatar.cc/100?u=${userId}`} alt="avatar" style={{ width: 34, height: 34, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />
-            ) : (
-              <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
-                {initials}
-              </div>
+          <NavLink
+            to="/settings"
+            style={({ isActive }) => ({
+              marginTop: 8, padding: '10px 12px', borderRadius: 12,
+              background: isActive ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.08)',
+              display: 'flex', alignItems: 'center', gap: 10,
+              justifyContent: isOpen ? 'flex-start' : 'center',
+              textDecoration: 'none', cursor: 'pointer',
+              transition: 'background 0.15s',
+              border: '1px solid rgba(255,255,255,0.06)',
+            })}
+            className="hover:!bg-white/15"
+          >
+            {({ isActive }) => (
+              <>
+                {userId ? (
+                  <img src={`https://i.pravatar.cc/100?u=${userId}`} alt="avatar" style={{ width: 34, height: 34, borderRadius: 10, objectFit: 'cover', flexShrink: 0, border: isActive ? '2px solid #7C3AED' : '2px solid rgba(255,255,255,0.15)' }} />
+                ) : (
+                  <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
+                    {initials}
+                  </div>
+                )}
+                {isOpen && (
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <p style={{ color: isActive ? '#4C1D95' : '#fff', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {displayName || authEmail?.split('@')[0] || 'User'}
+                    </p>
+                    <p style={{ color: isActive ? '#7C3AED' : 'rgba(255,255,255,0.45)', fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {isActive ? 'Settings' : authEmail || ''}
+                    </p>
+                  </div>
+                )}
+              </>
             )}
-            {isOpen && (
-              <div style={{ minWidth: 0 }}>
-                <p style={{ color: '#fff', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {displayName || authEmail?.split('@')[0] || 'User'}
-                </p>
-                <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {authEmail || ''}
-                </p>
-              </div>
-            )}
-          </div>
+          </NavLink>
         </div>
       </aside>
 
@@ -264,15 +275,15 @@ const Sidebar: React.FC<SidebarProps> = ({
           </NavLink>
         ))}
 
-        {/* Settings link */}
+        {/* Profile avatar → Settings */}
         <NavLink
           to="/settings"
           style={({ isActive }) => ({
             flex: 1,
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            gap: 4, padding: '10px 4px',
+            gap: 4, padding: '8px 4px',
             textDecoration: 'none',
-            color: isActive ? '#fff' : 'rgba(255,255,255,0.45)',
+            color: isActive ? '#fff' : 'rgba(255,255,255,0.65)',
             position: 'relative', transition: 'color 0.15s',
           })}
         >
@@ -281,8 +292,18 @@ const Sidebar: React.FC<SidebarProps> = ({
               {isActive && (
                 <span style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 32, height: 2, borderRadius: 999, background: 'rgba(255,255,255,0.9)' }} />
               )}
-              <Settings style={{ width: 20, height: 20 }} strokeWidth={isActive ? 2 : 1.5} />
-              <span style={{ fontSize: 9, fontWeight: isActive ? 700 : 500, letterSpacing: '0.04em' }}>More</span>
+              {userId ? (
+                <img
+                  src={`https://i.pravatar.cc/100?u=${userId}`}
+                  alt="profile"
+                  style={{ width: 26, height: 26, borderRadius: 8, objectFit: 'cover', border: isActive ? '2px solid #fff' : '2px solid rgba(255,255,255,0.3)' }}
+                />
+              ) : (
+                <div style={{ width: 26, height: 26, borderRadius: 8, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 11 }}>
+                  {initials}
+                </div>
+              )}
+              <span style={{ fontSize: 9, fontWeight: isActive ? 700 : 500, letterSpacing: '0.04em' }}>Profile</span>
             </>
           )}
         </NavLink>
