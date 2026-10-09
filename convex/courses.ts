@@ -162,6 +162,15 @@ export const publish = mutation({
   },
 });
 
+export const deleteById = mutation({
+  args: { id: v.id("courses") },
+  returns: v.null(),
+  handler: async (ctx, { id }) => {
+    await ctx.db.delete(id);
+    return null;
+  },
+});
+
 export const addLesson = mutation({
   args: {
     courseId: v.id("courses"),

@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { UserRole, SystemSettings } from './types';
 import { supabase } from './services/supabase';
+import { convex } from './services/convex';
+import { api as convexApi } from './convex/_generated/api';
 
 // Views
 import LandingPage from './views/LandingPage';
@@ -94,17 +96,25 @@ const App: React.FC = () => {
       setUserId(uid);
       setAuthEmail(email);
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role, wallet_address, name')
-        .eq('id', uid)
-        .maybeSingle();
+      try {
+        // Upsert to Convex (creates profile on first login, updates on subsequent logins)
+        await convex.mutation(convexApi.profiles.upsert, {
+          userId: uid,
+          name: email?.split('@')[0] || 'User',
+          email: email ?? '',
+        });
 
-      setRole((profile?.role as UserRole) || UserRole.LEARNER);
-      setDisplayName(profile?.name || email?.split('@')[0] || null);
-      if (profile?.wallet_address) {
-        setWalletAddress(profile.wallet_address);
-        localStorage.setItem(WALLET_KEY, profile.wallet_address);
+        const profile = await convex.query(convexApi.profiles.getByUserId, { userId: uid });
+        setRole((profile?.role as UserRole) || UserRole.LEARNER);
+        setDisplayName(profile?.name || email?.split('@')[0] || null);
+        if (profile?.walletAddress) {
+          setWalletAddress(profile.walletAddress);
+          localStorage.setItem(WALLET_KEY, profile.walletAddress);
+        }
+      } catch (e) {
+        console.error('loadProfile (Convex):', e);
+        setRole(UserRole.LEARNER);
+        setDisplayName(email?.split('@')[0] || null);
       }
     };
 
@@ -186,9 +196,19 @@ const App: React.FC = () => {
     }
     setWalletAddress(address);
     localStorage.setItem(WALLET_KEY, address);
-    // If logged in, persist wallet to profile
+    // If logged in, persist wallet to Convex profile
     if (userId) {
-      await supabase.from('profiles').update({ wallet_address: address }).eq('id', userId);
+      try {
+        const profile = await convex.query(convexApi.profiles.getByUserId, { userId });
+        await convex.mutation(convexApi.profiles.upsert, {
+          userId,
+          name: profile?.name || displayName || '',
+          email: profile?.email || authEmail || '',
+          walletAddress: address,
+        });
+      } catch (e) {
+        console.error('handleConnectWallet:', e);
+      }
     }
   };
 

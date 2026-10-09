@@ -13,6 +13,7 @@ import type * as community from "../community.js";
 import type * as courses from "../courses.js";
 import type * as enrollments from "../enrollments.js";
 import type * as jobs from "../jobs.js";
+import type * as payments from "../payments.js";
 import type * as profiles from "../profiles.js";
 import type * as settings from "../settings.js";
 import type * as submissions from "../submissions.js";
@@ -29,6 +30,7 @@ declare const fullApi: ApiFromModules<{
   courses: typeof courses;
   enrollments: typeof enrollments;
   jobs: typeof jobs;
+  payments: typeof payments;
   profiles: typeof profiles;
   settings: typeof settings;
   submissions: typeof submissions;
