@@ -37,22 +37,12 @@ import ViewSubmissions from './views/educator/ViewSubmissions';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import Logo from './components/Logo';
-import { Construction, Sun, Moon } from 'lucide-react';
+import { Construction } from 'lucide-react';
 
 const SESSION_KEY  = 'finodiv_session';
+const MOBILE_QUERY = '(max-width: 767px)';
+const DARK_QUERY   = '(prefers-color-scheme: dark)';
 const WALLET_KEY   = 'finodiv_session_wallet';
-
-const ComingSoon: React.FC<{ title: string }> = ({ title }) => (
-  <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center">
-    <div className="w-20 h-20 bg-blue-500/10 dark:bg-blue-500/10 rounded-3xl flex items-center justify-center mb-8 border border-blue-500/20">
-      <Construction className="w-10 h-10 text-blue-400" />
-    </div>
-    <h1 className="text-4xl font-black mb-4 text-slate-900 dark:text-white">{title}</h1>
-    <p className="text-slate-500 dark:text-gray-500 text-lg max-w-md">
-      This section is under development and will be available soon.
-    </p>
-  </div>
-);
 
 const App: React.FC = () => {
   const [role, setRole] = useState<UserRole>(UserRole.GUEST);
@@ -64,8 +54,12 @@ const App: React.FC = () => {
   );
   const [authReady, setAuthReady] = useState(false);
 
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 768);
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') !== 'light');
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia(MOBILE_QUERY).matches);
+  const [systemDark, setSystemDark] = useState(() => window.matchMedia(DARK_QUERY).matches);
 
   const [systemSettings, setSystemSettings] = useState<SystemSettings>({
     maintenanceMode: false,
@@ -76,11 +70,30 @@ const App: React.FC = () => {
   });
 
   // ── Theme sync ──────────────────────────────────────────────────────────────
+  // Signed-in users on mobile follow the OS theme; desktop uses the saved toggle.
+  const followSystemTheme = isMobile && role !== UserRole.GUEST;
+  const effectiveDark = followSystemTheme ? systemDark : isDarkMode;
+
   useEffect(() => {
-    const root = window.document.documentElement;
-    if (isDarkMode) { root.classList.add('dark'); localStorage.setItem('theme', 'dark'); }
-    else { root.classList.remove('dark'); localStorage.setItem('theme', 'light'); }
+    localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', effectiveDark);
+  }, [effectiveDark]);
+
+  useEffect(() => {
+    const mobileMq = window.matchMedia(MOBILE_QUERY);
+    const darkMq = window.matchMedia(DARK_QUERY);
+    const onMobile = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    const onDark = (e: MediaQueryListEvent) => setSystemDark(e.matches);
+    mobileMq.addEventListener('change', onMobile);
+    darkMq.addEventListener('change', onDark);
+    return () => {
+      mobileMq.removeEventListener('change', onMobile);
+      darkMq.removeEventListener('change', onDark);
+    };
+  }, []);
 
   // ── Window resize → sidebar ─────────────────────────────────────────────────
   useEffect(() => {
@@ -94,14 +107,18 @@ const App: React.FC = () => {
     setUserId(uid);
     setAuthEmail(email);
     try {
-      await convex.mutation(convexApi.profiles.upsert, {
-        userId: uid,
-        name: email?.split('@')[0] || 'User',
-        email: email ?? '',
-      });
-      const profile = await convex.query(convexApi.profiles.getByUserId, { userId: uid });
+      let profile = await convex.query(convexApi.profiles.getByUserId, { userId: uid });
+      if (!profile) {
+        await convex.mutation(convexApi.profiles.upsert, {
+          userId: uid,
+          name: email?.split('@')[0] || 'User',
+          email: email ?? '',
+        });
+        profile = await convex.query(convexApi.profiles.getByUserId, { userId: uid });
+      }
       setRole((profile?.role as UserRole) || UserRole.LEARNER);
       setDisplayName(profile?.name || email?.split('@')[0] || null);
+      setAvatarUrl(profile?.avatarUrl || null);
       if (profile?.walletAddress) {
         setWalletAddress(profile.walletAddress);
         localStorage.setItem(WALLET_KEY, profile.walletAddress);
@@ -133,6 +150,14 @@ const App: React.FC = () => {
 
   const toggleTheme = () => setIsDarkMode(prev => !prev);
 
+  const refreshProfile = async () => {
+    if (!userId) return;
+    const profile = await convex.query(convexApi.profiles.getByUserId, { userId });
+    if (!profile) return;
+    setDisplayName(profile.name);
+    setAvatarUrl(profile.avatarUrl || null);
+  };
+
   // ── Login success callback (called by Login.tsx after signIn/signUp) ────────
   const handleLoginSuccess = async (uid: string, email: string) => {
     localStorage.setItem(SESSION_KEY, JSON.stringify({ userId: uid, email }));
@@ -149,6 +174,7 @@ const App: React.FC = () => {
     setAuthEmail(null);
     setWalletAddress(null);
     setDisplayName(null);
+    setAvatarUrl(null);
     window.location.hash = '#/';
   };
 
@@ -255,7 +281,9 @@ const App: React.FC = () => {
             displayName={displayName}
             authEmail={authEmail}
             userId={userId}
-            isDarkMode={isDarkMode}
+            avatarUrl={avatarUrl}
+            isDarkMode={effectiveDark}
+            onToggleTheme={toggleTheme}
           />
 
           <div className="flex-1 flex flex-col overflow-hidden" style={{ minWidth: 0, width: 0 }}>
@@ -270,17 +298,11 @@ const App: React.FC = () => {
             >
               <Logo className="w-7 h-7" />
               <span style={{ fontWeight: 700, fontSize: 15 }}>FINODIV</span>
-              <button
-                onClick={toggleTheme}
-                style={{ marginLeft: 'auto', color: 'var(--color-text-muted)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-              >
-                {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </button>
               {userId && (
                 <img
-                  src={`https://i.pravatar.cc/100?u=${userId}`}
+                  src={avatarUrl || `https://i.pravatar.cc/100?u=${userId}`}
                   alt="avatar"
-                  style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover' }}
+                  style={{ marginLeft: 'auto', width: 32, height: 32, borderRadius: 8, objectFit: 'cover' }}
                 />
               )}
             </header>
@@ -355,19 +377,20 @@ const App: React.FC = () => {
                       authEmail={authEmail}
                       walletAddress={walletAddress}
                       onBindWallet={handleConnectWallet}
+                      onProfileUpdated={refreshProfile}
                     />
                   )
                 }
               />
 
-              <Route path="/jobs" element={!userId ? <Navigate to="/login" /> : <Jobs />} />
-              <Route path="/messages" element={!userId ? <Navigate to="/login" /> : <ComingSoon title="Messages" />} />
+              <Route path="/jobs" element={!userId ? <Navigate to="/login" /> : <Jobs role={role} />} />
+              <Route path="/messages" element={<Navigate to="/community" />} />
               <Route path="/reset-password" element={<ResetPassword />} />
 
               {/* Educator portal */}
               <Route path="/educator" element={!userId ? <Navigate to="/login" /> : (role === UserRole.EDUCATOR || role === UserRole.ADMIN ? <EducatorDashboard /> : <Navigate to="/dashboard" />)} />
               <Route path="/educator/upload" element={!userId ? <Navigate to="/login" /> : (role === UserRole.EDUCATOR || role === UserRole.ADMIN ? <CourseUpload /> : <Navigate to="/dashboard" />)} />
-              <Route path="/educator/submissions" element={!userId ? <Navigate to="/login" /> : (role === UserRole.EDUCATOR || role === UserRole.ADMIN ? <EducatorDashboard /> : <Navigate to="/dashboard" />)} />
+              <Route path="/educator/submissions" element={!userId ? <Navigate to="/login" /> : (role === UserRole.EDUCATOR || role === UserRole.ADMIN ? <EducatorDashboard submissionsView /> : <Navigate to="/dashboard" />)} />
               <Route path="/educator/submissions/:courseId" element={!userId ? <Navigate to="/login" /> : (role === UserRole.EDUCATOR || role === UserRole.ADMIN ? <ViewSubmissions /> : <Navigate to="/dashboard" />)} />
 
               <Route path="*" element={<Navigate to="/" />} />

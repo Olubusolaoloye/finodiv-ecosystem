@@ -1,11 +1,13 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { UserRole, WalletBinding } from '../types';
 import { api } from '../services/backend';
 import { convex } from '../services/convex';
 import { api as convexApi } from '../convex/_generated/api';
+import { errorMessage } from '../services/errors';
 import {
-  User, Lock, CreditCard, Wallet, ShieldCheck, Globe,
-  Camera, Check, Mail, Link2, Loader2, CheckCircle,
+  User, Lock, CreditCard, Wallet, ShieldCheck,
+  Camera, Check, Mail, Link2, Loader2, CheckCircle, AlertCircle,
+  Twitter, Linkedin, Github, Send, Globe, Eye, EyeOff,
 } from 'lucide-react';
 
 interface SettingsProps {
@@ -14,37 +16,123 @@ interface SettingsProps {
   authEmail: string | null;
   walletAddress: string | null;
   onBindWallet: () => void;
+  onProfileUpdated: () => void;
 }
 
-const Settings: React.FC<SettingsProps> = ({ userId, role, authEmail, walletAddress, onBindWallet }) => {
+type SocialKey = 'twitter' | 'linkedin' | 'github' | 'telegram' | 'website';
+type Socials = Record<SocialKey, string>;
+
+const EMPTY_SOCIALS: Socials = { twitter: '', linkedin: '', github: '', telegram: '', website: '' };
+
+const SOCIAL_FIELDS: Array<{ key: SocialKey; label: string; icon: typeof Twitter; placeholder: string }> = [
+  { key: 'twitter',  label: 'X / Twitter', icon: Twitter,  placeholder: '@handle or profile URL' },
+  { key: 'linkedin', label: 'LinkedIn',    icon: Linkedin, placeholder: 'linkedin.com/in/you' },
+  { key: 'github',   label: 'GitHub',      icon: Github,   placeholder: 'username or profile URL' },
+  { key: 'telegram', label: 'Telegram',    icon: Send,     placeholder: '@handle' },
+  { key: 'website',  label: 'Website',     icon: Globe,    placeholder: 'https://your.site' },
+];
+
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+
+const Settings: React.FC<SettingsProps> = ({ userId, role, authEmail, walletAddress, onBindWallet, onProfileUpdated }) => {
   const [activeTab, setActiveTab] = useState('Profile');
   const [binding, setBinding] = useState<WalletBinding | null>(null);
   const [isBinding, setIsBinding] = useState(false);
+
   const [displayName, setDisplayName] = useState('');
   const [professionalTitle, setProfessionalTitle] = useState('');
+  const [bio, setBio] = useState('');
+  const [socials, setSocials] = useState<Socials>(EMPTY_SOCIALS);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
+  const [profileError, setProfileError] = useState('');
+  const avatarInput = useRef<HTMLInputElement>(null);
+
+  const [currentPw, setCurrentPw] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [showPw, setShowPw] = useState(false);
+  const [changingPw, setChangingPw] = useState(false);
+  const [pwMessage, setPwMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     api.getBinding(userId).then(b => { if (b) setBinding(b); });
     convex.query(convexApi.profiles.getByUserId, { userId }).then((data) => {
-      if (data) {
-        setDisplayName(data.name || '');
-        setProfessionalTitle((data as any).title || '');
-      }
+      if (!data) return;
+      setDisplayName(data.name || '');
+      setProfessionalTitle(data.title || '');
+      setBio(data.bio || '');
+      setAvatarUrl(data.avatarUrl || null);
+      setSocials({ ...EMPTY_SOCIALS, ...Object.fromEntries(Object.entries(data.socials ?? {}).filter(([, v]) => v)) });
     });
   }, [userId]);
 
   const handleSaveProfile = async () => {
+    setProfileError('');
+    if (!displayName.trim()) { setProfileError('Display name is required.'); return; }
     setSavingProfile(true);
-    await convex.mutation(convexApi.profiles.upsert, {
-      userId,
-      name: displayName,
-      email: (await convex.query(convexApi.profiles.getByUserId, { userId }))?.email || '',
-    });
+    try {
+      await convex.mutation(convexApi.profiles.updateProfile, {
+        userId,
+        name: displayName,
+        title: professionalTitle,
+        bio,
+        socials,
+      });
+      onProfileUpdated();
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 2500);
+    } catch (e) {
+      setProfileError(errorMessage(e, 'Could not save profile.'));
+    }
     setSavingProfile(false);
-    setProfileSaved(true);
-    setTimeout(() => setProfileSaved(false), 2500);
+  };
+
+  const handleAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setProfileError('');
+    if (!file.type.startsWith('image/')) { setProfileError('Please choose an image file.'); return; }
+    if (file.size > MAX_AVATAR_BYTES) { setProfileError('Image must be under 5 MB.'); return; }
+
+    setUploadingAvatar(true);
+    try {
+      const uploadUrl = await convex.mutation(convexApi.profiles.generateAvatarUploadUrl, {});
+      const res = await fetch(uploadUrl, { method: 'POST', headers: { 'Content-Type': file.type }, body: file });
+      if (!res.ok) throw new Error('Upload failed');
+      const { storageId } = await res.json();
+      const url = await convex.mutation(convexApi.profiles.setAvatar, { userId, storageId });
+      setAvatarUrl(url);
+      onProfileUpdated();
+    } catch (err) {
+      setProfileError(errorMessage(err, 'Could not upload image.'));
+    }
+    setUploadingAvatar(false);
+  };
+
+  const handleChangePassword = async () => {
+    setPwMessage(null);
+    if (!currentPw || !newPw) { setPwMessage({ ok: false, text: 'Fill in all password fields.' }); return; }
+    if (newPw.length < 8) { setPwMessage({ ok: false, text: 'New password must be at least 8 characters.' }); return; }
+    if (newPw !== confirmPw) { setPwMessage({ ok: false, text: 'New passwords do not match.' }); return; }
+    setChangingPw(true);
+    try {
+      const result = await convex.action(convexApi.authActions.changePassword, {
+        userId, currentPassword: currentPw, newPassword: newPw,
+      });
+      if (result.ok) {
+        setPwMessage({ ok: true, text: 'Password updated.' });
+        setCurrentPw(''); setNewPw(''); setConfirmPw('');
+      } else {
+        setPwMessage({ ok: false, text: result.error ?? 'Could not update password.' });
+      }
+    } catch {
+      setPwMessage({ ok: false, text: 'Could not update password. Try again.' });
+    }
+    setChangingPw(false);
   };
 
   const handleBindClick = async () => {
@@ -65,7 +153,6 @@ const Settings: React.FC<SettingsProps> = ({ userId, role, authEmail, walletAddr
     { id: 'Security', icon: Lock },
     { id: 'Identity', icon: ShieldCheck },
     ...(role === UserRole.LEARNER ? [{ id: 'Payments', icon: CreditCard }] : []),
-    { id: 'Integrations', icon: Globe },
   ];
 
   const inputStyle: React.CSSProperties = {
@@ -76,7 +163,15 @@ const Settings: React.FC<SettingsProps> = ({ userId, role, authEmail, walletAddr
     fontSize: 14, outline: 'none',
     transition: 'border-color 0.15s',
     fontFamily: 'inherit',
+    boxSizing: 'border-box',
   };
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em',
+    color: 'var(--color-text-muted)', display: 'block', marginBottom: 8,
+  };
+  const focusOn = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)');
+  const focusOff = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => (e.currentTarget.style.borderColor = 'var(--color-border)');
 
   return (
     <div style={{ maxWidth: 960, margin: '0 auto', padding: '40px 24px 80px' }}>
@@ -126,19 +221,30 @@ const Settings: React.FC<SettingsProps> = ({ userId, role, authEmail, walletAddr
           {activeTab === 'Profile' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
               <div style={{ textAlign: 'center' }}>
+                <input ref={avatarInput} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarFile} />
                 <div style={{ position: 'relative', display: 'inline-block', marginBottom: 16 }}>
                   <img
-                    src={`https://i.pravatar.cc/150?u=${userId}`}
-                    style={{ width: 88, height: 88, borderRadius: 20, objectFit: 'cover', border: '2px solid var(--color-border)', display: 'block' }}
+                    src={avatarUrl || `https://i.pravatar.cc/150?u=${userId}`}
+                    style={{ width: 88, height: 88, borderRadius: 20, objectFit: 'cover', border: '2px solid var(--color-border)', display: 'block', opacity: uploadingAvatar ? 0.5 : 1 }}
                     alt="Avatar"
                   />
-                  <button style={{
-                    position: 'absolute', bottom: -6, right: -6,
-                    width: 28, height: 28, borderRadius: 8,
-                    background: 'var(--color-accent)', color: '#fff',
-                    border: '2px solid var(--color-bg-card)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                  }}>
+                  {uploadingAvatar && (
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Loader2 style={{ width: 22, height: 22, color: 'var(--color-accent)', animation: 'spin 1s linear infinite' }} />
+                    </div>
+                  )}
+                  <button
+                    onClick={() => avatarInput.current?.click()}
+                    disabled={uploadingAvatar}
+                    title="Change profile photo"
+                    style={{
+                      position: 'absolute', bottom: -6, right: -6,
+                      width: 28, height: 28, borderRadius: 8,
+                      background: 'var(--color-accent)', color: '#fff',
+                      border: '2px solid var(--color-bg-card)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                    }}
+                  >
                     <Camera style={{ width: 12, height: 12 }} />
                   </button>
                 </div>
@@ -146,30 +252,51 @@ const Settings: React.FC<SettingsProps> = ({ userId, role, authEmail, walletAddr
                   {displayName || authEmail?.split('@')[0] || 'My Profile'}
                 </p>
                 <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2 }}>{authEmail}</p>
+                <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 6 }}>JPG, PNG or GIF · max 5 MB</p>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
                 <div>
-                  <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-text-muted)', display: 'block', marginBottom: 8 }}>
-                    Display Name
-                  </label>
+                  <label style={labelStyle}>Display Name</label>
                   <input type="text" value={displayName} onChange={e => setDisplayName(e.target.value)}
-                    placeholder="Your name" style={inputStyle}
-                    onFocus={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)')}
-                    onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
-                  />
+                    placeholder="Your name" maxLength={80} style={inputStyle} onFocus={focusOn} onBlur={focusOff} />
                 </div>
                 <div>
-                  <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--color-text-muted)', display: 'block', marginBottom: 8 }}>
-                    Professional Title
-                  </label>
+                  <label style={labelStyle}>Professional Title</label>
                   <input type="text" value={professionalTitle} onChange={e => setProfessionalTitle(e.target.value)}
-                    placeholder="e.g. Smart Contract Developer" style={inputStyle}
-                    onFocus={e => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)')}
-                    onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
-                  />
+                    placeholder="e.g. Smart Contract Developer" maxLength={200} style={inputStyle} onFocus={focusOn} onBlur={focusOff} />
                 </div>
               </div>
+
+              <div>
+                <label style={labelStyle}>Bio</label>
+                <textarea rows={3} value={bio} onChange={e => setBio(e.target.value)} maxLength={1000}
+                  placeholder="Tell people what you're working on…"
+                  style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6 }} onFocus={focusOn} onBlur={focusOff} />
+              </div>
+
+              <div>
+                <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 14 }}>Social Links</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+                  {SOCIAL_FIELDS.map(({ key, label, icon: Icon, placeholder }) => (
+                    <div key={key}>
+                      <label style={labelStyle}>{label}</label>
+                      <div style={{ position: 'relative' }}>
+                        <Icon style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: 'var(--color-text-muted)' }} />
+                        <input type="text" value={socials[key]} maxLength={200}
+                          onChange={e => setSocials(prev => ({ ...prev, [key]: e.target.value }))}
+                          placeholder={placeholder} style={{ ...inputStyle, paddingLeft: 38 }} onFocus={focusOn} onBlur={focusOff} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {profileError && (
+                <p style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#f87171' }}>
+                  <AlertCircle style={{ width: 15, height: 15 }} /> {profileError}
+                </p>
+              )}
 
               <div>
                 <button
@@ -193,11 +320,53 @@ const Settings: React.FC<SettingsProps> = ({ userId, role, authEmail, walletAddr
 
           {/* ── Security tab ── */}
           {activeTab === 'Security' && (
-            <div>
-              <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 8 }}>Security Controls</h3>
-              <p style={{ fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
-                Password change, 2FA, and session management will appear here.
-              </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 440 }}>
+              <div>
+                <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 6 }}>Change Password</h3>
+                <p style={{ fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
+                  Use at least 8 characters. You'll use the new password next time you sign in.
+                </p>
+              </div>
+
+              {[
+                { label: 'Current Password', value: currentPw, set: setCurrentPw, auto: 'current-password' },
+                { label: 'New Password', value: newPw, set: setNewPw, auto: 'new-password' },
+                { label: 'Confirm New Password', value: confirmPw, set: setConfirmPw, auto: 'new-password' },
+              ].map(({ label, value, set, auto }) => (
+                <div key={label}>
+                  <label style={labelStyle}>{label}</label>
+                  <input type={showPw ? 'text' : 'password'} value={value} autoComplete={auto}
+                    onChange={e => set(e.target.value)} style={inputStyle} onFocus={focusOn} onBlur={focusOff}
+                    onKeyDown={e => { if (e.key === 'Enter') handleChangePassword(); }} />
+                </div>
+              ))}
+
+              <button onClick={() => setShowPw(v => !v)} style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', fontSize: 12, fontWeight: 600, padding: 0 }}>
+                {showPw ? <EyeOff style={{ width: 14, height: 14 }} /> : <Eye style={{ width: 14, height: 14 }} />}
+                {showPw ? 'Hide passwords' : 'Show passwords'}
+              </button>
+
+              {pwMessage && (
+                <p style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: pwMessage.ok ? '#34d399' : '#f87171' }}>
+                  {pwMessage.ok ? <CheckCircle style={{ width: 15, height: 15 }} /> : <AlertCircle style={{ width: 15, height: 15 }} />}
+                  {pwMessage.text}
+                </p>
+              )}
+
+              <button
+                onClick={handleChangePassword}
+                disabled={changingPw}
+                style={{
+                  alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '11px 24px', borderRadius: 10,
+                  background: 'var(--color-accent)', color: '#fff',
+                  fontWeight: 600, fontSize: 14, border: 'none', cursor: 'pointer',
+                  opacity: changingPw ? 0.7 : 1,
+                }}
+              >
+                {changingPw ? <Loader2 style={{ width: 15, height: 15, animation: 'spin 1s linear infinite' }} /> : <Lock style={{ width: 15, height: 15 }} />}
+                Update Password
+              </button>
             </div>
           )}
 
@@ -312,15 +481,6 @@ const Settings: React.FC<SettingsProps> = ({ userId, role, authEmail, walletAddr
             </div>
           )}
 
-          {/* ── Integrations tab ── */}
-          {activeTab === 'Integrations' && (
-            <div>
-              <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 8 }}>External Integrations</h3>
-              <p style={{ fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
-                API keys and third-party platform connections will appear here.
-              </p>
-            </div>
-          )}
         </main>
       </div>
     </div>

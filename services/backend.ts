@@ -175,6 +175,7 @@ class BackendService {
   async getJobs(): Promise<Array<{
     id: string; title: string; company: string; description: string;
     location: string; salaryRange: string; tags: string[]; createdAt: string;
+    postedBy?: string;
   }>> {
     try {
       const jobs = await convex.query(convexApi.jobs.listActive, {});
@@ -187,6 +188,7 @@ class BackendService {
         salaryRange: row.salaryRange || '',
         tags: row.skills || [],
         createdAt: new Date(row._creationTime).toISOString(),
+        postedBy: row.postedBy,
       }));
     } catch {
       return [];
@@ -487,56 +489,6 @@ class BackendService {
       }
     }, 5000);
     return cert;
-  }
-
-  // --- Assignments & Submissions ---
-
-  async getAssignment(courseId: string): Promise<{ id: string; title: string; description: string; dueDate: string | null } | null> {
-    try {
-      const assignments = await convex.query(convexApi.submissions.listAssignmentsByCourse, {
-        courseId: courseId as Id<'courses'>,
-      });
-      if (!assignments.length) return null;
-      const a = assignments[0];
-      return {
-        id: a._id as string,
-        title: a.title,
-        description: a.description,
-        dueDate: a.dueDate ? new Date(a.dueDate).toISOString() : null,
-      };
-    } catch {
-      return null;
-    }
-  }
-
-  async getMySubmission(assignmentId: string, userId: string): Promise<{ id: string; content: string; status: string; grade: number | null; feedback: string | null } | null> {
-    try {
-      const all = await convex.query(convexApi.submissions.listByUser, { userId });
-      const sub = all.find((s: any) => s.assignmentId === assignmentId);
-      if (!sub) return null;
-      return {
-        id: sub._id as string,
-        content: sub.content,
-        status: sub.status,
-        grade: sub.grade ?? null,
-        feedback: sub.feedback ?? null,
-      };
-    } catch {
-      return null;
-    }
-  }
-
-  async submitAssignment(assignmentId: string, courseId: string, userId: string, content: string): Promise<void> {
-    try {
-      await convex.mutation(convexApi.submissions.submit, {
-        assignmentId: assignmentId as Id<'assignments'>,
-        courseId: courseId as Id<'courses'>,
-        userId,
-        content,
-      });
-    } catch (e) {
-      console.error('submitAssignment:', e);
-    }
   }
 }
 

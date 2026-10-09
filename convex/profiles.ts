@@ -1,86 +1,36 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import {
   internalMutation,
   internalQuery,
   mutation,
   query,
 } from "./_generated/server";
+import schema from "./schema";
+import { getProfile, withAvatarUrl } from "./lib/profileHelpers";
 
 // ── Queries ───────────────────────────────────────────────────────────────────
 
+const profileDoc = schema.doc("profiles");
+
 export const getByUserId = query({
   args: { userId: v.string() },
-  returns: v.union(
-    v.null(),
-    v.object({
-      _id: v.id("profiles"),
-      _creationTime: v.number(),
-      userId: v.string(),
-      name: v.string(),
-      email: v.string(),
-      role: v.union(
-        v.literal("GUEST"),
-        v.literal("LEARNER"),
-        v.literal("EMPLOYER"),
-        v.literal("EDUCATOR"),
-        v.literal("ADMIN"),
-        v.literal("MOD"),
-      ),
-      avatarUrl: v.optional(v.string()),
-      walletAddress: v.optional(v.string()),
-      bio: v.optional(v.string()),
-      xp: v.number(),
-      badge: v.optional(v.string()),
-      status: v.union(
-        v.literal("active"),
-        v.literal("banned"),
-        v.literal("suspended"),
-      ),
-    }),
-  ),
+  returns: v.union(v.null(), profileDoc),
   handler: async (ctx, { userId }) => {
-    return await ctx.db
-      .query("profiles")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .unique();
+    const profile = await getProfile(ctx, userId);
+    return profile ? await withAvatarUrl(ctx, profile) : null;
   },
 });
 
 export const getLeaderboard = query({
   args: { limit: v.optional(v.number()) },
-  returns: v.array(
-    v.object({
-      _id: v.id("profiles"),
-      _creationTime: v.number(),
-      userId: v.string(),
-      name: v.string(),
-      email: v.string(),
-      role: v.union(
-        v.literal("GUEST"),
-        v.literal("LEARNER"),
-        v.literal("EMPLOYER"),
-        v.literal("EDUCATOR"),
-        v.literal("ADMIN"),
-        v.literal("MOD"),
-      ),
-      avatarUrl: v.optional(v.string()),
-      walletAddress: v.optional(v.string()),
-      bio: v.optional(v.string()),
-      xp: v.number(),
-      badge: v.optional(v.string()),
-      status: v.union(
-        v.literal("active"),
-        v.literal("banned"),
-        v.literal("suspended"),
-      ),
-    }),
-  ),
+  returns: v.array(profileDoc),
   handler: async (ctx, { limit }) => {
-    return await ctx.db
+    const rows = await ctx.db
       .query("profiles")
       .withIndex("by_xp")
       .order("desc")
-      .take(limit ?? 50);
+      .take(Math.min(limit ?? 50, 100));
+    return await Promise.all(rows.map((p) => withAvatarUrl(ctx, p)));
   },
 });
 
@@ -170,7 +120,7 @@ export const updateRole = mutation({
       .query("profiles")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .unique();
-    if (!profile) throw new Error("Profile not found");
+    if (!profile) throw new ConvexError("Profile not found");
     await ctx.db.patch(profile._id, { role });
     return null;
   },
@@ -220,5 +170,79 @@ export const updateStatus = internalMutation({
     if (!profile) return null;
     await ctx.db.patch(profile._id, { status });
     return null;
+  },
+});
+
+const MAX_FIELD = 200;
+const clean = (value: string | undefined) =>
+  value === undefined ? undefined : value.trim().slice(0, MAX_FIELD);
+
+export const updateProfile = mutation({
+  args: {
+    userId: v.string(),
+    name: v.string(),
+    title: v.optional(v.string()),
+    bio: v.optional(v.string()),
+    socials: v.optional(
+      v.object({
+        twitter: v.optional(v.string()),
+        linkedin: v.optional(v.string()),
+        github: v.optional(v.string()),
+        telegram: v.optional(v.string()),
+        website: v.optional(v.string()),
+      }),
+    ),
+  },
+  returns: v.null(),
+  handler: async (ctx, { userId, name, title, bio, socials }) => {
+    const profile = await getProfile(ctx, userId);
+    if (!profile) throw new ConvexError("Profile not found");
+    const trimmedName = name.trim().slice(0, 80);
+    if (!trimmedName) throw new ConvexError("Name cannot be empty");
+    await ctx.db.patch(profile._id, {
+      name: trimmedName,
+      title: clean(title),
+      bio: bio === undefined ? undefined : bio.trim().slice(0, 1000),
+      socials: socials && {
+        twitter: clean(socials.twitter),
+        linkedin: clean(socials.linkedin),
+        github: clean(socials.github),
+        telegram: clean(socials.telegram),
+        website: clean(socials.website),
+      },
+    });
+    return null;
+  },
+});
+
+export const generateAvatarUploadUrl = mutation({
+  args: {},
+  returns: v.string(),
+  handler: async (ctx) => {
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+export const setAvatar = mutation({
+  args: { userId: v.string(), storageId: v.id("_storage") },
+  returns: v.union(v.null(), v.string()),
+  handler: async (ctx, { userId, storageId }) => {
+    const profile = await getProfile(ctx, userId);
+    if (!profile) throw new ConvexError("Profile not found");
+    const meta = await ctx.db.system.get(storageId);
+    if (!meta) throw new ConvexError("Upload not found");
+    if (!meta.contentType?.startsWith("image/")) {
+      await ctx.storage.delete(storageId);
+      throw new ConvexError("Avatar must be an image");
+    }
+    if (meta.size > 5 * 1024 * 1024) {
+      await ctx.storage.delete(storageId);
+      throw new ConvexError("Avatar must be under 5 MB");
+    }
+    if (profile.avatarStorageId && profile.avatarStorageId !== storageId) {
+      await ctx.storage.delete(profile.avatarStorageId);
+    }
+    await ctx.db.patch(profile._id, { avatarStorageId: storageId });
+    return await ctx.storage.getUrl(storageId);
   },
 });

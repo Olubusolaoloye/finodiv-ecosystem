@@ -1,7 +1,9 @@
 ﻿import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getSession } from '../../services/session';
-import { api as backendApi } from '../../services/backend';
+import { convex } from '../../services/convex';
+import { api as convexApi } from '../../convex/_generated/api';
+import { errorMessage } from '../../services/errors';
 import {
   Upload, Video, Image as ImageIcon, ArrowLeft, CheckCircle2,
   Loader2, AlertCircle, Shield, ShieldAlert, Plus, Trash2, X,
@@ -120,26 +122,48 @@ const CourseUpload: React.FC = () => {
       const session = getSession();
       if (!session) { setErrMsg('You must be logged in.'); setSaving(false); return; }
 
-      const modulesJson = modules.map(mod => ({
-        id: mod.id, title: mod.title,
-        lessons: mod.lessons.map(les => ({
-          id: les.id, title: les.title || 'Untitled Lesson', video_url: null as string | null, duration: les.duration,
-        })),
-      }));
-
-      await backendApi.addCourse({
-        title: title.trim(), description: description.trim(), category, level,
-        price: Number(price) || 0, imageUrl: undefined,
+      const profile = await convex.query(convexApi.profiles.getByUserId, { userId: session.userId });
+      const totalLessons = modules.reduce((a, m) => a + m.lessons.length, 0);
+      const courseId = await convex.mutation(convexApi.courses.create, {
+        title: title.trim(),
+        description: description.trim(),
         instructorId: session.userId,
-        instructorName: session.email?.split('@')[0] || 'Educator',
-        isPublished: true,
-        duration: `${modules.reduce((a, m) => a + m.lessons.length, 0)} lessons`,
-        modules: modulesJson,
-      } as any);
+        instructorName: profile?.name || session.email?.split('@')[0] || 'Educator',
+        price: Number(price) || 0,
+        category,
+        level: level as 'Beginner' | 'Intermediate' | 'Advanced',
+        duration: `${totalLessons} lessons`,
+      });
+
+      let order = 0;
+      for (const mod of modules) {
+        for (const les of mod.lessons) {
+          await convex.mutation(convexApi.courses.addLesson, {
+            courseId,
+            title: `${mod.title} — ${les.title || 'Untitled Lesson'}`,
+            durationMinutes: Number.parseInt(String(les.duration), 10) || undefined,
+            orderIndex: order++,
+            xpReward: 10,
+          });
+        }
+      }
+
+      if (assignTitle.trim()) {
+        await convex.mutation(convexApi.submissions.createAssignment, {
+          courseId,
+          title: assignTitle.trim(),
+          description: assignDesc.trim(),
+          dueDate: assignDue ? new Date(assignDue).getTime() : undefined,
+          maxGrade: 100,
+          createdBy: session.userId,
+        });
+      }
+
+      await convex.mutation(convexApi.courses.publish, { id: courseId, instructorId: session.userId });
 
       setDone(true);
-    } catch (e: any) {
-      setErrMsg(e.message || 'Something went wrong. Please try again.');
+    } catch (e) {
+      setErrMsg(errorMessage(e));
     }
     setSaving(false);
   };

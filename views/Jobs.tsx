@@ -1,10 +1,13 @@
 ﻿import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../services/backend';
 import { getSession } from '../services/session';
+import { UserRole } from '../types';
+import EmployerJobs from './EmployerJobs';
 import {
   Search, MapPin, DollarSign, Briefcase, Loader2,
-  CheckCircle, Send, X, Clock,
+  CheckCircle, Send, X, Clock, MessageSquare,
 } from 'lucide-react';
 
 interface Job {
@@ -16,6 +19,7 @@ interface Job {
   salaryRange: string;
   tags: string[];
   createdAt: string;
+  postedBy?: string;
 }
 
 const TAG_ACCENT: Record<string, string> = {
@@ -51,7 +55,10 @@ function timeAgo(iso: string) {
 
 const COMPANY_COLORS = ['var(--color-accent)', '#7C3AED', '#059669', '#d97706', '#dc2626', '#0ea5e9'];
 
-const Jobs: React.FC = () => {
+const Jobs: React.FC<{ role: UserRole }> = ({ role }) => {
+  const navigate = useNavigate();
+  const isEmployer = role === UserRole.EMPLOYER || role === UserRole.ADMIN;
+  const [tab, setTab] = useState<'browse' | 'mine'>(isEmployer ? 'mine' : 'browse');
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
@@ -95,6 +102,11 @@ const Jobs: React.FC = () => {
   const openModal = (job: Job) => { setModalJob(job); setCoverLetter(''); setSubmitted(false); };
   const closeModal = () => { setModalJob(null); setSubmitted(false); };
 
+  const messageEmployer = (job: Job) => {
+    if (!job.postedBy) return;
+    navigate(`/community?with=${encodeURIComponent(job.postedBy)}&job=${job.id}`);
+  };
+
   const handleApply = async () => {
     if (!userId || !modalJob) return;
     setSubmitting(true);
@@ -126,6 +138,20 @@ const Jobs: React.FC = () => {
           Curated opportunities at the frontier of decentralized technology.
         </p>
       </div>
+
+      {isEmployer && (
+        <div style={{ display: 'inline-flex', gap: 4, padding: 4, borderRadius: 12, background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', marginBottom: 28 }}>
+          {([['mine', 'My Job Posts'], ['browse', 'Browse All']] as const).map(([key, label]) => (
+            <button key={key} onClick={() => setTab(key)} style={{
+              padding: '8px 16px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+              background: tab === key ? 'var(--color-accent)' : 'transparent',
+              color: tab === key ? '#fff' : 'var(--color-text-muted)',
+            }}>{label}</button>
+          ))}
+        </div>
+      )}
+
+      {isEmployer && tab === 'mine' && userId ? <EmployerJobs employerId={userId} /> : (<>
 
       {/* Search */}
       <div style={{ position: 'relative', marginBottom: 20, maxWidth: 560 }}>
@@ -259,8 +285,24 @@ const Jobs: React.FC = () => {
                           <span key={tag} style={tagStyle(tag)}>{tag}</span>
                         ))}
                       </div>
-                      <div style={{ marginTop: 8 }}>
-                        {applied ? (
+                      <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {job.postedBy && userId && job.postedBy !== userId && (
+                          <button
+                            onClick={() => messageEmployer(job)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 6,
+                              padding: '7px 14px', borderRadius: 8,
+                              background: 'var(--color-bg-deep)', color: 'var(--color-text-primary)',
+                              border: '1px solid var(--color-border)',
+                              fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                            }}
+                          >
+                            <MessageSquare style={{ width: 12, height: 12 }} /> Message
+                          </button>
+                        )}
+                        {job.postedBy === userId ? (
+                          <span style={{ fontSize: 11, color: 'var(--color-text-muted)', alignSelf: 'center' }}>Your posting</span>
+                        ) : isEmployer ? null : applied ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, background: 'rgba(5,150,105,0.12)', border: '1px solid rgba(5,150,105,0.25)', color: '#34d399', fontSize: 12, fontWeight: 600 }}>
                             <CheckCircle style={{ width: 13, height: 13 }} /> Applied
                           </div>
@@ -291,6 +333,8 @@ const Jobs: React.FC = () => {
           })}
         </div>
       )}
+
+      </>)}
 
       {/* Apply Modal */}
       <AnimatePresence>
@@ -339,10 +383,20 @@ const Jobs: React.FC = () => {
                     <CheckCircle style={{ width: 28, height: 28, color: '#34d399' }} />
                   </div>
                   <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 8 }}>Application Submitted!</h3>
-                  <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 24 }}>Your application to {modalJob.company} has been recorded. Good luck!</p>
-                  <button onClick={closeModal} style={{ padding: '10px 24px', borderRadius: 10, background: 'var(--color-accent)', color: '#fff', fontWeight: 600, fontSize: 14, border: 'none', cursor: 'pointer' }}>
-                    Close
-                  </button>
+                  <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 24 }}>
+                    Your application to {modalJob.company} has been recorded.
+                    {modalJob.postedBy ? ' We started a chat with the employer so you can follow up.' : ' Good luck!'}
+                  </p>
+                  <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                    {modalJob.postedBy && (
+                      <button onClick={() => messageEmployer(modalJob)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 10, background: 'var(--color-accent)', color: '#fff', fontWeight: 600, fontSize: 14, border: 'none', cursor: 'pointer' }}>
+                        <MessageSquare style={{ width: 15, height: 15 }} /> Open Chat
+                      </button>
+                    )}
+                    <button onClick={closeModal} style={{ padding: '10px 24px', borderRadius: 10, background: modalJob.postedBy ? 'var(--color-bg-deep)' : 'var(--color-accent)', color: modalJob.postedBy ? 'var(--color-text-primary)' : '#fff', fontWeight: 600, fontSize: 14, border: modalJob.postedBy ? '1px solid var(--color-border)' : 'none', cursor: 'pointer' }}>
+                      Close
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <>
